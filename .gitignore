@@ -3,6 +3,9 @@
 # Dictionary gobs
 *.gob
 
+# Claude's Test data
+testdata/
+
 # Standard Go build artifacts
 *.exe
 *.test
@@ -13,6 +16,7 @@ vendor/
 .DS_Store
 Thumbs.db
 
+# gograph
 .gograph/
 
 # editor/IDE temp files
