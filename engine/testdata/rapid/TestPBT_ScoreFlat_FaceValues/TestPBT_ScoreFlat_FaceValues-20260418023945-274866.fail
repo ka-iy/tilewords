@@ -1,0 +1,11 @@
+# 2026/04/18 02:39:45.053663 [TestPBT_ScoreFlat_FaceValues] [rapid] draw numTiles: 1
+# 2026/04/18 02:39:45.053699 [TestPBT_ScoreFlat_FaceValues] [rapid] draw tile: engine.Tile{Letter:0x41, Points:1, IsBlank:false, AssignedLetter:0x0}
+# 2026/04/18 02:39:45.053736 [TestPBT_ScoreFlat_FaceValues] flat board score = 0, want face sum 1
+# 
+v0.4.8#4641633263100318340
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

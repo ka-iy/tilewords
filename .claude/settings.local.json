@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sL https://api.github.com/repos/awslabs/aidlc-workflows/releases/latest)",
+      "Bash(go get *)",
+      "Bash(go build *)",
+      "Bash(go test *)",
+      "Bash(dpkg -l)",
+      "Bash(apt-cache search *)",
+      "Bash(CGO_LDFLAGS=\"-L/tmp/locallib\" go test -race ./ui/...)",
+      "Bash(go version *)",
+      "Bash(echo \"go: $\\(go version\\)\")",
+      "Bash(make -n build)",
+      "Bash(make -n test)",
+      "Bash(make -n android)",
+      "Bash(make build *)",
+      "Bash(make test *)",
+      "Bash(go vet *)",
+      "Bash(make *)",
+      "Bash(cat)",
+      "Bash(go run *)",
+      "Bash(python3 *)",
+      "mcp__gograph__gograph_source",
+      "mcp__gograph__gograph_query",
+      "Bash(gograph build *)",
+      "mcp__gograph__gograph_usages",
+      "Bash(gofmt -w ui/*.go)",
+      "Bash(gofmt -l ui/*.go)",
+      "Bash(adb shell *)"
+    ]
+  }
+}

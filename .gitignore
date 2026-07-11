@@ -1,0 +1,27 @@
+.aidlc
+
+# Dictionary gobs
+*.gob
+
+# Standard Go build artifacts
+*.exe
+*.test
+*.out
+vendor/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+.gograph/
+
+# editor/IDE temp files
+*~
+.*.swp
+.*.swo
+.idea/
+
+# binaries
+*.apk
+buildgaddag
+squabble*

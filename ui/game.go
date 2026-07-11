@@ -1,0 +1,1307 @@
+// Package ui is documented in doc.go.
+package ui
+
+import (
+	"fmt"
+	"math/rand"
+	"strings"
+	"time"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
+
+	"squabble/ai"
+	"squabble/dictionary"
+	"squabble/engine"
+)
+
+// aiTimeoutSecs is the maximum time the UI waits for the AI to return a move
+// before applying a pass on its behalf.
+const aiTimeoutSecs = 10
+
+// doubleTapWindow is the maximum gap between two presses on the same staged board tile
+// for them to register as a double-press, which returns the tile to the rack. The board
+// cells deliberately do not implement fyne.DoubleTappable — on mobile that delays every
+// single tap by tapDoubleDelay (500ms) — so the double-press is detected in the
+// controller, keeping tile placement instant.
+const doubleTapWindow = 350 * time.Millisecond
+
+// stagedTile holds a tile taken from the human rack and tentatively placed on the
+// board. fromRackIdx records the original rack slot so the tile can be recalled.
+type stagedTile struct {
+	Tile        engine.Tile
+	Row, Col    int
+	FromRackIdx int
+}
+
+// historyEntry is one executed turn: the command (for undo), the player who made
+// it, and the log line shown in the move-history panel.
+type historyEntry struct {
+	cmd    engine.Command
+	player string // "You" or "AI"
+	line   string
+}
+
+// gameScreen is the gameplay controller. It owns all mutable game state for one
+// session plus the widgets that visualise it.
+type gameScreen struct {
+	app   *App
+	state *engine.GameState
+	dict  *dictionary.Dictionary
+	rng   *rand.Rand
+
+	// Interaction state.
+	staged       []stagedTile
+	rackSelected int          // selected human rack index; -1 = none
+	exchangeMode bool         // selecting tiles to exchange
+	exchangeSel  map[int]bool // rack indices chosen for exchange
+	showAIRack   bool
+	aiThinking   bool
+	blankOpen    bool // a blank-letter dialog is currently shown
+	abandoned    bool // set when the player leaves this screen (stops stale AI callbacks)
+	gameOver     bool // set when the game has ended; the screen stays up for review
+
+	statusMsg   string
+	statusIsErr bool
+
+	// Widgets.
+	cells     [boardDim * boardDim]*cellWidget
+	humanRack [engine.MaxRackSize]*rackSlotWidget
+	aiRack    [engine.MaxRackSize]*rackSlotWidget
+
+	// boardBox and humanRackBoxC are the laid-out containers for the board grid and
+	// the human rack; drag-and-drop hit-tests pointer positions against their geometry.
+	boardBox      *fyne.Container
+	humanRackBoxC *fyne.Container
+
+	rackLabel  *canvas.Text    // "Your rack" / red "GAME OVER" — green on the human's turn
+	playIcon   *widget.Icon    // green play triangle beside the rack on the human's turn
+	rackHeader *fyne.Container // wraps the rack label row; relaid out when the label text changes
+
+	// Drag ghost: a floating tile that follows the cursor during a drag. It lives in a
+	// no-layout overlay above the content (added in App.showGame) and is moved directly.
+	ghost       *fyne.Container
+	ghostBg     *canvas.Rectangle
+	ghostLetter *canvas.Text
+	ghostPoints *canvas.Text
+	// Source of the in-progress drag, hidden in the rendering so the tile looks lifted:
+	// dragRackSrc is the rack slot (-1 = none); dragBoardSrc is the board cell ({-1,-1}).
+	dragRackSrc  int
+	dragBoardSrc [2]int
+
+	// pickedUp is the board cell of a staged tile tapped to move ({-1,-1} = none): the
+	// next tap on an empty cell relocates it (tap-to-move).
+	pickedUp [2]int
+
+	// lastPressCell/lastPressAt track the previous press on a staged tile so a second
+	// press on the same tile within doubleTapWindow registers as a double-press (which
+	// returns the tile to the rack). Tracked here rather than via fyne.DoubleTappable so
+	// single taps stay instant, and checked in both the tap and the touch drag-release
+	// paths so the gesture works whether the OS reports a tap or a micro-drag.
+	lastPressCell [2]int
+	lastPressAt   time.Time
+
+	youLabel   *widget.Label
+	aiLabel    *widget.Label
+	bagLabel   *widget.Label
+	moveLabel  *widget.Label
+	levelLabel *widget.Label // AI difficulty, shown in the top counters row
+	statusRT   *widget.RichText
+
+	// Move-history log + undo stack (right of the board). Each entry is one executed
+	// command; undo pops entries and reverses them, one turn per press.
+	history       []historyEntry
+	historyLabel  *widget.Label
+	historyScroll *container.Scroll
+
+	// aiLastPlaced holds the board cells of the AI's most recently played word; the
+	// board outlines these tiles in red. Derived from history by recomputeAIHighlight.
+	aiLastPlaced map[[2]int]bool
+
+	playBtn    *widget.Button
+	exchBtn    *widget.Button
+	passBtn    *widget.Button
+	undoBtn    *widget.Button
+	saveBtn    *widget.Button
+	toggleBtn  *widget.Button
+	menuBtn    *widget.Button
+	shuffleBtn *widget.Button
+	recallBtn  *widget.Button
+}
+
+// newGameScreen constructs the controller (no widgets yet; see build).
+func newGameScreen(a *App, state *engine.GameState, dict *dictionary.Dictionary) *gameScreen {
+	return &gameScreen{
+		app:           a,
+		state:         state,
+		dict:          dict,
+		rng:           rand.New(rand.NewSource(time.Now().UnixNano())),
+		rackSelected:  -1,
+		exchangeSel:   make(map[int]bool),
+		dragRackSrc:   -1,
+		dragBoardSrc:  [2]int{-1, -1},
+		pickedUp:      [2]int{-1, -1},
+		lastPressCell: [2]int{-1, -1},
+	}
+}
+
+// build constructs every widget, assembles the layout and returns the content.
+func (gs *gameScreen) build() fyne.CanvasObject {
+	// Board.
+	boardObjs := make([]fyne.CanvasObject, 0, boardDim*boardDim)
+	for row := 0; row < boardDim; row++ {
+		for col := 0; col < boardDim; col++ {
+			sq := gs.state.Board.Cell(row, col).Square
+			c := newCellWidget(row, col, sq, gs.onBoardTap)
+			c.onDrag = gs.onBoardDrag
+			c.onDragEnd = gs.onBoardDragEnd
+			gs.cells[row*boardDim+col] = c
+			boardObjs = append(boardObjs, c)
+		}
+	}
+	board := container.New(boardLayout{}, boardObjs...)
+	gs.boardBox = board
+
+	// Racks.
+	humanObjs := make([]fyne.CanvasObject, engine.MaxRackSize)
+	for i := 0; i < engine.MaxRackSize; i++ {
+		s := newRackSlotWidget(i, gs.onRackTap)
+		s.onDrag = gs.onRackDrag
+		s.onDragEnd = gs.onRackDragEnd
+		gs.humanRack[i] = s
+		humanObjs[i] = s
+	}
+	humanRack := container.New(rackLayout{}, humanObjs...)
+	gs.humanRackBoxC = humanRack
+
+	aiObjs := make([]fyne.CanvasObject, engine.MaxRackSize)
+	for i := 0; i < engine.MaxRackSize; i++ {
+		s := newRackSlotWidget(i, nil) // AI rack is not interactive
+		gs.aiRack[i] = s
+		aiObjs[i] = s
+	}
+	aiRack := container.New(rackLayout{}, aiObjs...)
+
+	// Score/status bar.
+	gs.youLabel = widget.NewLabel("")
+	gs.aiLabel = widget.NewLabel("")
+	gs.bagLabel = widget.NewLabel("")
+	gs.moveLabel = widget.NewLabel("")
+	gs.levelLabel = widget.NewLabel(fmt.Sprintf("AI Lv: %d", gs.state.AILevel))
+	gs.statusRT = widget.NewRichTextWithText("")
+	gs.statusRT.Wrapping = fyne.TextWrapWord
+
+	topBar := container.NewVBox(
+		container.NewCenter(container.NewHBox(gs.youLabel, gs.aiLabel, gs.bagLabel, gs.moveLabel, gs.levelLabel)),
+		gs.statusRT,
+	)
+
+	// Control buttons (shared across layouts; arranged differently per layout).
+	gs.playBtn = widget.NewButton("Play", gs.commitPlay)
+	gs.playBtn.Importance = widget.HighImportance
+	gs.exchBtn = widget.NewButton("Exchange", gs.onExchange)
+	gs.passBtn = widget.NewButton("Pass", gs.commitPass)
+	gs.undoBtn = widget.NewButton("Undo", gs.doUndo)
+	gs.saveBtn = widget.NewButton("Save", gs.doSave)
+	gs.toggleBtn = widget.NewButton("Show AI", gs.toggleAIRack)
+	gs.menuBtn = widget.NewButton("Menu", gs.goMainMenu)
+	buttons := []fyne.CanvasObject{
+		gs.playBtn, gs.exchBtn, gs.passBtn, gs.undoBtn, gs.saveBtn, gs.toggleBtn, gs.menuBtn,
+	}
+
+	// Rack header: a green play icon (shown on the human's turn) and the "Your rack"
+	// label (green on the human's turn), with the shuffle and recall buttons grouped
+	// immediately to its right. refresh() drives the turn cue.
+	gs.playIcon = widget.NewIcon(blankIconResource)
+	gs.rackLabel = canvas.NewText("Your rack", bodyTextColor())
+	gs.rackLabel.TextStyle = fyne.TextStyle{Bold: true}
+	gs.rackLabel.TextSize = theme.TextSize()
+	gs.shuffleBtn = widget.NewButtonWithIcon("", shuffleIconResource, gs.doShuffle)
+	gs.shuffleBtn.Importance = widget.LowImportance
+	gs.recallBtn = widget.NewButtonWithIcon("", recallIconResource, gs.doRecallAll)
+	gs.recallBtn.Importance = widget.LowImportance
+	rackHeaderRow := container.NewHBox(
+		container.NewCenter(gs.playIcon),
+		container.NewCenter(gs.rackLabel),
+		gs.shuffleBtn,
+		gs.recallBtn,
+	)
+	gs.rackHeader = container.NewCenter(rackHeaderRow)
+	humanRackBox := container.NewVBox(gs.rackHeader, humanRack)
+	aiRackBox := container.NewVBox(
+		widget.NewLabelWithStyle(fmt.Sprintf("AI rack — Lv %d", gs.state.AILevel), fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		aiRack,
+	)
+
+	// Move-history panel: a non-editable, scrollable log of each turn — the player,
+	// the word(s) played, and the score.
+	gs.historyLabel = widget.NewLabel("")
+	gs.historyLabel.Wrapping = fyne.TextWrapWord
+	gs.historyScroll = container.NewVScroll(gs.historyLabel)
+	historyTitle := widget.NewLabelWithStyle("Move history", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	historyBox := container.NewBorder(historyTitle, nil, nil, nil, gs.historyScroll)
+
+	// Drag ghost: a floating tile that follows the cursor; hidden until a drag begins.
+	// App.showGame stacks it in a no-layout overlay above this content.
+	gs.ghostBg, gs.ghostLetter, gs.ghostPoints = newTileObjects()
+	gs.ghost = container.New(tileFillLayout{}, gs.ghostBg, gs.ghostLetter, gs.ghostPoints)
+	gs.ghost.Hide()
+
+	gs.refresh()
+
+	// Two arrangements of the same widgets, chosen by available size:
+	//   wide   — board left, history right (draggable split); racks + a single control
+	//            row across the bottom.
+	//   narrow — one scrollable column (board, racks, controls, history) for phone
+	//            portrait, so nothing is clipped and the page scrolls if needed.
+	buildArrangement := func(narrow bool) fyne.CanvasObject {
+		if narrow {
+			controls := container.NewGridWithColumns(2, buttons...)
+			// The board fills the column width (scaling up from its tappable minimum);
+			// the rest stack below at their natural heights, and the page scrolls.
+			column := container.New(
+				phoneColumnLayout{board: board, minBoard: minBoardPx},
+				topBar,
+				board,
+				humanRackBox,
+				controls,
+				aiRackBox,
+				container.New(minHeightLayout{minH: 160}, historyBox),
+			)
+			return container.NewVScroll(column)
+		}
+		controls := container.NewGridWithColumns(len(buttons), buttons...)
+		bottom := container.NewVBox(humanRackBox, controls, aiRackBox)
+		split := container.NewHSplit(board, historyBox)
+		split.SetOffset(0.72)
+		return container.NewBorder(topBar, bottom, nil, nil, split)
+	}
+
+	return newResponsiveContainer(buildArrangement)
+}
+
+// ---------- Refresh ----------
+
+// refresh pushes the current game state into every widget and updates the
+// enabled state of the control buttons. It must run on the UI goroutine.
+func (gs *gameScreen) refresh() {
+	// Board: committed tiles, then staged tiles override empty cells.
+	// Drop a stale tap-to-move pickup whose tile is no longer staged (recalled, moved,
+	// committed, or undone).
+	if gs.pickedUp != [2]int{-1, -1} {
+		if _, ok := gs.stagedAt(gs.pickedUp[0], gs.pickedUp[1]); !ok {
+			gs.pickedUp = [2]int{-1, -1}
+		}
+	}
+
+	stagedAt := make(map[[2]int]engine.Tile, len(gs.staged))
+	for _, st := range gs.staged {
+		stagedAt[[2]int{st.Row, st.Col}] = st.Tile
+	}
+	for row := 0; row < boardDim; row++ {
+		for col := 0; col < boardDim; col++ {
+			cell := gs.cells[row*boardDim+col]
+			committed := gs.state.Board.Cell(row, col).Tile
+			if committed != nil {
+				t := *committed
+				cell.setContent(&t, false, gs.aiLastPlaced[[2]int{row, col}], false)
+				continue
+			}
+			if t, ok := stagedAt[[2]int{row, col}]; ok && [2]int{row, col} != gs.dragBoardSrc {
+				st := t
+				cell.setContent(&st, true, false, [2]int{row, col} == gs.pickedUp)
+				continue
+			}
+			cell.setContent(nil, false, false, false)
+		}
+	}
+
+	// Human rack.
+	stagedOut := make(map[int]bool, len(gs.staged))
+	for _, st := range gs.staged {
+		stagedOut[st.FromRackIdx] = true
+	}
+	humanTiles := gs.state.HumanRack.Tiles()
+	for i := 0; i < engine.MaxRackSize; i++ {
+		slot := gs.humanRack[i]
+		if i >= len(humanTiles) || stagedOut[i] || i == gs.dragRackSrc {
+			slot.setContent(nil, false, false, false)
+			continue
+		}
+		t := humanTiles[i]
+		selected := !gs.exchangeMode && i == gs.rackSelected
+		slot.setContent(&t, false, selected, gs.exchangeSel[i])
+	}
+
+	// AI rack (face-down unless revealed).
+	aiTiles := gs.state.AIRack.Tiles()
+	for i := 0; i < engine.MaxRackSize; i++ {
+		slot := gs.aiRack[i]
+		if i >= len(aiTiles) {
+			slot.setContent(nil, false, false, false)
+			continue
+		}
+		t := aiTiles[i]
+		slot.setContent(&t, !gs.showAIRack, false, false)
+	}
+
+	// Scores / counters.
+	youMark, aiMark := "", ""
+	if gs.state.CurrentTurn == engine.HumanTurn {
+		youMark = "▶ "
+	} else {
+		aiMark = "▶ "
+	}
+	gs.youLabel.SetText(fmt.Sprintf("%sYou: %d", youMark, gs.state.HumanScore))
+	gs.aiLabel.SetText(fmt.Sprintf("%sAI: %d", aiMark, gs.state.AIScore))
+
+	// Rack label: red "GAME OVER" when the game has ended; otherwise "Your rack",
+	// green with a play icon on the human's turn and the normal colour otherwise. The
+	// header is relaid out only when the text (hence width) changes.
+	if gs.rackLabel != nil {
+		text, col := "Your rack", bodyTextColor()
+		icon := blankIconResource
+		switch {
+		case gs.gameOver:
+			text, col = "GAME OVER", gameOverColor()
+		case gs.state.CurrentTurn == engine.HumanTurn && !gs.aiThinking:
+			col = turnCueColor()
+			icon = playIconResource
+		}
+		relayout := gs.rackLabel.Text != text
+		gs.rackLabel.Text = text
+		gs.rackLabel.Color = col
+		gs.playIcon.SetResource(icon)
+		gs.rackLabel.Refresh()
+		if relayout && gs.rackHeader != nil {
+			gs.rackHeader.Refresh()
+		}
+	}
+	gs.bagLabel.SetText(fmt.Sprintf("Bag: %d", gs.state.Bag.Count()))
+	gs.moveLabel.SetText(fmt.Sprintf("Move: %d", gs.state.MoveNumber))
+
+	// Status line.
+	msg := gs.statusMsg
+	colorName := theme.ColorNameSuccess
+	if gs.statusIsErr {
+		colorName = theme.ColorNameError
+	}
+	if gs.aiThinking {
+		msg = "AI is thinking…"
+		colorName = theme.ColorNameForeground
+	}
+	gs.statusRT.Segments = []widget.RichTextSegment{
+		&widget.TextSegment{Text: msg, Style: widget.RichTextStyle{
+			ColorName: colorName,
+			SizeName:  theme.SizeNameSubHeadingText, // larger than body text for legibility
+			Alignment: fyne.TextAlignCenter,
+		}},
+	}
+	gs.statusRT.Refresh()
+
+	gs.syncButtons()
+}
+
+// syncButtons enables/disables the control buttons based on the current state.
+func (gs *gameScreen) syncButtons() {
+	// While the blank-letter dialog is open, no action button may fire — a staged
+	// blank has no assigned letter yet, so committing now would form an invalid word.
+	humanTurn := gs.state.CurrentTurn == engine.HumanTurn && !gs.aiThinking && !gs.blankOpen && !gs.gameOver
+	hasStaged := len(gs.staged) > 0
+
+	setEnabled(gs.playBtn, humanTurn && hasStaged)
+	setEnabled(gs.exchBtn, humanTurn && !hasStaged)
+	setEnabled(gs.passBtn, humanTurn && !hasStaged && !gs.exchangeMode)
+	setEnabled(gs.undoBtn, humanTurn && gs.canUndo() && !hasStaged && !gs.exchangeMode)
+	setEnabled(gs.saveBtn, humanTurn)
+	setEnabled(gs.toggleBtn, true)
+	setEnabled(gs.menuBtn, true)
+	setEnabled(gs.shuffleBtn, humanTurn && !gs.exchangeMode)
+	setEnabled(gs.recallBtn, humanTurn && hasStaged)
+
+	switch {
+	case gs.exchangeMode && len(gs.exchangeSel) > 0:
+		gs.exchBtn.SetText("Confirm")
+	case gs.exchangeMode:
+		gs.exchBtn.SetText("Cancel")
+	default:
+		gs.exchBtn.SetText("Exchange")
+	}
+
+	if gs.showAIRack {
+		gs.toggleBtn.SetText("Hide AI")
+	} else {
+		gs.toggleBtn.SetText("Show AI")
+	}
+}
+
+// setEnabled toggles a button's enabled state.
+func setEnabled(b *widget.Button, enabled bool) {
+	if enabled {
+		b.Enable()
+	} else {
+		b.Disable()
+	}
+}
+
+// ---------- Tile input ----------
+
+// registerStagedPress records a press on the staged tile at (row,col) and reports
+// whether it completes a double-press: a second press on the same staged cell within
+// doubleTapWindow. It is called from both the tap path (onBoardTap) and the touch
+// drag-release path (onBoardDragEnd), so a double-press is recognised whether the OS
+// classifies the presses as taps or micro-drags.
+func (gs *gameScreen) registerStagedPress(row, col int) (doublePress bool) {
+	if gs.lastPressCell == [2]int{row, col} && time.Since(gs.lastPressAt) < doubleTapWindow {
+		gs.lastPressCell = [2]int{-1, -1}
+		return true
+	}
+	gs.lastPressCell = [2]int{row, col}
+	gs.lastPressAt = time.Now()
+	return false
+}
+
+func (gs *gameScreen) onBoardTap(row, col int) {
+	if !gs.humanInputAllowed() {
+		return
+	}
+	gs.dragRackSrc = -1 // a tap is not a rack drag; drop any leaked rack-drag source
+	if !gs.state.Board.IsEmpty(row, col) {
+		return // occupied by a committed tile
+	}
+	// A double-press on a staged tile returns it to the rack. Otherwise a single press
+	// picks the tile up to move (tap-to-move), or puts a held tile back down.
+	if _, ok := gs.stagedAt(row, col); ok {
+		if gs.registerStagedPress(row, col) {
+			gs.onBoardDoubleTap(row, col) // double-press → recall to the rack
+			return
+		}
+		if gs.pickedUp == [2]int{row, col} {
+			gs.pickedUp = [2]int{-1, -1}
+			gs.refresh() // tapping the held tile again puts it back down
+			return
+		}
+		gs.pickedUp = [2]int{row, col}
+		gs.rackSelected = -1
+		gs.refresh()
+		return
+	}
+	// Empty cell. If a staged tile is picked up, move it here.
+	if gs.pickedUp != [2]int{-1, -1} {
+		src := gs.pickedUp
+		gs.pickedUp = [2]int{-1, -1}
+		if st, ok := gs.stagedAt(src[0], src[1]); ok {
+			gs.moveStagedTile(st, row, col)
+		} else {
+			gs.refresh()
+		}
+		return
+	}
+	// Otherwise place the selected rack tile here.
+	if gs.rackSelected >= 0 {
+		gs.stageTile(gs.rackSelected, row, col)
+	}
+}
+
+func (gs *gameScreen) onRackTap(idx int) {
+	if !gs.humanInputAllowed() {
+		return
+	}
+	gs.clearDragState() // a tap is not a drag; drop any leaked drag source
+	tiles := gs.state.HumanRack.Tiles()
+	for _, st := range gs.staged {
+		if st.FromRackIdx == idx {
+			return // this slot is staged on the board
+		}
+	}
+	if idx >= len(tiles) {
+		return
+	}
+
+	if gs.exchangeMode {
+		if gs.exchangeSel[idx] {
+			delete(gs.exchangeSel, idx)
+		} else {
+			gs.exchangeSel[idx] = true
+		}
+		gs.refresh()
+		return
+	}
+
+	gs.pickedUp = [2]int{-1, -1} // selecting a rack tile cancels a board tap-to-move
+	if gs.rackSelected == idx {
+		gs.rackSelected = -1
+	} else {
+		gs.rackSelected = idx
+	}
+	gs.refresh()
+}
+
+// humanInputAllowed reports whether board/rack taps should be processed.
+func (gs *gameScreen) humanInputAllowed() bool {
+	return !gs.abandoned && !gs.aiThinking && !gs.blankOpen && !gs.gameOver &&
+		gs.state.CurrentTurn == engine.HumanTurn
+}
+
+// stageTile moves the tile at rackIdx onto board cell (row, col). If it is an
+// unassigned blank, the blank-letter picker is shown.
+func (gs *gameScreen) stageTile(rackIdx, row, col int) {
+	tiles := gs.state.HumanRack.Tiles()
+	if rackIdx < 0 || rackIdx >= len(tiles) {
+		return
+	}
+	if gs.isStagedSlot(rackIdx) {
+		// This rack slot is already staged — staging it again would duplicate the
+		// FromRackIdx and leave a phantom staged entry keyed to the same slot.
+		return
+	}
+	t := tiles[rackIdx]
+	gs.staged = append(gs.staged, stagedTile{Tile: t, Row: row, Col: col, FromRackIdx: rackIdx})
+	gs.rackSelected = -1
+	gs.refresh()
+
+	if t.IsBlank && t.AssignedLetter == 0 {
+		gs.promptBlank(rackIdx)
+	}
+}
+
+// recallStagedTile removes the staged tile that came from fromRackIdx.
+func (gs *gameScreen) recallStagedTile(fromRackIdx int) {
+	for i, st := range gs.staged {
+		if st.FromRackIdx == fromRackIdx {
+			gs.staged = append(gs.staged[:i], gs.staged[i+1:]...)
+			break
+		}
+	}
+}
+
+// recallAll returns every staged tile to the rack and cancels any exchange.
+func (gs *gameScreen) recallAll() {
+	gs.staged = gs.staged[:0]
+	gs.rackSelected = -1
+	gs.exchangeMode = false
+	gs.exchangeSel = make(map[int]bool)
+	gs.pickedUp = [2]int{-1, -1}
+	gs.clearDragState()
+}
+
+// clearDragState resets the transient drag sources. A touch drag that never delivered
+// its DragEnd (interrupted gesture) would otherwise leave dragRackSrc/dragBoardSrc
+// pointing at a slot, which refresh() renders as a permanent phantom empty slot —
+// making the rack appear to be missing a tile. Clearing it at turn boundaries and on
+// any tap guarantees a leaked drag source cannot outlive the gesture.
+func (gs *gameScreen) clearDragState() {
+	gs.dragRackSrc = -1
+	gs.dragBoardSrc = [2]int{-1, -1}
+}
+
+// assignBlank sets the chosen letter on the staged blank from rack slot fromRackIdx.
+func (gs *gameScreen) assignBlank(fromRackIdx int, letter byte) {
+	for i := range gs.staged {
+		if gs.staged[i].FromRackIdx == fromRackIdx {
+			gs.staged[i].Tile.AssignedLetter = letter
+			gs.staged[i].Tile.Letter = letter // used by GADDAG traversal
+			return
+		}
+	}
+}
+
+// stagedBlankUnassigned reports whether the staged tile from fromRackIdx is a
+// blank that still has no assigned letter.
+func (gs *gameScreen) stagedBlankUnassigned(fromRackIdx int) bool {
+	for _, st := range gs.staged {
+		if st.FromRackIdx == fromRackIdx {
+			return st.Tile.IsBlank && st.Tile.AssignedLetter == 0
+		}
+	}
+	return false
+}
+
+// ---------- Actions ----------
+
+func (gs *gameScreen) commitPlay() {
+	if len(gs.staged) == 0 {
+		gs.setStatus("Place at least one tile before playing.", true)
+		gs.refresh()
+		return
+	}
+	placed := make([]engine.PlacedTile, len(gs.staged))
+	for i, st := range gs.staged {
+		placed[i] = engine.PlacedTile{Tile: st.Tile, Row: st.Row, Col: st.Col}
+	}
+	cmd := &engine.PlayCommand{Move: engine.PlayMove{Placed: placed}}
+	if err := cmd.Execute(gs.state, gs.dict, gs.rng); err != nil {
+		gs.setStatus(sanitiseError(err), true)
+		gs.refresh()
+		return
+	}
+	gs.staged = gs.staged[:0]
+	gs.rackSelected = -1
+	gs.clearDragState()
+	gs.setStatus(fmt.Sprintf("Played! +%d pts", cmd.Move.Score), false)
+	gs.logCommand("You", cmd)
+	gs.afterHumanMove()
+}
+
+func (gs *gameScreen) onExchange() {
+	if !gs.exchangeMode {
+		gs.exchangeMode = true
+		gs.rackSelected = -1
+		gs.exchangeSel = make(map[int]bool)
+		gs.setStatus("Tap tiles to select, then Confirm Exchange.", false)
+		gs.refresh()
+		return
+	}
+	if len(gs.exchangeSel) > 0 {
+		gs.commitExchange()
+		return
+	}
+	gs.exchangeMode = false
+	gs.setStatus("Exchange cancelled.", false)
+	gs.refresh()
+}
+
+func (gs *gameScreen) commitExchange() {
+	tiles := gs.state.HumanRack.Tiles()
+	var toExchange []engine.Tile
+	for idx := range gs.exchangeSel {
+		if idx < len(tiles) {
+			toExchange = append(toExchange, tiles[idx])
+		}
+	}
+	if len(toExchange) == 0 {
+		gs.setStatus("Select tiles on your rack to exchange.", true)
+		gs.refresh()
+		return
+	}
+	cmd := &engine.ExchangeCommand{Move: engine.ExchangeMove{Tiles: toExchange}}
+	if err := cmd.Execute(gs.state, gs.dict, gs.rng); err != nil {
+		gs.setStatus(sanitiseError(err), true)
+		gs.refresh()
+		return
+	}
+	gs.exchangeMode = false
+	gs.rackSelected = -1
+	gs.exchangeSel = make(map[int]bool)
+	gs.clearDragState()
+	gs.setStatus(fmt.Sprintf("Exchanged %d tile(s).", len(toExchange)), false)
+	gs.logCommand("You", cmd)
+	gs.afterHumanMove()
+}
+
+func (gs *gameScreen) commitPass() {
+	gs.recallAll()
+	cmd := &engine.PassCommand{}
+	if err := cmd.Execute(gs.state, gs.dict, gs.rng); err != nil {
+		gs.setStatus(sanitiseError(err), true)
+		gs.refresh()
+		return
+	}
+	gs.setStatus("You passed.", false)
+	gs.logCommand("You", cmd)
+	gs.afterHumanMove()
+}
+
+func (gs *gameScreen) doUndo() {
+	if !gs.canUndo() {
+		gs.setStatus("Nothing to undo.", true)
+		gs.refresh()
+		return
+	}
+	// Undo one of the player's turns: reverse the trailing commands (the AI's reply,
+	// if any, then the human's move) so the state lands back on the human's turn.
+	// Pressing Undo again steps back another turn.
+	for len(gs.history) > 0 {
+		e := gs.history[len(gs.history)-1]
+		e.cmd.Undo(gs.state)
+		gs.history = gs.history[:len(gs.history)-1]
+		if e.player == "You" {
+			break
+		}
+	}
+	gs.recomputeAIHighlight()
+	gs.refreshHistory()
+	gs.recallAll()
+	gs.setStatus("Move undone.", false)
+	gs.refresh()
+}
+
+func (gs *gameScreen) doSave() {
+	if err := gs.app.sm.Save(gs.state); err != nil {
+		gs.setStatus(sanitiseError(err), true)
+		gs.refresh()
+		return
+	}
+	gs.setStatus("Game saved.", false)
+	gs.refresh()
+}
+
+func (gs *gameScreen) toggleAIRack() {
+	gs.showAIRack = !gs.showAIRack
+	gs.refresh()
+}
+
+func (gs *gameScreen) goMainMenu() {
+	gs.abandoned = true // ignore any in-flight AI callback
+	gs.app.showMainMenu("")
+}
+
+// ---------- Rack tools & drag-and-drop ----------
+
+// doShuffle recalls any staged tiles, then randomises the rack order.
+func (gs *gameScreen) doShuffle() {
+	if !gs.humanInputAllowed() {
+		return
+	}
+	gs.recallAll()
+	gs.state.HumanRack.Shuffle(gs.rng)
+	gs.setStatus("Rack shuffled.", false)
+	gs.refresh()
+}
+
+// doRecallAll returns every staged tile to the rack.
+func (gs *gameScreen) doRecallAll() {
+	if !gs.humanInputAllowed() || len(gs.staged) == 0 {
+		return
+	}
+	gs.recallAll()
+	gs.setStatus("Tiles recalled to your rack.", false)
+	gs.refresh()
+}
+
+// onRackDrag lifts the dragged tile (hiding it in the rack) and drives the ghost that
+// follows the cursor. It fires repeatedly during a drag. As the pointer passes over other
+// rack slots the intervening tiles slide into the vacated gap (a live reorder), so the
+// rack previews the new order before release. During exchange mode a drag carries no
+// placement meaning, so it is ignored here (resolved as a tap on end).
+func (gs *gameScreen) onRackDrag(idx int, abs fyne.Position) {
+	if !gs.humanInputAllowed() || gs.exchangeMode {
+		return
+	}
+	if gs.dragRackSrc < 0 {
+		// First event of the gesture: lift the tile at idx if it can be dragged. On later
+		// events idx is the (now stale) start slot, so the lifted tile is tracked by
+		// dragRackSrc, which the live reorder keeps pointing at it.
+		if gs.isStagedSlot(idx) || idx >= gs.state.HumanRack.Count() {
+			return
+		}
+		gs.rackSelected = idx
+		gs.dragRackSrc = idx
+		gs.pickedUp = [2]int{-1, -1}
+		gs.refresh()
+	}
+	// Live reorder: while the pointer is over the rack (not the board), shift the lifted
+	// tile to the hovered slot so the gap follows the pointer. Board placements are
+	// resolved on release, so reordering is skipped once the pointer is over the board.
+	if _, _, onBoard := gs.cellAt(abs); !onBoard {
+		if hoverIdx, ok := gs.rackSlotAt(abs); ok {
+			if n := gs.state.HumanRack.Count(); hoverIdx >= n {
+				hoverIdx = n - 1
+			}
+			if hoverIdx >= 0 && hoverIdx != gs.dragRackSrc {
+				gs.reorderRack(gs.dragRackSrc, hoverIdx)
+			}
+		}
+	}
+	gs.showGhost(gs.state.HumanRack.Tiles()[gs.dragRackSrc], abs, true)
+}
+
+// onRackDragEnd resolves a drag that started on the rack by its release position: an empty
+// board cell places the lifted tile; a release over the rack keeps the order the live drag
+// already produced. In exchange mode the gesture is treated as a tap, toggling the tile's
+// exchange selection.
+func (gs *gameScreen) onRackDragEnd(fromIdx int, abs fyne.Position) {
+	gs.endGhost()
+	src := gs.dragRackSrc // current slot of the lifted tile after any live reorder
+	gs.dragRackSrc = -1
+	if !gs.humanInputAllowed() {
+		gs.refresh()
+		return
+	}
+	if gs.exchangeMode {
+		gs.onRackTap(fromIdx)
+		return
+	}
+	if src < 0 {
+		// The gesture never lifted a tile (started on a staged or empty slot).
+		gs.refresh()
+		return
+	}
+	if row, col, ok := gs.cellAt(abs); ok {
+		gs.placeFromRack(src, row, col)
+		return
+	}
+	// Released over the rack (or off both): the live drag already applied the reorder.
+	gs.refresh()
+}
+
+// onBoardDoubleTap recalls a tile the player staged this turn; committed tiles (played
+// in a previous turn or by the AI) are left untouched.
+func (gs *gameScreen) onBoardDoubleTap(row, col int) {
+	if !gs.humanInputAllowed() {
+		return
+	}
+	if st, ok := gs.stagedAt(row, col); ok {
+		gs.recallStagedTile(st.FromRackIdx)
+		gs.refresh()
+	}
+}
+
+// onBoardDrag starts and tracks a drag of a staged tile, hiding it on the board and
+// driving the ghost. Only tiles staged this turn are draggable; a drag that begins on
+// an empty or committed cell does nothing here and is resolved as a tap on release.
+func (gs *gameScreen) onBoardDrag(row, col int, abs fyne.Position) {
+	if !gs.humanInputAllowed() {
+		return
+	}
+	st, ok := gs.stagedAt(row, col)
+	if !ok {
+		return
+	}
+	if gs.dragBoardSrc != [2]int{row, col} {
+		gs.dragBoardSrc = [2]int{row, col}
+		gs.pickedUp = [2]int{-1, -1}
+		gs.refresh()
+	}
+	gs.showGhost(st.Tile, abs, false)
+}
+
+// onBoardDragEnd resolves a board-tile drag by release position: another empty cell
+// moves the tile; off the board recalls it to the rack; its own cell leaves it put. A
+// gesture that was not a staged-tile drag is handled as a tap.
+func (gs *gameScreen) onBoardDragEnd(row, col int, abs fyne.Position) {
+	gs.endGhost()
+	wasDrag := gs.dragBoardSrc == [2]int{row, col}
+	gs.dragBoardSrc = [2]int{-1, -1}
+	if !gs.humanInputAllowed() {
+		gs.refresh()
+		return
+	}
+	st, ok := gs.stagedAt(row, col)
+	if !ok || !wasDrag {
+		gs.refresh()
+		gs.onBoardTap(row, col)
+		return
+	}
+	if r2, c2, okB := gs.cellAt(abs); okB {
+		if r2 == row && c2 == col {
+			// Released on its own cell — a tap, not a move. On touch, taps on a staged
+			// tile arrive here (as micro-drags) rather than as Tapped, so detect the
+			// double-press here too: a second such tap returns the tile to the rack.
+			if gs.registerStagedPress(row, col) {
+				gs.onBoardDoubleTap(row, col)
+				return
+			}
+			gs.refresh()
+			return
+		}
+		gs.moveStagedTile(st, r2, c2)
+		return
+	}
+	// Released off the board (over the rack or anywhere else): recall to the rack.
+	gs.recallStagedTile(st.FromRackIdx)
+	gs.refresh()
+}
+
+// moveStagedTile relocates a staged tile to (row,col) when that cell is free; if the
+// target is occupied the move is cancelled and the tile stays where it was.
+func (gs *gameScreen) moveStagedTile(st stagedTile, row, col int) {
+	if !gs.state.Board.IsEmpty(row, col) || gs.cellHasStaged(row, col) {
+		gs.refresh()
+		return
+	}
+	for i := range gs.staged {
+		if gs.staged[i].FromRackIdx == st.FromRackIdx {
+			gs.staged[i].Row, gs.staged[i].Col = row, col
+			break
+		}
+	}
+	gs.refresh()
+}
+
+// stagedAt returns the staged tile occupying (row,col), if any.
+func (gs *gameScreen) stagedAt(row, col int) (stagedTile, bool) {
+	for _, st := range gs.staged {
+		if st.Row == row && st.Col == col {
+			return st, true
+		}
+	}
+	return stagedTile{}, false
+}
+
+// showGhost styles the floating ghost tile as t and centres it on the pointer. fromRack
+// controls sizing: a rack tile stays rack-slot sized while over the rack and shrinks to a
+// board cell once the pointer is over the board (previewing its placed size); a board tile
+// (fromRack false) is always board-cell sized.
+func (gs *gameScreen) showGhost(t engine.Tile, abs fyne.Position, fromRack bool) {
+	if gs.ghost == nil {
+		return
+	}
+	styleAsTile(gs.ghostBg, gs.ghostLetter, gs.ghostPoints, t, true)
+	side := gs.ghostSizeAt(abs, fromRack)
+	gs.ghost.Resize(fyne.NewSize(side, side))
+	gs.ghost.Move(fyne.NewPos(abs.X-side/2, abs.Y-side/2))
+	gs.ghost.Show()
+	gs.ghost.Refresh()
+}
+
+// endGhost hides the floating ghost tile.
+func (gs *gameScreen) endGhost() {
+	if gs.ghost != nil {
+		gs.ghost.Hide()
+	}
+}
+
+// ghostSizeAt returns the ghost's side length for a pointer at abs. A rack tile (fromRack)
+// keeps rack-slot size while over the rack and shrinks to board-cell size once over the
+// board; a board tile is always board-cell sized.
+func (gs *gameScreen) ghostSizeAt(abs fyne.Position, fromRack bool) float32 {
+	if fromRack {
+		if _, _, onBoard := gs.cellAt(abs); !onBoard {
+			return gs.rackSlotSize()
+		}
+	}
+	return gs.boardCellSize()
+}
+
+// boardCellSize returns the side length of a board cell at the current board size.
+func (gs *gameScreen) boardCellSize() float32 {
+	if gs.boardBox != nil {
+		if cell, _, _ := boardGeometry(gs.boardBox.Size().Width, gs.boardBox.Size().Height); cell > 0 {
+			return cell
+		}
+	}
+	return minCellPx
+}
+
+// rackSlotSize returns the side length of a human rack slot at the current rack size.
+func (gs *gameScreen) rackSlotSize() float32 {
+	if gs.humanRackBoxC != nil {
+		if slot, _ := rackGeometry(gs.humanRackBoxC.Size().Width, gs.humanRackBoxC.Size().Height, engine.MaxRackSize); slot > 0 {
+			return slot
+		}
+	}
+	return minRackSlotPx
+}
+
+// placeFromRack stages the tile from rack slot fromIdx onto (row,col) when that cell
+// is a free placement target; otherwise the drag is cancelled.
+func (gs *gameScreen) placeFromRack(fromIdx, row, col int) {
+	if !gs.state.Board.IsEmpty(row, col) || gs.cellHasStaged(row, col) {
+		gs.refresh()
+		return
+	}
+	gs.stageTile(fromIdx, row, col)
+}
+
+// reorderRack moves the tile at rack slot fromIdx to slot toIdx, keeping staged tiles
+// and the current selection pointing at the same tiles after the shift.
+func (gs *gameScreen) reorderRack(fromIdx, toIdx int) {
+	if n := gs.state.HumanRack.Count(); toIdx >= n {
+		toIdx = n - 1
+	}
+	if fromIdx == toIdx {
+		gs.refresh()
+		return
+	}
+	gs.state.HumanRack.MoveTile(fromIdx, toIdx)
+	for i := range gs.staged {
+		gs.staged[i].FromRackIdx = moveIndex(gs.staged[i].FromRackIdx, fromIdx, toIdx)
+	}
+	if gs.rackSelected >= 0 {
+		gs.rackSelected = moveIndex(gs.rackSelected, fromIdx, toIdx)
+	}
+	// Keep the in-progress drag's lifted-tile slot pointing at the same tile after the
+	// shift, so a live reorder mid-drag leaves the ghost floating over it.
+	if gs.dragRackSrc >= 0 {
+		gs.dragRackSrc = moveIndex(gs.dragRackSrc, fromIdx, toIdx)
+	}
+	gs.refresh()
+}
+
+// cellAt maps an absolute window position to a board cell, reporting ok=false when the
+// position is outside the board grid.
+func (gs *gameScreen) cellAt(abs fyne.Position) (row, col int, ok bool) {
+	if gs.boardBox == nil {
+		return 0, 0, false
+	}
+	origin := fyne.CurrentApp().Driver().AbsolutePositionForObject(gs.boardBox)
+	return cellAtRel(abs.Subtract(origin), gs.boardBox.Size())
+}
+
+// cellAtRel maps a position relative to the board container's top-left to a cell,
+// using the same geometry as boardLayout. ok is false outside the grid.
+func cellAtRel(rel fyne.Position, size fyne.Size) (row, col int, ok bool) {
+	cell, offX, offY := boardGeometry(size.Width, size.Height)
+	if cell <= 0 {
+		return 0, 0, false
+	}
+	x, y := rel.X-offX, rel.Y-offY
+	side := cell * boardDim
+	if x < 0 || y < 0 || x >= side || y >= side {
+		return 0, 0, false
+	}
+	return int(y / cell), int(x / cell), true
+}
+
+// rackSlotAt maps an absolute window position to a human rack slot index, reporting
+// ok=false when the position is outside the rack row.
+func (gs *gameScreen) rackSlotAt(abs fyne.Position) (idx int, ok bool) {
+	if gs.humanRackBoxC == nil {
+		return 0, false
+	}
+	origin := fyne.CurrentApp().Driver().AbsolutePositionForObject(gs.humanRackBoxC)
+	return rackSlotAtRel(abs.Subtract(origin), gs.humanRackBoxC.Size())
+}
+
+// rackSlotAtRel maps a position relative to the rack container's top-left to a slot
+// index, using the same geometry as rackLayout. ok is false outside the rack row.
+func rackSlotAtRel(rel fyne.Position, size fyne.Size) (idx int, ok bool) {
+	slot, offX := rackGeometry(size.Width, size.Height, engine.MaxRackSize)
+	if slot <= 0 {
+		return 0, false
+	}
+	stride := slot + rackGapPx
+	x := rel.X - offX
+	// The horizontal position selects the slot. The vertical position is given a full
+	// row-height of slack above and below the rack, so a reorder drag that drifts
+	// vertically — as finger and mouse drags do — still lands on a slot rather than being
+	// silently dropped. Board placements are resolved first (via cellAt), so this generous
+	// band never steals a drop meant for the board.
+	if rel.Y < -size.Height || rel.Y >= 2*size.Height || x < 0 || x >= stride*engine.MaxRackSize {
+		return 0, false
+	}
+	idx = int(x / stride)
+	if idx < 0 || idx >= engine.MaxRackSize {
+		return 0, false
+	}
+	return idx, true
+}
+
+// isStagedSlot reports whether rack slot idx currently has its tile staged on the board.
+func (gs *gameScreen) isStagedSlot(idx int) bool {
+	for _, st := range gs.staged {
+		if st.FromRackIdx == idx {
+			return true
+		}
+	}
+	return false
+}
+
+// cellHasStaged reports whether a staged tile already occupies (row,col).
+func (gs *gameScreen) cellHasStaged(row, col int) bool {
+	for _, st := range gs.staged {
+		if st.Row == row && st.Col == col {
+			return true
+		}
+	}
+	return false
+}
+
+// moveIndex returns the new index of the element originally at i after the element at
+// f is moved to position t, matching engine.Rack.MoveTile's reindexing.
+func moveIndex(i, f, t int) int {
+	switch {
+	case i == f:
+		return t
+	case f < t && i > f && i <= t:
+		return i - 1
+	case f > t && i >= t && i < f:
+		return i + 1
+	default:
+		return i
+	}
+}
+
+// afterHumanMove checks for game over, otherwise starts the AI turn.
+func (gs *gameScreen) afterHumanMove() {
+	if gs.checkEndGame() {
+		return
+	}
+	gs.startAITurn()
+}
+
+// checkEndGame ends the game in place when an end condition is met: it applies the
+// endgame scoring and refreshes so the final board (including the move that ended the
+// game) stays on screen under a GAME OVER banner with the result. Returns true when
+// the game is over.
+func (gs *gameScreen) checkEndGame() bool {
+	over, reason := engine.IsGameOver(gs.state)
+	if !over {
+		return false
+	}
+	engine.ApplyEndgameScoring(gs.state, reason)
+	gs.gameOver = true
+	gs.setStatus(gs.endGameMessage(), false)
+	gs.refresh()
+	return true
+}
+
+// endGameMessage reports the winner and the final scores.
+func (gs *gameScreen) endGameMessage() string {
+	winner := "It's a tie!"
+	switch {
+	case gs.state.HumanScore > gs.state.AIScore:
+		winner = "You win!"
+	case gs.state.AIScore > gs.state.HumanScore:
+		winner = "AI wins!"
+	}
+	return fmt.Sprintf("Game over — %s  (You %d, AI %d)", winner, gs.state.HumanScore, gs.state.AIScore)
+}
+
+// ---------- AI turn ----------
+
+// startAITurn computes the AI move on a background goroutine and applies the
+// result on the UI goroutine. A clone of the state is handed to the AI so it
+// never shares mutable data with the UI; a timeout converts a stuck AI to a pass.
+func (gs *gameScreen) startAITurn() {
+	gs.aiThinking = true
+	gs.refresh()
+
+	snapshot := gs.state.Clone()
+	dict := gs.dict
+	level := gs.state.AILevel
+
+	go func() {
+		result := make(chan engine.Move, 1)
+		go func() {
+			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+			result <- ai.ChooseMove(snapshot, dict, level, rng)
+		}()
+
+		var move engine.Move
+		timedOut := false
+		select {
+		case move = <-result:
+		case <-time.After(aiTimeoutSecs * time.Second):
+			move = engine.PassMove{}
+			timedOut = true
+		}
+
+		fyne.Do(func() { gs.applyAIMove(move, timedOut) })
+	}()
+}
+
+func (gs *gameScreen) applyAIMove(move engine.Move, timedOut bool) {
+	if gs.abandoned {
+		return // the player left this game; drop the result
+	}
+	gs.aiThinking = false
+
+	var cmd engine.Command
+	switch m := move.(type) {
+	case engine.PlayMove:
+		cmd = &engine.PlayCommand{Move: m}
+	case engine.ExchangeMove:
+		cmd = &engine.ExchangeCommand{Move: m}
+	case engine.PassMove:
+		cmd = &engine.PassCommand{}
+	default:
+		gs.setStatus("AI returned an unknown move — passing.", true)
+		cmd = &engine.PassCommand{}
+	}
+
+	executed := cmd
+	if err := cmd.Execute(gs.state, gs.dict, gs.rng); err != nil {
+		gs.setStatus(fmt.Sprintf("AI move invalid (%s) — passing.", sanitiseError(err)), true)
+		fallback := &engine.PassCommand{}
+		_ = fallback.Execute(gs.state, gs.dict, gs.rng)
+		executed = fallback
+	} else if timedOut {
+		gs.setStatus("AI timed out — pass applied.", true)
+	}
+
+	gs.logCommand("AI", executed)
+
+	// The human's turn now begins, so guarantee a clean slate. The human cannot act
+	// during the AI turn, so any staged tile, selection, or drag state lingering here is
+	// stale (e.g. from a gesture that outlived the previous turn). Left in place, a stale
+	// staged entry blanks its rack slot and makes the rack look like it is missing a tile
+	// — and enables the recall button even though nothing was played this turn.
+	gs.recallAll()
+
+	if gs.checkEndGame() {
+		return
+	}
+	gs.refresh()
+}
+
+// ---------- Utilities ----------
+
+func (gs *gameScreen) setStatus(msg string, isErr bool) {
+	gs.statusMsg = msg
+	gs.statusIsErr = isErr
+}
+
+// ---------- Move history ----------
+
+// logCommand records one executed turn: it pushes the command onto the undo stack
+// and appends its line to the move-history panel.
+func (gs *gameScreen) logCommand(player string, cmd engine.Command) {
+	var line string
+	switch c := cmd.(type) {
+	case *engine.PlayCommand:
+		words := strings.Join(c.Move.WordsFormed, ", ")
+		line = fmt.Sprintf("%s: %s (+%d)", player, words, c.Move.Score)
+	case *engine.ExchangeCommand:
+		line = fmt.Sprintf("%s: exchanged %d tile(s)", player, len(c.Move.Tiles))
+	case *engine.PassCommand:
+		line = player + ": passed"
+	default:
+		return
+	}
+	gs.history = append(gs.history, historyEntry{cmd: cmd, player: player, line: line})
+	gs.recomputeAIHighlight()
+	gs.refreshHistory()
+}
+
+// recomputeAIHighlight derives aiLastPlaced from the move history: the cells of the
+// AI's most recent play that is still on the board. It is called whenever the
+// history changes (a move is logged or undone) so the red outline always tracks the
+// AI's latest word; an AI pass or exchange is skipped because it places no tiles.
+func (gs *gameScreen) recomputeAIHighlight() {
+	gs.aiLastPlaced = nil
+	for i := len(gs.history) - 1; i >= 0; i-- {
+		e := gs.history[i]
+		if e.player != "AI" {
+			continue
+		}
+		pc, ok := e.cmd.(*engine.PlayCommand)
+		if !ok {
+			continue // pass/exchange places no tiles; keep looking further back
+		}
+		gs.aiLastPlaced = make(map[[2]int]bool, len(pc.Move.Placed))
+		for _, pt := range pc.Move.Placed {
+			gs.aiLastPlaced[[2]int{pt.Row, pt.Col}] = true
+		}
+		return
+	}
+}
+
+// canUndo reports whether there is a human turn available to undo.
+func (gs *gameScreen) canUndo() bool {
+	for _, e := range gs.history {
+		if e.player == "You" {
+			return true
+		}
+	}
+	return false
+}
+
+// refreshHistory rewrites the history label from the stack and scrolls to the bottom.
+func (gs *gameScreen) refreshHistory() {
+	if gs.historyLabel == nil {
+		return
+	}
+	lines := make([]string, len(gs.history))
+	for i, e := range gs.history {
+		lines[i] = e.line
+	}
+	gs.historyLabel.SetText(strings.Join(lines, "\n"))
+	if gs.historyScroll != nil {
+		gs.historyScroll.ScrollToBottom()
+	}
+}
