@@ -225,6 +225,32 @@ func TestPBT_IdempotentLoad(t *testing.T) {
 	})
 }
 
+// TestLoad_CachesSameDictionary verifies Load returns the cached instance when the same
+// dictionary is loaded again — as in start a game, save, then load that save. Without the
+// cache the reload decodes a second multi-hundred-MB GADDAG while the first is still live,
+// which exhausts memory and is killed on a phone.
+func TestLoad_CachesSameDictionary(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping: decodes a full embedded dictionary (hundreds of MB in memory)")
+	}
+	if !Available(DictENABLE) {
+		t.Skip("enable dictionary asset not embedded in this build")
+	}
+
+	d1, err := Load(DictENABLE)
+	if err != nil {
+		t.Fatalf("Load #1: %v", err)
+	}
+	d2, err := Load(DictENABLE)
+	if err != nil {
+		t.Fatalf("Load #2: %v", err)
+	}
+	if d1 != d2 {
+		t.Fatal("re-Load of the same dictionary returned a different instance: the cache " +
+			"is not reused, so a reload decodes a second copy and can exhaust memory")
+	}
+}
+
 // toLowerASCII converts an uppercase A-Z string to lowercase for case-invariance tests.
 func toLowerASCII(s string) string {
 	bs := []byte(s)

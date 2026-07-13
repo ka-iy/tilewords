@@ -105,6 +105,15 @@ func (sm *SaveManager) Exists() bool {
 	return err == nil
 }
 
+// Delete removes the save file. A missing file is not an error (the slot is already
+// empty), so Delete is idempotent; any other removal failure is reported.
+func (sm *SaveManager) Delete() error {
+	if err := os.Remove(sm.path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("ui.SaveManager.Delete: remove: %w", err)
+	}
+	return nil
+}
+
 // sanitiseError converts an error to a short user-facing string. It strips any
 // function-name prefix and truncates at 120 characters so that internal paths,
 // type names, and Go error chains are never shown in the UI (SECURITY-UI-2).

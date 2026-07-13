@@ -248,3 +248,30 @@ func TestSaveManager_MkdirOnFirstSave(t *testing.T) {
 		t.Fatal("save file should exist")
 	}
 }
+
+// TestSaveManager_Delete: Delete removes an existing save so Exists() is false
+// afterwards, and deleting again (no file present) is a no-op that succeeds.
+func TestSaveManager_Delete(t *testing.T) {
+	dir := t.TempDir()
+	sm, _ := NewSaveManager(dir)
+
+	state := engine.New("csw", 5, rand.New(rand.NewSource(42)))
+	if err := sm.Save(state); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	if !sm.Exists() {
+		t.Fatal("Exists() should be true after save")
+	}
+
+	if err := sm.Delete(); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if sm.Exists() {
+		t.Fatal("Exists() should be false after delete")
+	}
+
+	// Deleting an already-absent save is idempotent, not an error.
+	if err := sm.Delete(); err != nil {
+		t.Fatalf("Delete of missing save should be a no-op, got: %v", err)
+	}
+}

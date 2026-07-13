@@ -5,6 +5,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
@@ -27,7 +28,7 @@ func (a *App) buildMainMenu(errMsg string) fyne.CanvasObject {
 		status.SetText(errMsg)
 	}
 
-	var newBtn, loadBtn *widget.Button
+	var newBtn, loadBtn, deleteBtn *widget.Button
 
 	newBtn = widget.NewButton("New Game", func() {
 		a.showSetup()
@@ -44,13 +45,37 @@ func (a *App) buildMainMenu(errMsg string) fyne.CanvasObject {
 			newBtn.Enable()
 		})
 	})
+
+	// Delete Save removes the saved game after a confirmation. On success the menu is
+	// rebuilt, which re-disables both Load and Delete since no save then exists.
+	deleteBtn = widget.NewButton("Delete Save", func() {
+		dialog.ShowConfirm(
+			"Delete saved game",
+			"Delete the saved game? This cannot be undone.",
+			func(ok bool) {
+				if !ok {
+					return
+				}
+				if err := a.sm.Delete(); err != nil {
+					a.showMainMenu(sanitiseError(err))
+					return
+				}
+				a.showMainMenu("Saved game deleted.")
+			},
+			a.win,
+		)
+	})
+	deleteBtn.Importance = widget.DangerImportance
+
+	// Load and Delete act on the save slot, so both are only enabled when one exists.
 	if !a.sm.Exists() {
 		loadBtn.Disable()
+		deleteBtn.Disable()
 	}
 
 	// A centred column of equal-width buttons (the VBox stretches its children to
 	// its own width; NewCenter shrinks the VBox to its widest child).
-	buttons := []fyne.CanvasObject{newBtn, loadBtn}
+	buttons := []fyne.CanvasObject{newBtn, loadBtn, deleteBtn}
 
 	// Quit is only offered on desktop. Android/iOS guidelines forbid an app quitting
 	// itself, so Fyne's mobile driver ignores App.Quit — a "Quit" button there does

@@ -29,6 +29,16 @@ const aiTimeoutSecs = 10
 // controller, keeping tile placement instant.
 const doubleTapWindow = 350 * time.Millisecond
 
+// pressFlashDuration is how long a control button shows its transient "pressed" colour
+// after a tap. It gives a visible press cue on touch screens, where there is no hover
+// highlight to confirm the tap landed.
+const pressFlashDuration = 140 * time.Millisecond
+
+// pressFlashImportance is the colour a control button flashes to when tapped. It is
+// deliberately different from every button's resting importance, so the flash is visible
+// on all of them.
+const pressFlashImportance = widget.WarningImportance
+
 // stagedTile holds a tile taken from the human rack and tentatively placed on the
 // board. fromRackIdx records the original rack slot so the tile can be recalled.
 type stagedTile struct {
@@ -194,20 +204,21 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	gs.statusRT = widget.NewRichTextWithText("")
 	gs.statusRT.Wrapping = fyne.TextWrapWord
 
-	topBar := container.NewVBox(
+	statusBar := container.NewVBox(
 		container.NewCenter(container.NewHBox(gs.youLabel, gs.aiLabel, gs.bagLabel, gs.moveLabel, gs.levelLabel)),
 		gs.statusRT,
 	)
 
-	// Control buttons (shared across layouts; arranged differently per layout).
-	gs.playBtn = widget.NewButton("Play", gs.commitPlay)
+	// Control buttons (shared across layouts; arranged differently per layout). Each
+	// flashes briefly when tapped (see newControlButton / flashPress).
+	gs.playBtn = gs.newControlButton("Play", gs.commitPlay)
 	gs.playBtn.Importance = widget.HighImportance
-	gs.exchBtn = widget.NewButton("Exchange", gs.onExchange)
-	gs.passBtn = widget.NewButton("Pass", gs.commitPass)
-	gs.undoBtn = widget.NewButton("Undo", gs.doUndo)
-	gs.saveBtn = widget.NewButton("Save", gs.doSave)
-	gs.toggleBtn = widget.NewButton("Show AI", gs.toggleAIRack)
-	gs.menuBtn = widget.NewButton("Menu", gs.goMainMenu)
+	gs.exchBtn = gs.newControlButton("Exchange", gs.onExchange)
+	gs.passBtn = gs.newControlButton("Pass", gs.commitPass)
+	gs.undoBtn = gs.newControlButton("Undo", gs.doUndo)
+	gs.saveBtn = gs.newControlButton("Save", gs.doSave)
+	gs.toggleBtn = gs.newControlButton("Show AI", gs.toggleAIRack)
+	gs.menuBtn = gs.newControlButton("Menu", gs.goMainMenu)
 	buttons := []fyne.CanvasObject{
 		gs.playBtn, gs.exchBtn, gs.passBtn, gs.undoBtn, gs.saveBtn, gs.toggleBtn, gs.menuBtn,
 	}
@@ -219,9 +230,9 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	gs.rackLabel = canvas.NewText("Your rack", bodyTextColor())
 	gs.rackLabel.TextStyle = fyne.TextStyle{Bold: true}
 	gs.rackLabel.TextSize = theme.TextSize()
-	gs.shuffleBtn = widget.NewButtonWithIcon("", shuffleIconResource, gs.doShuffle)
+	gs.shuffleBtn = gs.newControlIconButton(shuffleIconResource, gs.doShuffle)
 	gs.shuffleBtn.Importance = widget.LowImportance
-	gs.recallBtn = widget.NewButtonWithIcon("", recallIconResource, gs.doRecallAll)
+	gs.recallBtn = gs.newControlIconButton(recallIconResource, gs.doRecallAll)
 	gs.recallBtn.Importance = widget.LowImportance
 	rackHeaderRow := container.NewHBox(
 		container.NewCenter(gs.playIcon),
@@ -264,8 +275,8 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 			// the rest stack below at their natural heights, and the page scrolls.
 			column := container.New(
 				phoneColumnLayout{board: board, minBoard: minBoardPx},
-				topBar,
 				board,
+				statusBar,
 				humanRackBox,
 				controls,
 				aiRackBox,
@@ -274,10 +285,12 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 			return container.NewVScroll(column)
 		}
 		controls := container.NewGridWithColumns(len(buttons), buttons...)
-		bottom := container.NewVBox(humanRackBox, controls, aiRackBox)
+		// statusBar (score/status) sits below the board — at the top of the bottom stack,
+		// above the racks and controls.
+		bottom := container.NewVBox(statusBar, humanRackBox, controls, aiRackBox)
 		split := container.NewHSplit(board, historyBox)
 		split.SetOffset(0.72)
-		return container.NewBorder(topBar, bottom, nil, nil, split)
+		return container.NewBorder(nil, bottom, nil, nil, split)
 	}
 
 	return newResponsiveContainer(buildArrangement)
@@ -445,6 +458,47 @@ func setEnabled(b *widget.Button, enabled bool) {
 	} else {
 		b.Disable()
 	}
+}
+
+// newControlButton creates a text control button whose tap first flashes the button (a
+// momentary colour change — see flashPress) and then runs tapped.
+func (gs *gameScreen) newControlButton(label string, tapped func()) *widget.Button {
+	var b *widget.Button
+	b = widget.NewButton(label, func() {
+		gs.flashPress(b)
+		tapped()
+	})
+	return b
+}
+
+// newControlIconButton is newControlButton for an icon-only control button.
+func (gs *gameScreen) newControlIconButton(icon fyne.Resource, tapped func()) *widget.Button {
+	var b *widget.Button
+	b = widget.NewButtonWithIcon("", icon, func() {
+		gs.flashPress(b)
+		tapped()
+	})
+	return b
+}
+
+// flashPress briefly switches b to the pressed-flash colour, then schedules a revert to
+// its resting importance after pressFlashDuration. Importance is mutated only on the UI
+// goroutine (the tap handler and the fyne.Do revert), so no lock is needed. A re-tap
+// while a flash is in progress is ignored for the flash (its pending revert restores the
+// resting colour) but still runs the button's action.
+func (gs *gameScreen) flashPress(b *widget.Button) {
+	base := b.Importance
+	if base == pressFlashImportance {
+		return
+	}
+	b.Importance = pressFlashImportance
+	b.Refresh()
+	time.AfterFunc(pressFlashDuration, func() {
+		fyne.Do(func() {
+			b.Importance = base
+			b.Refresh()
+		})
+	})
 }
 
 // ---------- Tile input ----------
