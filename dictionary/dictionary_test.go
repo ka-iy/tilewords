@@ -2,6 +2,7 @@ package dictionary
 
 import (
 	"bytes"
+	"encoding/gob"
 	"testing"
 
 	"pgregory.net/rapid"
@@ -248,6 +249,42 @@ func TestLoad_CachesSameDictionary(t *testing.T) {
 	if d1 != d2 {
 		t.Fatal("re-Load of the same dictionary returned a different instance: the cache " +
 			"is not reused, so a reload decodes a second copy and can exhaust memory")
+	}
+}
+
+// TestBuild_Deterministic verifies that building the same word list twice produces byte-
+// identical output. The compressed-sparse-row encoding emits nodes in id order with each
+// node's edges sorted by letter, so the result must not depend on Go map iteration order.
+func TestBuild_Deterministic(t *testing.T) {
+	words := []string{"CAT", "CATS", "DOG", "QUEEN", "SQUAB", "ZEBRA", "AA", "AB", "WORLD"}
+	var b1, b2 bytes.Buffer
+	if err := Build(words, &b1); err != nil {
+		t.Fatalf("Build #1: %v", err)
+	}
+	if err := Build(words, &b2); err != nil {
+		t.Fatalf("Build #2: %v", err)
+	}
+	if !bytes.Equal(b1.Bytes(), b2.Bytes()) {
+		t.Fatal("Build is not deterministic: identical input produced different bytes")
+	}
+}
+
+// TestLoadGADDAG_RejectsInconsistentCSR verifies that a decodable gob whose CSR arrays are
+// inconsistent is rejected. Without this guard, an edgeOffsets array shorter than
+// NodeCount+1 would let Successor index out of range and panic during traversal.
+func TestLoadGADDAG_RejectsInconsistentCSR(t *testing.T) {
+	wd := gaddagData{
+		EdgeOffsets: []uint32{0, 0}, // NodeCount 3 requires length 4
+		Terminal:    []uint64{0},
+		Root:        RootNodeID,
+		NodeCount:   3,
+	}
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(wd); err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	if _, err := loadGADDAG(buf.Bytes()); err == nil {
+		t.Fatal("loadGADDAG accepted a GADDAG whose edgeOffsets length is inconsistent with NodeCount")
 	}
 }
 
