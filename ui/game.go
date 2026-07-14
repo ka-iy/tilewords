@@ -1345,7 +1345,8 @@ func (gs *gameScreen) canUndo() bool {
 	return false
 }
 
-// refreshHistory rewrites the history label from the stack and scrolls to the bottom.
+// refreshHistory rewrites the history label from the stack and scrolls to the newest
+// line so the latest move stays in view.
 func (gs *gameScreen) refreshHistory() {
 	if gs.historyLabel == nil {
 		return
@@ -1355,7 +1356,16 @@ func (gs *gameScreen) refreshHistory() {
 		lines[i] = e.line
 	}
 	gs.historyLabel.SetText(strings.Join(lines, "\n"))
-	if gs.historyScroll != nil {
-		gs.historyScroll.ScrollToBottom()
+	gs.scrollHistoryToEnd()
+}
+
+// scrollHistoryToEnd keeps the newest move-history line in view after the log changes.
+// Refresh forces the scroll to re-measure the label's now-taller content synchronously, so
+// ScrollToBottom targets the new bottom rather than the pre-update height.
+func (gs *gameScreen) scrollHistoryToEnd() {
+	if gs.historyScroll == nil {
+		return
 	}
+	gs.historyScroll.Refresh()
+	gs.historyScroll.ScrollToBottom()
 }

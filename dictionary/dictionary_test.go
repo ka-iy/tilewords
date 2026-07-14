@@ -269,6 +269,31 @@ func TestBuild_Deterministic(t *testing.T) {
 	}
 }
 
+// TestBuild_Minimized verifies that Build produces a minimized automaton, not a prefix
+// trie. In a trie every word's dead-end accept state is a distinct node; minimization
+// merges all equivalent accept sinks (terminal, no out-edges) into one. Counting such sinks
+// therefore distinguishes a minimized graph (<=1) from a trie (one per distinct ending) and
+// guards against minimization being silently disabled.
+func TestBuild_Minimized(t *testing.T) {
+	var buf bytes.Buffer
+	if err := Build([]string{"CAT", "CATS", "DOG", "DOGS", "HAT", "HATS", "RAT", "RATS"}, &buf); err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	g, err := loadGADDAG(buf.Bytes())
+	if err != nil {
+		t.Fatalf("loadGADDAG: %v", err)
+	}
+	sinks := 0
+	for id := NodeID(1); uint32(id) < g.nodeCount; id++ {
+		if g.edgeOffsets[id] == g.edgeOffsets[id+1] && g.IsTerminal(id) {
+			sinks++
+		}
+	}
+	if sinks > 1 {
+		t.Fatalf("found %d terminal dead-end nodes, want <=1: minimization did not merge accept sinks (graph is a trie)", sinks)
+	}
+}
+
 // TestLoadGADDAG_RejectsInconsistentCSR verifies that a decodable gob whose CSR arrays are
 // inconsistent is rejected. Without this guard, an edgeOffsets array shorter than
 // NodeCount+1 would let Successor index out of range and panic during traversal.

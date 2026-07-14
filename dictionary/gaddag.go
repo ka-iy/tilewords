@@ -252,51 +252,19 @@ func Build(words []string, w io.Writer) error {
 		}
 	}
 
-	// Flatten the map-based graph into the compressed-sparse-row layout that GADDAG stores
-	// and gaddagData serialises. Valid node ids are [0, nodeCount); id 0 is unused (the
-	// builder assigns root=1 and counts up). Emitting nodes in id order, with each node's
-	// edges sorted by letter, makes the output fully deterministic.
-	nodeCount := uint32(nextID)
-
-	totalEdges := 0
-	for _, m := range edges {
-		totalEdges += len(m)
-	}
-
-	edgeOffsets := make([]uint32, nodeCount+1)
-	edgeLetters := make([]byte, 0, totalEdges)
-	edgeTargets := make([]NodeID, 0, totalEdges)
-	termBits := make([]uint64, (nodeCount+63)/64)
-	scratch := make([]byte, 0, 27) // A-Z plus ArcSep: the most edges any node can have
-
-	for id := NodeID(0); uint32(id) < nodeCount; id++ {
-		edgeOffsets[id] = uint32(len(edgeLetters))
-		if terminals[id] {
-			termBits[uint32(id)>>6] |= 1 << (uint32(id) & 63)
-		}
-		m := edges[id]
-		if len(m) == 0 {
-			continue
-		}
-		scratch = scratch[:0]
-		for b := range m {
-			scratch = append(scratch, b)
-		}
-		sort.Slice(scratch, func(i, j int) bool { return scratch[i] < scratch[j] })
-		for _, b := range scratch {
-			edgeLetters = append(edgeLetters, b)
-			edgeTargets = append(edgeTargets, m[b])
-		}
-	}
-	edgeOffsets[nodeCount] = uint32(len(edgeLetters))
+	// The graph built above is a prefix trie: it shares common prefixes but never shares
+	// suffixes, so it is far larger than necessary. minimizeTrie collapses all equivalent
+	// sub-automata into the minimal acyclic automaton accepting the same language and emits
+	// it in the compressed-sparse-row layout that GADDAG stores and gaddagData serialises.
+	mg := minimizeTrie(edges, terminals, nextID)
 
 	wd := gaddagData{
-		EdgeOffsets: edgeOffsets,
-		EdgeLetters: edgeLetters,
-		EdgeTargets: edgeTargets,
-		Terminal:    termBits,
+		EdgeOffsets: mg.edgeOffsets,
+		EdgeLetters: mg.edgeLetters,
+		EdgeTargets: mg.edgeTargets,
+		Terminal:    mg.terminal,
 		Root:        root,
-		NodeCount:   nodeCount,
+		NodeCount:   mg.nodeCount,
 		WordCount:   uint32(len(words)), // words is already sorted+deduped at this point
 	}
 	enc := gob.NewEncoder(w)
@@ -304,6 +272,131 @@ func Build(words []string, w io.Writer) error {
 		return fmt.Errorf("dictionary.Build: gob encode failed: %w", err)
 	}
 	return nil
+}
+
+// minimizedGraph is the compressed-sparse-row form of a minimal acyclic automaton,
+// matching the fields GADDAG holds (see gaddagData for the layout).
+type minimizedGraph struct {
+	edgeOffsets []uint32
+	edgeLetters []byte
+	edgeTargets []NodeID
+	terminal    []uint64
+	nodeCount   uint32
+}
+
+// minimizeTrie collapses the prefix trie described by edges/terminals (node ids
+// RootNodeID..nextID-1) into the minimal acyclic deterministic automaton accepting the
+// same set of GADDAG strings, and returns it in CSR form with the root renumbered to
+// RootNodeID.
+//
+// It is Revuz's linear-time algorithm (Revuz 1992): two trie nodes are equivalent iff they
+// share a terminal flag and the same set of (letter -> equivalent child) edges, so merging
+// equivalent nodes bottom-up yields the unique minimal automaton. The builder allocates a
+// child only when descending into a new edge, so a child's id always exceeds its parent's;
+// scanning ids high-to-low therefore canonicalises every child before its parents in a
+// single pass.
+//
+// Output determinism does not depend on Go map iteration order: canonical nodes are
+// renumbered by a breadth-first walk from the root that follows edges in ascending letter
+// order.
+func minimizeTrie(edges map[NodeID]map[byte]NodeID, terminals map[NodeID]bool, nextID NodeID) minimizedGraph {
+	// A canonical (deduplicated) node: its terminal flag, its edge labels (ascending), and
+	// the canonical indices its edges point to.
+	type cnode struct {
+		terminal bool
+		letters  []byte
+		children []uint32
+	}
+	var canonNodes []cnode
+	sigToCanon := make(map[string]uint32) // exact signature bytes -> canonical index
+	canon := make([]uint32, nextID)       // trie node id -> canonical index
+
+	scratch := make([]byte, 0, 27) // A-Z plus ArcSep: the most edges any node can have
+	var key []byte
+	for id := nextID - 1; id >= RootNodeID; id-- {
+		m := edges[id]
+		scratch = scratch[:0]
+		for b := range m {
+			scratch = append(scratch, b)
+		}
+		sort.Slice(scratch, func(i, j int) bool { return scratch[i] < scratch[j] })
+
+		letters := make([]byte, len(scratch))
+		copy(letters, scratch)
+		children := make([]uint32, len(letters))
+
+		// Signature = terminal byte, then (letter, 4-byte child canonical index) per edge.
+		// This is an exact key (no hashing), so distinct signatures never collide.
+		key = key[:0]
+		if terminals[id] {
+			key = append(key, 1)
+		} else {
+			key = append(key, 0)
+		}
+		for i, l := range letters {
+			c := canon[m[l]]
+			children[i] = c
+			key = append(key, l, byte(c), byte(c>>8), byte(c>>16), byte(c>>24))
+		}
+
+		ci, ok := sigToCanon[string(key)]
+		if !ok {
+			ci = uint32(len(canonNodes))
+			canonNodes = append(canonNodes, cnode{terminal: terminals[id], letters: letters, children: children})
+			sigToCanon[string(key)] = ci
+		}
+		canon[id] = ci
+	}
+
+	// Renumber canonical nodes to final ids by a BFS from the root, so the root is
+	// RootNodeID and the numbering is deterministic. finalID 0 means "not yet assigned"
+	// (a valid final id is never 0 — id 0 is left unused, as in the trie).
+	rootCanon := canon[RootNodeID]
+	finalID := make([]NodeID, len(canonNodes))
+	order := make([]uint32, 0, len(canonNodes))
+	finalID[rootCanon] = RootNodeID
+	order = append(order, rootCanon)
+	next := RootNodeID + 1
+	for i := 0; i < len(order); i++ {
+		for _, child := range canonNodes[order[i]].children {
+			if finalID[child] == 0 {
+				finalID[child] = next
+				next++
+				order = append(order, child)
+			}
+		}
+	}
+
+	// Emit CSR in final-id order. Valid ids are [0, nodeCount); id 0 is unused, root is 1.
+	nodeCount := uint32(next)
+	edgeCount := 0
+	for _, cn := range canonNodes {
+		edgeCount += len(cn.letters)
+	}
+	edgeOffsets := make([]uint32, nodeCount+1)
+	edgeLetters := make([]byte, 0, edgeCount)
+	edgeTargets := make([]NodeID, 0, edgeCount)
+	termBits := make([]uint64, (nodeCount+63)/64)
+	for f := NodeID(1); uint32(f) < nodeCount; f++ {
+		cn := canonNodes[order[f-1]]
+		edgeOffsets[f] = uint32(len(edgeLetters))
+		if cn.terminal {
+			termBits[uint32(f)>>6] |= 1 << (uint32(f) & 63)
+		}
+		for i, l := range cn.letters {
+			edgeLetters = append(edgeLetters, l)
+			edgeTargets = append(edgeTargets, finalID[cn.children[i]])
+		}
+	}
+	edgeOffsets[nodeCount] = uint32(len(edgeLetters))
+
+	return minimizedGraph{
+		edgeOffsets: edgeOffsets,
+		edgeLetters: edgeLetters,
+		edgeTargets: edgeTargets,
+		terminal:    termBits,
+		nodeCount:   nodeCount,
+	}
 }
 
 // dedup removes adjacent duplicate strings from a sorted slice.

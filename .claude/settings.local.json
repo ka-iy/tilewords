@@ -26,7 +26,8 @@
       "mcp__gograph__gograph_usages",
       "Bash(gofmt -w ui/*.go)",
       "Bash(gofmt -l ui/*.go)",
-      "Bash(adb shell *)"
+      "Bash(adb shell *)",
+      "mcp__gograph__gograph_context"
     ]
   }
 }
