@@ -204,8 +204,10 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	gs.statusRT = widget.NewRichTextWithText("")
 	gs.statusRT.Wrapping = fyne.TextWrapWord
 
+	// The score counters show as one centred row, wrapping to two rows (the two scores,
+	// then the bag/move/level counters) only when the width cannot fit the single row.
 	statusBar := container.NewVBox(
-		container.NewCenter(container.NewHBox(gs.youLabel, gs.aiLabel, gs.bagLabel, gs.moveLabel, gs.levelLabel)),
+		newStatusCounters(gs.youLabel, gs.aiLabel, gs.bagLabel, gs.moveLabel, gs.levelLabel),
 		gs.statusRT,
 	)
 

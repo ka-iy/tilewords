@@ -32,6 +32,33 @@ func TestPhoneColumn_BoardFillsWidthAndClamps(t *testing.T) {
 	}
 }
 
+// TestPhoneColumn_MinWidthIgnoresWideChildren verifies a child wider than the viewport
+// (e.g. the status row at a large system font) does not inflate the column's minimum
+// width. Otherwise the vertical scroll — which sizes content to MinSize().Max(viewport) —
+// would make the column and the board wider than the screen and grow them on re-layout.
+func TestPhoneColumn_MinWidthIgnoresWideChildren(t *testing.T) {
+	board := canvas.NewRectangle(color.Black)
+	board.SetMinSize(fyne.NewSize(minBoardPx, minBoardPx))
+	wide := canvas.NewRectangle(color.White)
+	wide.SetMinSize(fyne.NewSize(minBoardPx*2, 40)) // far wider than any phone viewport
+	l := phoneColumnLayout{board: board, minBoard: minBoardPx}
+	objs := []fyne.CanvasObject{board, wide}
+
+	if w := l.MinSize(objs).Width; w != float32(minBoardPx) {
+		t.Fatalf("MinSize width = %.0f, want %d (a wide child must not inflate the column)", w, minBoardPx)
+	}
+
+	// At a normal phone width the board fills the viewport and the wide child is clamped to
+	// it — neither is forced past the viewport.
+	l.Layout(objs, fyne.NewSize(400, 1000))
+	if bw := board.Size().Width; bw != 400 {
+		t.Errorf("board width = %.0f, want 400 (fills viewport, not forced wider)", bw)
+	}
+	if ww := wide.Size().Width; ww != 400 {
+		t.Errorf("wide child width = %.0f, want 400 (clamped to viewport)", ww)
+	}
+}
+
 // TestGameScreen_ResponsiveFitsPhone verifies the game screen adopts a phone-friendly
 // minimum size when sized to a phone (so it fits an average phone width and scrolls
 // vertically), in both portrait and short-landscape, and tolerates the wide desktop

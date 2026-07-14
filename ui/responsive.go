@@ -124,21 +124,22 @@ func (p phoneColumnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 }
 
 func (p phoneColumnLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
-	maxW := p.minBoard
+	// The width is fixed at the board's tappable minimum and is deliberately NOT widened to
+	// the widest child. The column lives in a vertical scroll, which sizes its content to
+	// MinSize().Max(viewport): if a child (e.g. the status row at a large system font) were
+	// allowed to push this width past the viewport, the scroll would make the whole column —
+	// and the board that fills it — wider than the screen, and it would grow on the first
+	// re-layout. Children are instead clamped to the column width in Layout.
 	total := float32(0)
 	for i, o := range objs {
-		ms := o.MinSize()
-		if ms.Width > maxW {
-			maxW = ms.Width
-		}
 		if o == p.board {
 			total += p.minBoard
 		} else {
-			total += ms.Height
+			total += o.MinSize().Height
 		}
 		if i > 0 {
 			total += phoneColGap
 		}
 	}
-	return fyne.NewSize(maxW, total)
+	return fyne.NewSize(p.minBoard, total)
 }
