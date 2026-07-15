@@ -68,9 +68,31 @@ type GameState struct {
 	// format. Older save files without this field decode as false (plain).
 	ScrabbleNotation bool
 
+	// History is the move log shown in the UI's move-history panel, persisted so a resumed
+	// game keeps its record. It holds already-rendered display data rather than executable
+	// commands: undo is intentionally not restored across a save/load (consistent with the
+	// zeroed LastHumanCommand/LastAICommand above). Empty for a fresh game and for older
+	// save files without this field.
+	History []MoveRecord
+
 	// OpeningDraw records how the first turn was decided (BR-E19). It is set by New
 	// and is nil for GameState values constructed directly (e.g. in tests).
 	OpeningDraw *OpeningDraw
+}
+
+// MoveRecord is one entry of the persisted move-history log. It stores rendered display
+// data (not an executable command), so it is gob-serialisable and independent of undo.
+type MoveRecord struct {
+	// Player is "You" or "AI".
+	Player string
+	// Line is the already-formatted move-history display line.
+	Line string
+	// Points is the score this move contributed (a play's score; 0 for a pass or exchange),
+	// used to restore the status summary.
+	Points int
+	// Cells are the board cells this move placed, used to restore the AI's last-word
+	// highlight; nil for a pass or exchange.
+	Cells [][2]int
 }
 
 // OpeningDraw records the single tile each player drew to decide who plays first

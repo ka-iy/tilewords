@@ -106,10 +106,11 @@ func TestRecomputeLastPoints_FromHistory(t *testing.T) {
 		t.Fatalf("empty history: got human=%d ai=%d, want -1/-1", gs.lastHumanPts, gs.lastAIPts)
 	}
 
+	// points mirrors what logCommand stores: a play's score, 0 for a pass.
 	gs.history = []historyEntry{
-		{cmd: &engine.PlayCommand{Move: engine.PlayMove{Score: 30}}, player: "You"},
-		{cmd: &engine.PlayCommand{Move: engine.PlayMove{Score: 15}}, player: "AI"},
-		{cmd: &engine.PassCommand{}, player: "You"},
+		{player: "You", points: 30},
+		{player: "AI", points: 15},
+		{player: "You", points: 0},
 	}
 	gs.recomputeLastPoints()
 	if gs.lastHumanPts != 0 || gs.lastAIPts != 15 {

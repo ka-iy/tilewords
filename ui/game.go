@@ -47,12 +47,17 @@ type stagedTile struct {
 	FromRackIdx int
 }
 
-// historyEntry is one executed turn: the command (for undo), the player who made
-// it, and the log line shown in the move-history panel.
+// historyEntry is one executed turn shown in the move-history panel. cmd is the executed
+// command for undo — nil for entries restored from a save, which are not undoable. points
+// and cells are self-contained copies of the move's score contribution and placed cells, so
+// the status summary and the AI-word highlight can be derived without the command (which
+// restored entries lack).
 type historyEntry struct {
-	cmd    engine.Command
-	player string // "You" or "AI"
+	cmd    engine.Command // nil for entries restored from a save (not undoable)
+	player string         // "You" or "AI"
 	line   string
+	points int      // score this move contributed (a play's score; 0 for pass/exchange)
+	cells  [][2]int // board cells this move placed; nil for pass/exchange
 }
 
 // gameScreen is the gameplay controller. It owns all mutable game state for one
@@ -160,12 +165,13 @@ type gameScreen struct {
 // newGameScreen constructs the controller (no widgets yet; see build). The move-history
 // format is taken from state.ScrabbleNotation.
 func newGameScreen(a *App, state *engine.GameState, dict *dictionary.Dictionary) *gameScreen {
-	return &gameScreen{
+	gs := &gameScreen{
 		app:              a,
 		state:            state,
 		dict:             dict,
 		scrabbleNotation: state.ScrabbleNotation,
 		openingLine:      openingDrawLine(state.OpeningDraw),
+		history:          restoreHistory(state.History),
 		rng:              rand.New(rand.NewSource(time.Now().UnixNano())),
 		rackSelected:     -1,
 		exchangeSel:      make(map[int]bool),
@@ -176,6 +182,38 @@ func newGameScreen(a *App, state *engine.GameState, dict *dictionary.Dictionary)
 		lastHumanPts:     -1,
 		lastAIPts:        -1,
 	}
+	// Derive the status summary and the AI-word highlight from the (possibly restored)
+	// history so a resumed game shows them immediately.
+	gs.recomputeLastPoints()
+	gs.recomputeAIHighlight()
+	return gs
+}
+
+// restoreHistory reconstructs the move-history entries from a saved game's records. The
+// entries carry no command, so they are shown and their points/cells are usable but they
+// are not undoable (undo is not restored across a save/load).
+func restoreHistory(records []engine.MoveRecord) []historyEntry {
+	if len(records) == 0 {
+		return nil
+	}
+	h := make([]historyEntry, len(records))
+	for i, r := range records {
+		h[i] = historyEntry{player: r.Player, line: r.Line, points: r.Points, cells: r.Cells}
+	}
+	return h
+}
+
+// moveRecords converts the live move history into the serialisable form persisted with the
+// game.
+func (gs *gameScreen) moveRecords() []engine.MoveRecord {
+	if len(gs.history) == 0 {
+		return nil
+	}
+	recs := make([]engine.MoveRecord, len(gs.history))
+	for i, e := range gs.history {
+		recs[i] = engine.MoveRecord{Player: e.player, Line: e.line, Points: e.points, Cells: e.cells}
+	}
+	return recs
 }
 
 // build constructs every widget, assembles the layout and returns the content.
@@ -782,6 +820,9 @@ func (gs *gameScreen) doUndo() {
 	// Pressing Undo again steps back another turn.
 	for len(gs.history) > 0 {
 		e := gs.history[len(gs.history)-1]
+		if e.cmd == nil {
+			break // reached a restored entry (no command); those are not undoable
+		}
 		e.cmd.Undo(gs.state)
 		gs.history = gs.history[:len(gs.history)-1]
 		if e.player == "You" {
@@ -797,6 +838,8 @@ func (gs *gameScreen) doUndo() {
 }
 
 func (gs *gameScreen) doSave() {
+	// Persist the move-history log alongside the game state so it is restored on load.
+	gs.state.History = gs.moveRecords()
 	if err := gs.app.sm.Save(gs.state); err != nil {
 		gs.setStatus(sanitiseError(err), true)
 		gs.refresh()
@@ -1375,13 +1418,30 @@ func (gs *gameScreen) logCommand(player string, cmd engine.Command) {
 	default:
 		return
 	}
-	gs.history = append(gs.history, historyEntry{cmd: cmd, player: player, line: line})
+	gs.history = append(gs.history, historyEntry{
+		cmd: cmd, player: player, line: line,
+		points: movePoints(cmd), cells: playCells(cmd),
+	})
 	gs.recomputeLastPoints()
 	// A completed move clears any transient message so the score summary is shown.
 	gs.statusMsg = ""
 	gs.statusIsErr = false
 	gs.recomputeAIHighlight()
 	gs.refreshHistory()
+}
+
+// playCells returns the board cells a play placed, for the AI-word highlight and the
+// persisted history; nil for a pass or exchange.
+func playCells(cmd engine.Command) [][2]int {
+	pc, ok := cmd.(*engine.PlayCommand)
+	if !ok {
+		return nil
+	}
+	cells := make([][2]int, len(pc.Move.Placed))
+	for i, pt := range pc.Move.Placed {
+		cells[i] = [2]int{pt.Row, pt.Col}
+	}
+	return cells
 }
 
 // recomputeLastPoints derives each player's most-recent-move points from the history: a
@@ -1393,9 +1453,9 @@ func (gs *gameScreen) recomputeLastPoints() {
 	for i := len(gs.history) - 1; i >= 0; i-- {
 		e := gs.history[i]
 		if e.player == "You" && gs.lastHumanPts < 0 {
-			gs.lastHumanPts = movePoints(e.cmd)
+			gs.lastHumanPts = e.points
 		} else if e.player == "AI" && gs.lastAIPts < 0 {
-			gs.lastAIPts = movePoints(e.cmd)
+			gs.lastAIPts = e.points
 		}
 		if gs.lastHumanPts >= 0 && gs.lastAIPts >= 0 {
 			break
@@ -1420,25 +1480,22 @@ func (gs *gameScreen) recomputeAIHighlight() {
 	gs.aiLastPlaced = nil
 	for i := len(gs.history) - 1; i >= 0; i-- {
 		e := gs.history[i]
-		if e.player != "AI" {
-			continue
+		if e.player != "AI" || len(e.cells) == 0 {
+			continue // not the AI, or a pass/exchange that places no tiles; keep looking back
 		}
-		pc, ok := e.cmd.(*engine.PlayCommand)
-		if !ok {
-			continue // pass/exchange places no tiles; keep looking further back
-		}
-		gs.aiLastPlaced = make(map[[2]int]bool, len(pc.Move.Placed))
-		for _, pt := range pc.Move.Placed {
-			gs.aiLastPlaced[[2]int{pt.Row, pt.Col}] = true
+		gs.aiLastPlaced = make(map[[2]int]bool, len(e.cells))
+		for _, cell := range e.cells {
+			gs.aiLastPlaced[[2]int{cell[0], cell[1]}] = true
 		}
 		return
 	}
 }
 
-// canUndo reports whether there is a human turn available to undo.
+// canUndo reports whether there is a human turn made this session available to undo.
+// Entries restored from a save carry no command and are not undoable.
 func (gs *gameScreen) canUndo() bool {
 	for _, e := range gs.history {
-		if e.player == "You" {
+		if e.player == "You" && e.cmd != nil {
 			return true
 		}
 	}

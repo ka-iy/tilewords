@@ -4,21 +4,16 @@ package ui
 import (
 	"reflect"
 	"testing"
-
-	"squabble/engine"
 )
 
 // TestRecomputeAIHighlight verifies that the red-border highlight tracks the cells
 // of the AI's most recent play still on the board, derived purely from history.
 func TestRecomputeAIHighlight(t *testing.T) {
+	// The highlight is derived from each entry's placed cells (as populated by logCommand).
 	play := func(player string, cells ...[2]int) historyEntry {
-		placed := make([]engine.PlacedTile, len(cells))
-		for i, c := range cells {
-			placed[i] = engine.PlacedTile{Row: c[0], Col: c[1]}
-		}
-		return historyEntry{cmd: &engine.PlayCommand{Move: engine.PlayMove{Placed: placed}}, player: player}
+		return historyEntry{player: player, cells: cells}
 	}
-	aiPass := historyEntry{cmd: &engine.PassCommand{}, player: "AI"}
+	aiPass := historyEntry{player: "AI"} // a pass places no cells
 
 	cases := []struct {
 		name    string
