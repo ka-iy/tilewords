@@ -62,6 +62,12 @@ type GameState struct {
 	// game that is saved and reloaded is never scored a second time.
 	EndgameScored bool
 
+	// ScrabbleNotation records the player's move-history display preference (Scrabble
+	// coordinate notation when true, otherwise the plain word list). It is a UI preference
+	// rather than rules state, but is persisted here so a saved game resumes in the same
+	// format. Older save files without this field decode as false (plain).
+	ScrabbleNotation bool
+
 	// OpeningDraw records how the first turn was decided (BR-E19). It is set by New
 	// and is nil for GameState values constructed directly (e.g. in tests).
 	OpeningDraw *OpeningDraw

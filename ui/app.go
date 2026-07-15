@@ -100,9 +100,10 @@ func (a *App) showSetup() {
 	a.redraw()
 }
 
-// showGame installs the gameplay screen for an initialised state and dictionary.
-// If it is the AI's turn (e.g. the AI won the opening draw, or a saved game was
-// the AI's move), the AI turn is started immediately.
+// showGame installs the gameplay screen for an initialised state and dictionary. The
+// move-history format is taken from state.ScrabbleNotation. If it is the AI's turn (e.g.
+// the AI won the opening draw, or a saved game was the AI's move), the AI turn is started
+// immediately.
 func (a *App) showGame(state *engine.GameState, dict *dictionary.Dictionary) {
 	gs := newGameScreen(a, state, dict)
 	content := gs.build()
@@ -125,8 +126,8 @@ func (a *App) showGame(state *engine.GameState, dict *dictionary.Dictionary) {
 // goroutine; the caller uses it to display the message on the current screen.
 
 // startNewGame loads dictName asynchronously and, on success, creates a fresh
-// game and shows the game screen.
-func (a *App) startNewGame(dictName dictionary.DictName, level int, onErr func(string)) {
+// game and shows the game screen. scrabbleNotation selects the move-history format.
+func (a *App) startNewGame(dictName dictionary.DictName, level int, scrabbleNotation bool, onErr func(string)) {
 	go func() {
 		dict, err := dictionary.Load(dictName)
 		fyne.Do(func() {
@@ -136,6 +137,7 @@ func (a *App) startNewGame(dictName dictionary.DictName, level int, onErr func(s
 			}
 			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 			state := engine.New(dict.Name(), level, rng)
+			state.ScrabbleNotation = scrabbleNotation
 			logOpeningDraw(state)
 			a.showGame(state, dict)
 		})
@@ -158,6 +160,8 @@ func (a *App) loadSavedGame(onErr func(string)) {
 				onErr(sanitiseError(err))
 				return
 			}
+			// state.ScrabbleNotation was persisted with the save, so the resumed game keeps
+			// the same move-history format the player chose.
 			a.showGame(state, dict)
 		})
 	}()

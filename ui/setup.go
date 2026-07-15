@@ -84,6 +84,10 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		levelLabel.SetText(fmt.Sprintf("Difficulty: %d  (1 = easy, 10 = hard)", level))
 	}
 
+	// Move-history format: plain word list by default, Scrabble coordinate notation when
+	// checked (e.g. "8D UNMIX +28").
+	notationCheck := widget.NewCheck("Show move history in Scrabble notation", nil)
+
 	var startBtn, backBtn *widget.Button
 
 	startBtn = widget.NewButton("Start Game", func() {
@@ -94,7 +98,7 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		startBtn.Disable()
 		backBtn.Disable()
 		status.SetText("Loading dictionary…")
-		a.startNewGame(selectedDict, level, func(msg string) {
+		a.startNewGame(selectedDict, level, notationCheck.Checked, func(msg string) {
 			status.SetText(msg)
 			startBtn.Enable()
 			backBtn.Enable()
@@ -118,6 +122,8 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		widget.NewSeparator(),
 		levelLabel,
 		levelSlider,
+		widget.NewSeparator(),
+		notationCheck,
 		widget.NewSeparator(),
 		container.NewHBox(layout.NewSpacer(), backBtn, startBtn),
 		status,

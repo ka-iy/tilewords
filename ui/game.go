@@ -63,6 +63,10 @@ type gameScreen struct {
 	dict  *dictionary.Dictionary
 	rng   *rand.Rand
 
+	// scrabbleNotation selects the move-history format: Scrabble coordinate notation
+	// (e.g. "8D UNMIX +28") when true, otherwise the plain word list.
+	scrabbleNotation bool
+
 	// Interaction state.
 	staged       []stagedTile
 	rackSelected int          // selected human rack index; -1 = none
@@ -134,6 +138,9 @@ type gameScreen struct {
 	history       []historyEntry
 	historyLabel  *widget.Label
 	historyScroll *container.Scroll
+	// openingLine is a fixed first line in the move history summarising the opening draw.
+	// It is not a move, so it is not part of the undo stack and is never popped.
+	openingLine string
 
 	// aiLastPlaced holds the board cells of the AI's most recently played word; the
 	// board outlines these tiles in red. Derived from history by recomputeAIHighlight.
@@ -150,21 +157,24 @@ type gameScreen struct {
 	recallBtn  *widget.Button
 }
 
-// newGameScreen constructs the controller (no widgets yet; see build).
+// newGameScreen constructs the controller (no widgets yet; see build). The move-history
+// format is taken from state.ScrabbleNotation.
 func newGameScreen(a *App, state *engine.GameState, dict *dictionary.Dictionary) *gameScreen {
 	return &gameScreen{
-		app:           a,
-		state:         state,
-		dict:          dict,
-		rng:           rand.New(rand.NewSource(time.Now().UnixNano())),
-		rackSelected:  -1,
-		exchangeSel:   make(map[int]bool),
-		dragRackSrc:   -1,
-		dragBoardSrc:  [2]int{-1, -1},
-		pickedUp:      [2]int{-1, -1},
-		lastPressCell: [2]int{-1, -1},
-		lastHumanPts:  -1,
-		lastAIPts:     -1,
+		app:              a,
+		state:            state,
+		dict:             dict,
+		scrabbleNotation: state.ScrabbleNotation,
+		openingLine:      openingDrawLine(state.OpeningDraw),
+		rng:              rand.New(rand.NewSource(time.Now().UnixNano())),
+		rackSelected:     -1,
+		exchangeSel:      make(map[int]bool),
+		dragRackSrc:      -1,
+		dragBoardSrc:     [2]int{-1, -1},
+		pickedUp:         [2]int{-1, -1},
+		lastPressCell:    [2]int{-1, -1},
+		lastHumanPts:     -1,
+		lastAIPts:        -1,
 	}
 }
 
@@ -267,6 +277,7 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	gs.historyScroll = container.NewVScroll(gs.historyLabel)
 	historyTitle := widget.NewLabelWithStyle("Move history", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	historyBox := container.NewBorder(historyTitle, nil, nil, nil, gs.historyScroll)
+	gs.refreshHistory() // show the opening-draw line before any move is made
 
 	// Drag ghost: a floating tile that follows the cursor; hidden until a drag begins.
 	// App.showGame stacks it in a no-layout overlay above this content.
@@ -1335,14 +1346,28 @@ func playPts(pts int) string {
 
 // ---------- Move history ----------
 
+// playLine formats a play's move-history line: Scrabble coordinate notation (e.g.
+// "You: 8D UNMIX +28", with any cross-words listed after the main word) when
+// scrabbleNotation is set, otherwise the plain word list (e.g. "You: UNMIX, CROSS (+28)").
+// It is called after the move is committed, so AnnotatedWords reads the board with the tiles
+// in place.
+func (gs *gameScreen) playLine(player string, move *engine.PlayMove) string {
+	if gs.scrabbleNotation {
+		if words := engine.AnnotatedWords(gs.state.Board, move); len(words) > 0 {
+			return fmt.Sprintf("%s: %s +%d", player, strings.Join(words, ", "), move.Score)
+		}
+	}
+	words := strings.Join(move.WordsFormed, ", ")
+	return fmt.Sprintf("%s: %s (+%d)", player, words, move.Score)
+}
+
 // logCommand records one executed turn: it pushes the command onto the undo stack
 // and appends its line to the move-history panel.
 func (gs *gameScreen) logCommand(player string, cmd engine.Command) {
 	var line string
 	switch c := cmd.(type) {
 	case *engine.PlayCommand:
-		words := strings.Join(c.Move.WordsFormed, ", ")
-		line = fmt.Sprintf("%s: %s (+%d)", player, words, c.Move.Score)
+		line = gs.playLine(player, &c.Move)
 	case *engine.ExchangeCommand:
 		line = fmt.Sprintf("%s: exchanged %d tile(s)", player, len(c.Move.Tiles))
 	case *engine.PassCommand:
@@ -1426,12 +1451,30 @@ func (gs *gameScreen) refreshHistory() {
 	if gs.historyLabel == nil {
 		return
 	}
-	lines := make([]string, len(gs.history))
-	for i, e := range gs.history {
-		lines[i] = e.line
+	lines := make([]string, 0, len(gs.history)+1)
+	if gs.openingLine != "" {
+		lines = append(lines, gs.openingLine)
+	}
+	for _, e := range gs.history {
+		lines = append(lines, e.line)
 	}
 	gs.historyLabel.SetText(strings.Join(lines, "\n"))
 	gs.scrollHistoryToEnd()
+}
+
+// openingDrawLine returns the move-history line summarising the opening draw — the letter
+// each player drew and who plays first — or "" when there is no recorded opening draw (e.g.
+// a directly-constructed state in tests, or a saved game from before it was recorded).
+func openingDrawLine(od *engine.OpeningDraw) string {
+	if od == nil {
+		return ""
+	}
+	first := "you go first"
+	if od.First == engine.AITurn {
+		first = "AI goes first"
+	}
+	return fmt.Sprintf("Opening draw: you drew %s, AI drew %s — %s",
+		drawnLetterName(od.HumanLetter), drawnLetterName(od.AILetter), first)
 }
 
 // scrollHistoryToEnd keeps the newest move-history line in view after the log changes.
