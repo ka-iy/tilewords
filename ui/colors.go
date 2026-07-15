@@ -67,8 +67,9 @@ var colorTileExchangeSel = color.RGBA{R: 255, G: 165, B: 0, A: 255} // orange
 // bright green/red cues). On the light theme those wash out against white, so these
 // darker, high-contrast counterparts are used instead (see the accessors in theme.go).
 var (
-	colorTitleLight = color.RGBA{R: 168, G: 116, B: 0, A: 255}  // dark amber — title on white
-	colorTextLight  = color.RGBA{R: 45, G: 45, B: 45, A: 255}   // near-black body text on white
-	colorGreenLight = color.RGBA{R: 21, G: 122, B: 45, A: 255}  // dark green cue on white
-	colorRedLight   = color.RGBA{R: 197, G: 32, B: 32, A: 255}  // dark red cue on white
+	colorTitleLight = color.RGBA{R: 168, G: 116, B: 0, A: 255} // dark amber — title on white
+	colorTextLight  = color.RGBA{R: 45, G: 45, B: 45, A: 255}  // near-black body text on white
+	colorGreenLight = color.RGBA{R: 21, G: 122, B: 45, A: 255} // dark green cue on white
+	colorRedLight   = color.RGBA{R: 197, G: 32, B: 32, A: 255} // dark red cue on white
+	colorAmberLight = color.RGBA{R: 176, G: 106, B: 0, A: 255} // dark amber cue on white (AI points)
 )

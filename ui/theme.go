@@ -29,18 +29,22 @@ func (squabbleTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) 
 		case theme.ColorNameForeground:
 			return color.NRGBA{R: 235, G: 235, B: 235, A: 255} // bright grey — high contrast
 		case theme.ColorNameSuccess:
-			return color.NRGBA{R: 120, G: 230, B: 130, A: 255} // bright green status
+			return color.NRGBA{R: 120, G: 230, B: 130, A: 255} // bright green status (your points)
 		case theme.ColorNameError:
 			return color.NRGBA{R: 255, G: 120, B: 120, A: 255} // bright red error
+		case theme.ColorNameWarning:
+			return color.NRGBA{R: 255, G: 190, B: 90, A: 255} // bright amber (AI points)
 		}
 	} else {
 		// Light variant: darken the status colours so they stay legible on white (the
-		// default success/error greens and reds are too light against a white background).
+		// default success/error/warning colours are too light against a white background).
 		switch name {
 		case theme.ColorNameSuccess:
 			return colorGreenLight
 		case theme.ColorNameError:
 			return colorRedLight
+		case theme.ColorNameWarning:
+			return colorAmberLight
 		}
 	}
 	return theme.DefaultTheme().Color(name, variant)

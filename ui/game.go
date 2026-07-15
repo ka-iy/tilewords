@@ -77,6 +77,14 @@ type gameScreen struct {
 	statusMsg   string
 	statusIsErr bool
 
+	// lastHumanPts and lastAIPts hold each player's most-recent-move points — a play's
+	// score, or +0 for a pass or exchange — or -1 before that player has moved. The status
+	// line shows them as "You <pts> / AI <pts>" — the human's in green, the AI's in amber —
+	// whenever no transient message or AI-thinking notice is being shown. Derived from the
+	// move history by recomputeLastPoints so they stay correct across undo.
+	lastHumanPts int
+	lastAIPts    int
+
 	// Widgets.
 	cells     [boardDim * boardDim]*cellWidget
 	humanRack [engine.MaxRackSize]*rackSlotWidget
@@ -155,6 +163,8 @@ func newGameScreen(a *App, state *engine.GameState, dict *dictionary.Dictionary)
 		dragBoardSrc:  [2]int{-1, -1},
 		pickedUp:      [2]int{-1, -1},
 		lastPressCell: [2]int{-1, -1},
+		lastHumanPts:  -1,
+		lastAIPts:     -1,
 	}
 }
 
@@ -250,9 +260,10 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	)
 
 	// Move-history panel: a non-editable, scrollable log of each turn — the player,
-	// the word(s) played, and the score.
+	// the word(s) played, and the score. Selectable so the log can be copied.
 	gs.historyLabel = widget.NewLabel("")
 	gs.historyLabel.Wrapping = fyne.TextWrapWord
+	gs.historyLabel.Selectable = true
 	gs.historyScroll = container.NewVScroll(gs.historyLabel)
 	historyTitle := widget.NewLabelWithStyle("Move history", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	historyBox := container.NewBorder(historyTitle, nil, nil, nil, gs.historyScroll)
@@ -399,22 +410,7 @@ func (gs *gameScreen) refresh() {
 	gs.moveLabel.SetText(fmt.Sprintf("Move: %d", gs.state.MoveNumber))
 
 	// Status line.
-	msg := gs.statusMsg
-	colorName := theme.ColorNameSuccess
-	if gs.statusIsErr {
-		colorName = theme.ColorNameError
-	}
-	if gs.aiThinking {
-		msg = "AI is thinking…"
-		colorName = theme.ColorNameForeground
-	}
-	gs.statusRT.Segments = []widget.RichTextSegment{
-		&widget.TextSegment{Text: msg, Style: widget.RichTextStyle{
-			ColorName: colorName,
-			SizeName:  theme.SizeNameSubHeadingText, // larger than body text for legibility
-			Alignment: fyne.TextAlignCenter,
-		}},
-	}
+	gs.statusRT.Segments = gs.statusSegments()
 	gs.statusRT.Refresh()
 
 	gs.syncButtons()
@@ -697,7 +693,8 @@ func (gs *gameScreen) commitPlay() {
 	gs.staged = gs.staged[:0]
 	gs.rackSelected = -1
 	gs.clearDragState()
-	gs.setStatus(fmt.Sprintf("Played! +%d pts", cmd.Move.Score), false)
+	// logCommand records the points and clears the transient message so the status line
+	// shows the score summary (your points in green / the AI's in amber).
 	gs.logCommand("You", cmd)
 	gs.afterHumanMove()
 }
@@ -743,7 +740,8 @@ func (gs *gameScreen) commitExchange() {
 	gs.rackSelected = -1
 	gs.exchangeSel = make(map[int]bool)
 	gs.clearDragState()
-	gs.setStatus(fmt.Sprintf("Exchanged %d tile(s).", len(toExchange)), false)
+	// logCommand records the move (+0) and clears the transient message so the status line
+	// shows the score summary. The exchange is also recorded in the move history.
 	gs.logCommand("You", cmd)
 	gs.afterHumanMove()
 }
@@ -756,7 +754,8 @@ func (gs *gameScreen) commitPass() {
 		gs.refresh()
 		return
 	}
-	gs.setStatus("You passed.", false)
+	// logCommand records the move (+0) and clears the transient message so the status line
+	// shows the score summary. The pass is also recorded in the move history.
 	gs.logCommand("You", cmd)
 	gs.afterHumanMove()
 }
@@ -779,6 +778,7 @@ func (gs *gameScreen) doUndo() {
 		}
 	}
 	gs.recomputeAIHighlight()
+	gs.recomputeLastPoints()
 	gs.refreshHistory()
 	gs.recallAll()
 	gs.setStatus("Move undone.", false)
@@ -1292,6 +1292,47 @@ func (gs *gameScreen) setStatus(msg string, isErr bool) {
 	gs.statusIsErr = isErr
 }
 
+// statusSegments builds the status line. While the AI is thinking, or a transient message
+// (an error, or feedback like "Game saved.") is set, that single message is shown.
+// Otherwise the line shows the most-recent-play score summary: the human's points in green
+// and the AI's in amber, separated by " / ".
+func (gs *gameScreen) statusSegments() []widget.RichTextSegment {
+	seg := func(text string, colorName fyne.ThemeColorName) *widget.TextSegment {
+		return &widget.TextSegment{Text: text, Style: widget.RichTextStyle{
+			ColorName: colorName,
+			SizeName:  theme.SizeNameSubHeadingText, // larger than body text for legibility
+			Alignment: fyne.TextAlignCenter,
+			Inline:    true,
+		}}
+	}
+
+	switch {
+	case gs.aiThinking:
+		return []widget.RichTextSegment{seg("AI is thinking…", theme.ColorNameForeground)}
+	case gs.statusMsg != "":
+		c := theme.ColorNameSuccess
+		if gs.statusIsErr {
+			c = theme.ColorNameError
+		}
+		return []widget.RichTextSegment{seg(gs.statusMsg, c)}
+	default:
+		return []widget.RichTextSegment{
+			seg("You "+playPts(gs.lastHumanPts), theme.ColorNameSuccess),
+			seg(" / ", theme.ColorNameForeground),
+			seg("AI "+playPts(gs.lastAIPts), theme.ColorNameWarning),
+		}
+	}
+}
+
+// playPts formats a most-recent-move score for the status line; the -1 sentinel (no move
+// yet) is shown as an em dash.
+func playPts(pts int) string {
+	if pts < 0 {
+		return "—"
+	}
+	return fmt.Sprintf("+%d", pts)
+}
+
 // ---------- Move history ----------
 
 // logCommand records one executed turn: it pushes the command onto the undo stack
@@ -1310,8 +1351,40 @@ func (gs *gameScreen) logCommand(player string, cmd engine.Command) {
 		return
 	}
 	gs.history = append(gs.history, historyEntry{cmd: cmd, player: player, line: line})
+	gs.recomputeLastPoints()
+	// A completed move clears any transient message so the score summary is shown.
+	gs.statusMsg = ""
+	gs.statusIsErr = false
 	gs.recomputeAIHighlight()
 	gs.refreshHistory()
+}
+
+// recomputeLastPoints derives each player's most-recent-move points from the history: a
+// play's score, or +0 for a pass or exchange, and the -1 sentinel when a player has not
+// moved yet. Deriving from the history keeps the status summary correct across undo.
+func (gs *gameScreen) recomputeLastPoints() {
+	gs.lastHumanPts = -1
+	gs.lastAIPts = -1
+	for i := len(gs.history) - 1; i >= 0; i-- {
+		e := gs.history[i]
+		if e.player == "You" && gs.lastHumanPts < 0 {
+			gs.lastHumanPts = movePoints(e.cmd)
+		} else if e.player == "AI" && gs.lastAIPts < 0 {
+			gs.lastAIPts = movePoints(e.cmd)
+		}
+		if gs.lastHumanPts >= 0 && gs.lastAIPts >= 0 {
+			break
+		}
+	}
+}
+
+// movePoints is the points a move contributes to the status summary: a play's score, or 0
+// for a pass or exchange.
+func movePoints(cmd engine.Command) int {
+	if pc, ok := cmd.(*engine.PlayCommand); ok {
+		return pc.Move.Score
+	}
+	return 0
 }
 
 // recomputeAIHighlight derives aiLastPlaced from the move history: the cells of the
