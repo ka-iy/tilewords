@@ -1,40 +1,22 @@
 # Squabble — top-level build rules.
 #
-# Desktop (Linux/macOS/Windows):
-#   make                  → build native binary (uses committed .gob assets)
-#   make run              → build and launch
-#   make test             → run all tests with race detector
-#   make vet              → run go vet
-#   make gaddag           → build a GADDAG for every wordlists/*.txt present, plus ENABLE
-#   make gaddag-free      → download ENABLE word list and build its GADDAG asset only
-#   make clean            → remove build artefacts and generated GADDAG assets
+# Run `make help` to list every target with a one-line description.
+#
+# Quick start (no licensed word lists required):
+#   make gaddag-free && make   → downloads ENABLE (public domain) then builds
 #
 # Adding a dictionary: drop <name>.txt into wordlists/ (it is compiled to a GADDAG
 # asset automatically) and register <name> in dictionary.AllDictNames so the game
 # offers it in the new-game setup menu.
 #
-# Quick start (no licensed word lists required):
-#   make gaddag-free && make   → downloads ENABLE (public domain) then builds
-#
-# Licensed word lists (not committed — supply your own):
-#   Place <name>.txt under wordlists/ and it is compiled automatically by `make gaddag`.
-#
-# Android (debug APKs are single-ABI; the ABI name is appended to the file name):
-#   make android              → arm64-v8a   APK (squabble-arm64-v8a.apk; modern phones)
-#   make android-x86_64       → x86_64      APK (squabble-x86_64.apk; emulators / x86)
-#   make android-armeabi-v7a  → armeabi-v7a APK (squabble-armeabi-v7a.apk; old 32-bit)
-#   make android-release      → signed multi-ABI App Bundle (squabble-release.aab; needs KEYSTORE_*)
-#
-# iOS  (macOS only):
-#   make ios              → build an iOS app bundle   (squabble.app)
-#
 # First-time mobile setup:
-#   make install-mobile-tools
-#   # then set ANDROID_HOME and ANDROID_NDK_HOME in your shell
+#   make install-mobile-tools     # then set ANDROID_HOME and ANDROID_NDK_HOME
 
-.PHONY: all build run test vet clean gaddag gaddag-free download-wordlists \
-        android android-x86_64 android-armeabi-v7a android-release ios \
-        install-mobile-tools install-desktop
+.PHONY: all build run test vet clean gaddag gaddag-free download-wordlists help \
+        android android-arm64-v8a android-x86_64 android-armeabi-v7a android-universal \
+        android-release android-release-arm64-v8a android-release-x86_64 \
+        android-release-armeabi-v7a android-release-universal \
+        ios install-mobile-tools install-desktop
 
 .DEFAULT_GOAL := all
 
@@ -52,31 +34,30 @@ BUILDGADDAG_BIN := buildgaddag
 ANDROID_HOME     ?= $(HOME)/Android/Sdk
 ANDROID_NDK_HOME ?= $(ANDROID_HOME)/ndk/$(shell ls $(ANDROID_HOME)/ndk 2>/dev/null | sort -V | tail -1)
 
-# Android build-tools directory (highest installed version). apksigner and zipalign live
-# here; the android* debug targets use them to add a v2+ signature to the APK (see the
-# "Debug APK signing" note in the Android section).
+# Android build-tools (apksigner lives here) — highest installed version. Expanded lazily,
+# so it is only resolved when a debug APK is actually re-signed (see DEBUG_KEYSTORE).
 ANDROID_BUILD_TOOLS ?= $(ANDROID_HOME)/build-tools/$(shell ls $(ANDROID_HOME)/build-tools 2>/dev/null | sort -V | tail -1)
-APKSIGNER           := $(ANDROID_BUILD_TOOLS)/apksigner
-ZIPALIGN            := $(ANDROID_BUILD_TOOLS)/zipalign
+APKSIGNER            = $(ANDROID_BUILD_TOOLS)/apksigner
 
-# Debug keystore used to add the mandatory v2 signature to debug APKs. It is generated
-# on first use with the conventional Android debug credentials (password "android", alias
-# "androiddebugkey"); it is not committed (see .gitignore). Keep the same keystore across
-# builds so an updated debug APK installs over a previously installed one.
+# Debug keystore for the android-* debug APKs. If $(DEBUG_KEYSTORE) exists, those targets
+# re-sign the APK with it; otherwise the APK keeps the fyne debug key/cert signature. It is
+# not committed (see .gitignore). Create one with the conventional Android debug credentials:
+#   keytool -genkeypair -v -keystore debug.keystore -storepass android -keypass android \
+#     -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" \
+#     -keyalg RSA -keysize 2048 -validity 10000
 DEBUG_KEYSTORE      ?= debug.keystore
 DEBUG_KEYSTORE_PASS ?= android
 DEBUG_KEY_ALIAS     ?= androiddebugkey
 
-# Release signing — override on the command line.
+# Release signing (android-release*). Override on the command line. Generate the keystore:
+#   keytool -genkey -v -keystore release.keystore \
+#           -alias squabble -keyalg RSA -keysize 2048 -validity 10000
 KEYSTORE      ?= release.keystore
 KEYSTORE_PASS ?= changeme
 KEY_ALIAS     ?= squabble
 
-# Output artefacts. Debug APKs are single-ABI and named $(BINARY)-<abi>.apk by the
-# android* targets. A signed Android release is an App Bundle (.aab); an iOS package
-# is a .app bundle (a directory).
-AAB_RELEASE := $(BINARY)-release.aab
-IOS_APP     := $(BINARY).app
+# iOS package output (a .app bundle, i.e. a directory).
+IOS_APP := $(BINARY).app
 
 # Mobile app metadata. fyne normally reads these from FyneApp.toml, but mobile builds
 # (android/ios) must run from the main-package directory (cmd/squabble), where that
@@ -84,7 +65,21 @@ IOS_APP     := $(BINARY).app
 APP_NAME    := Squabble
 APP_ID      := net.squabble.app
 APP_VERSION := 1.0.0
+APP_BUILD   := 1
 ICON        := $(CURDIR)/ui/Icon.png
+
+# ── Help ──────────────────────────────────────────────────────────────────────
+#
+# Self-documenting: a '## text' comment after a target is its description, and a '##@ text'
+# comment line starts a new section. Targets and sections are listed in file order.
+
+##@ General
+help: ## Show this help (targets grouped by section)
+	@echo 'Squabble — make targets:'
+	@awk 'BEGIN {FS = ":.*## "} \
+		/^##@ / {printf "\n\033[1m%s\033[0m\n", substr($$0, 5); next} \
+		/^[a-zA-Z0-9][a-zA-Z0-9_-]*:.*## / {printf "  \033[36m%-28s\033[0m %s\n", $$1, $$2}' \
+		$(MAKEFILE_LIST)
 
 # ── GADDAG assets ─────────────────────────────────────────────────────────────
 #
@@ -112,15 +107,11 @@ GADDAG_ASSETS := $(patsubst $(WORDLISTS_DIR)/%.txt,$(DICT_DIR)/%.gob,$(WORDLIST_
 # its source has been downloaded (it is absent at wildcard-expansion time).
 GADDAG_ENABLE := $(DICT_DIR)/enable.gob
 
-# gaddag: build a GADDAG for every word list present, plus ENABLE (downloading it if
-# necessary). Licensed lists are built only when you have supplied their source file.
-gaddag: $(GADDAG_ENABLE) $(GADDAG_ASSETS)
+gaddag: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Build a GADDAG for every wordlists/*.txt (plus ENABLE)
 
-# gaddag-free: download ENABLE and build its GADDAG asset only.
-gaddag-free: $(GADDAG_ENABLE)
+gaddag-free: $(GADDAG_ENABLE) ## Download ENABLE and build only its GADDAG asset
 
-# download-wordlists: alias that ensures the free word lists are present.
-download-wordlists: $(WL_ENABLE)
+download-wordlists: $(WL_ENABLE) ## Download the free (ENABLE) word list
 
 # Ensure the source and output directories exist before they are written to.
 $(WORDLISTS_DIR) $(DICT_DIR):
@@ -136,12 +127,12 @@ $(DICT_DIR)/%.gob: $(WORDLISTS_DIR)/%.txt | $(DICT_DIR)
 
 # ── Desktop ───────────────────────────────────────────────────────────────────
 
-all: build
+all: build ## Build the native desktop binary (default target)
 
-build: $(GADDAG_ENABLE) $(GADDAG_ASSETS)
+build: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Build the native desktop binary
 	go build -o $(BINARY) $(CMD)
 
-run: build
+run: build ## Build and launch the desktop app
 	./$(BINARY)
 
 # install-desktop registers the app with the local desktop environment so its icon shows
@@ -150,34 +141,31 @@ run: build
 # matched to the window via StartupWMClass, NOT from the icon the app sets at runtime — so
 # a bare `make run` binary shows a generic taskbar icon until the app is installed.
 #
-# `fyne install` builds and installs the binary plus a .desktop entry (with the icon) into
-# ~/.local/. It reads the app name from FyneApp.toml, which lives at the repo root rather
-# than in $(CMD), so we stage a copy there for the build (removed afterwards even on
-# failure). --release embeds the metadata so the installed app's window class matches the
-# .desktop StartupWMClass.
-install-desktop: $(GADDAG_ENABLE) $(GADDAG_ASSETS)
+# `fyne install` reads the app name from FyneApp.toml, which lives at the repo root rather
+# than in $(CMD), so we stage a copy there for the build (removed afterwards even on failure).
+install-desktop: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Install the desktop app + .desktop entry (taskbar icon)
 	cp FyneApp.toml $(CMD)/FyneApp.toml
 	-cd $(CMD) && fyne install --release --icon $(ICON) --app-id $(APP_ID)
 	rm -f $(CMD)/FyneApp.toml
 
-test:
+test: ## Run all tests with the race detector
 	go test -race ./...
 
-vet:
+vet: ## Run go vet
 	go vet ./...
 
-clean:
-	rm -f $(BINARY) $(BUILDGADDAG_BIN) $(BINARY).apk $(BINARY)-*.apk $(AAB_RELEASE)
-	rm -f $(BINARY)-*.apk.idsig $(BINARY)-*.aligned.apk
+clean: ## Remove build artefacts and generated GADDAG assets
+	rm -f $(BINARY) $(BUILDGADDAG_BIN) $(BINARY).apk $(BINARY)-*.apk $(BINARY)-*.apk.idsig
+	rm -f $(BINARY)-release*.aab
 	rm -rf $(IOS_APP)
 	rm -f $(DICT_DIR)/*.gob $(DICT_DIR)/*.gob.tmp
 
 # ── Mobile tooling ────────────────────────────────────────────────────────────
 
-# The UI is built with Fyne, whose `fyne` CLI packages Android and iOS apps
-# (driving gomobile under the hood). Run once after cloning on a machine that
-# will do mobile builds.
-install-mobile-tools:
+# NOTE: Squabble's Android build needs a PATCHED fyne CLI (targets SDK 36 and adds v2/v3/v4
+# signing + zipalign). Install it from the fork instead of the upstream line below, e.g.
+#   (cd ~/FYNE-SOURCE/tools && go install ./cmd/fyne)
+install-mobile-tools: ## Install the fyne + gomobile CLIs for mobile builds
 	go install fyne.io/tools/cmd/fyne@latest
 	go install golang.org/x/mobile/cmd/gomobile@latest
 	ANDROID_HOME=$(ANDROID_HOME) ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) gomobile init
@@ -185,113 +173,112 @@ install-mobile-tools:
 # ── Android ───────────────────────────────────────────────────────────────────
 #
 # Prerequisites:
-#   • Android Studio / SDK platform-tools installed.
-#   • NDK installed via SDK Manager.
-#   • ANDROID_HOME and ANDROID_NDK_HOME set (defaults above, or override).
-#   • fyne and gomobile in PATH (make install-mobile-tools).
+#   • Android SDK platform-tools + NDK installed; ANDROID_HOME / ANDROID_NDK_HOME set.
+#   • The (patched) fyne CLI and gomobile in PATH (see install-mobile-tools).
 #
-# Note: `fyne package` has no -o flag and rejects --src for mobile, so the build runs
-# from the main-package dir and writes $(APP_NAME).apk there; we move it into place,
-# appending the ABI name. App metadata is passed explicitly because FyneApp.toml is
-# not in that directory.
+# `fyne package` has no -o flag, so each build runs from $(CMD) and writes $(APP_NAME).apk
+# there; we move it (and the v4 .idsig sidecar) into place, labelled by ABI. App metadata is
+# passed explicitly because FyneApp.toml is not in that directory.
 #
-# Manifest: cmd/squabble/AndroidManifest.xml is picked up automatically by fyne (it uses a
-# custom AndroidManifest.xml when one is present in the main-package dir). It grants only
-# local-storage permissions for save files and deliberately omits INTERNET — Squabble is
-# offline. iOS has no equivalent (see cmd/squabble/Info.plist and the iOS section below).
+# `fyne -os android/<goarch>` restricts a build to one ABI; `-os android` bundles all ABIs
+# into one (universal) artifact (~4x the size). The patched fyne signs debug APKs (v1/v2/v3,
+# required for targetSdk>=30) and emits an <apk>.idsig (v4); keeping that sidecar next to the
+# APK makes `adb install` use the incremental path, which installs cleanly across images.
 #
-# Debug APK signing (why the extra zipalign + apksigner steps below):
-#   - The fyne packager signs debug APKs with only the v1 (JAR) signature scheme.
-#   - Android's installer requires a minimum signature scheme based on the target SDK:
-#     targetSdkVersion >= 30 (Android 11+) makes an APK Signature Scheme v2 block MANDATORY,
-#     and a v1-only APK is rejected at install with INSTALL_PARSE_FAILED_NO_CERTIFICATES
-#     ("No APK Signature Scheme v2 signature in package").
-#   - Our manifest sets targetSdkVersion=36, so the fyne-produced v1-only APK will not
-#     install. We therefore re-sign it with apksigner (which adds v2/v3) after packaging.
-#     zipalign runs first because apksigner requires an already-aligned APK.
-#
-# Debug APKs, one CPU ABI per target. `fyne -os android/<goarch>` restricts the build
-# to a single ABI (the default `-os android` bundles all four ABIs, quadrupling the
-# APK size). Each target sets the goarch fyne wants and the Android ABI name used for
-# the output file:
-#
-#   target               goarch  →  Android ABI
-#   android              arm64      arm64-v8a     (virtually all modern phones)
-#   android-x86_64       amd64      x86_64        (emulators / x86 devices)
-#   android-armeabi-v7a  arm        armeabi-v7a   (old 32-bit devices)
-android:             FYNE_ARCH := arm64
-android:             ABI_LABEL := arm64-v8a
-android-x86_64:      FYNE_ARCH := amd64
-android-x86_64:      ABI_LABEL := x86_64
-android-armeabi-v7a: FYNE_ARCH := arm
-android-armeabi-v7a: ABI_LABEL := armeabi-v7a
+# Manifest: cmd/squabble/AndroidManifest.xml is picked up automatically by fyne. It grants
+# only local-storage permission for save files and omits INTERNET — Squabble is offline.
 
-# Generate the debug keystore on first use (conventional Android debug credentials).
-$(DEBUG_KEYSTORE):
-	keytool -genkeypair -v -keystore $@ \
-		-storepass $(DEBUG_KEYSTORE_PASS) -keypass $(DEBUG_KEYSTORE_PASS) \
-		-alias $(DEBUG_KEY_ALIAS) -keyalg RSA -keysize 2048 -validity 10000 \
-		-dname "CN=Android Debug,O=Android,C=US"
-
-android android-x86_64 android-armeabi-v7a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(DEBUG_KEYSTORE)
-	cd $(CMD) && \
-	ANDROID_HOME=$(ANDROID_HOME) \
-	ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
-	fyne package \
-		-os android/$(FYNE_ARCH) \
-		--name $(APP_NAME) \
-		--app-id $(APP_ID) \
-		--app-version $(APP_VERSION) \
-		--icon $(ICON)
-	mv $(CMD)/$(APP_NAME).apk $(BINARY)-$(ABI_LABEL).apk
-	# Re-sign with a v2/v3 signature so targetSdkVersion=36 APKs install (see note above).
-	# zipalign must run before apksigner; -p page-aligns the uncompressed native libraries.
-	$(ZIPALIGN) -p -f 4 $(BINARY)-$(ABI_LABEL).apk $(BINARY)-$(ABI_LABEL).aligned.apk
-	mv $(BINARY)-$(ABI_LABEL).aligned.apk $(BINARY)-$(ABI_LABEL).apk
-	$(APKSIGNER) sign \
-		--ks $(DEBUG_KEYSTORE) --ks-pass pass:$(DEBUG_KEYSTORE_PASS) \
+# fyne-package-apk: build a debug APK. $(1)=fyne -os value, $(2)=ABI label for the output.
+# The patched fyne signs the APK with its debug key/cert and emits a v4 .idsig. If a local
+# $(DEBUG_KEYSTORE) exists, the APK is then re-signed with it (apksigner preserves the
+# zipalignment and regenerates the .idsig for the new key); otherwise the fyne signature is
+# kept as-is.
+define fyne-package-apk
+cd $(CMD) && \
+ANDROID_HOME=$(ANDROID_HOME) \
+ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
+fyne package \
+	-os $(1) \
+	--name $(APP_NAME) \
+	--app-id $(APP_ID) \
+	--app-version $(APP_VERSION) \
+	--app-build $(APP_BUILD) \
+	--icon $(ICON)
+mv $(CMD)/$(APP_NAME).apk $(BINARY)-$(2).apk
+mv $(CMD)/$(APP_NAME).apk.idsig $(BINARY)-$(2).apk.idsig
+if [ -f "$(DEBUG_KEYSTORE)" ]; then \
+	echo ">> re-signing $(BINARY)-$(2).apk with $(DEBUG_KEYSTORE)"; \
+	"$(APKSIGNER)" sign --ks "$(DEBUG_KEYSTORE)" --ks-pass pass:$(DEBUG_KEYSTORE_PASS) \
 		--ks-key-alias $(DEBUG_KEY_ALIAS) --key-pass pass:$(DEBUG_KEYSTORE_PASS) \
-		$(BINARY)-$(ABI_LABEL).apk
-	$(APKSIGNER) verify --verbose $(BINARY)-$(ABI_LABEL).apk
+		--v4-signing-enabled true "$(BINARY)-$(2).apk"; \
+else \
+	echo ">> $(DEBUG_KEYSTORE) not found — keeping the fyne debug key/cert signature on $(BINARY)-$(2).apk"; \
+fi
+endef
 
-# Signed release App Bundle (.aab).  Generate a keystore first:
-#   keytool -genkey -v -keystore release.keystore \
-#           -alias squabble -keyalg RSA -keysize 2048 -validity 10000
-android-release: $(GADDAG_ENABLE) $(GADDAG_ASSETS)
-	cd $(CMD) && \
-	ANDROID_HOME=$(ANDROID_HOME) \
-	ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
-	fyne release \
-		-os android \
-		--name $(APP_NAME) \
-		--app-id $(APP_ID) \
-		--app-version $(APP_VERSION) \
-		--icon $(ICON) \
-		-keyStore $(CURDIR)/$(KEYSTORE) \
-		-keyStorePass $(KEYSTORE_PASS) \
-		-keyName $(KEY_ALIAS)
-	mv $(CMD)/$(APP_NAME).aab $(AAB_RELEASE)
+# fyne-release-aab: build a signed release App Bundle. $(1)=fyne -os value, $(2)=ABI label.
+define fyne-release-aab
+cd $(CMD) && \
+ANDROID_HOME=$(ANDROID_HOME) \
+ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
+fyne release \
+	-os $(1) \
+	--name $(APP_NAME) \
+	--app-id $(APP_ID) \
+	--app-version $(APP_VERSION) \
+	--app-build $(APP_BUILD) \
+	--icon $(ICON) \
+	-keyStore $(CURDIR)/$(KEYSTORE) \
+	-keyStorePass $(KEYSTORE_PASS) \
+	-keyName $(KEY_ALIAS)
+mv $(CMD)/$(APP_NAME).aab $(BINARY)-release-$(2).aab
+endef
+
+##@ Android — debug APKs
+# Signed with $(DEBUG_KEYSTORE) if present, else the fyne debug key/cert. `adb install`-able.
+android-arm64-v8a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Debug APK for arm64-v8a (modern phones)
+	$(call fyne-package-apk,android/arm64,arm64-v8a)
+
+android-x86_64: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Debug APK for x86_64 (emulators / x86 devices)
+	$(call fyne-package-apk,android/amd64,x86_64)
+
+android-armeabi-v7a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Debug APK for armeabi-v7a (old 32-bit devices)
+	$(call fyne-package-apk,android/arm,armeabi-v7a)
+
+android-universal: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Debug APK for all ABIs (universal, ~4x size)
+	$(call fyne-package-apk,android,universal)
+
+android: android-arm64-v8a ## Debug APK for arm64-v8a (alias for android-arm64-v8a)
+
+##@ Android — signed release App Bundles (.aab)
+# Need KEYSTORE / KEYSTORE_PASS / KEY_ALIAS (see the release-signing config above).
+android-release-arm64-v8a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Signed release .aab for arm64-v8a
+	$(call fyne-release-aab,android/arm64,arm64-v8a)
+
+android-release-x86_64: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Signed release .aab for x86_64
+	$(call fyne-release-aab,android/amd64,x86_64)
+
+android-release-armeabi-v7a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Signed release .aab for armeabi-v7a
+	$(call fyne-release-aab,android/arm,armeabi-v7a)
+
+android-release-universal: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Signed release .aab for all ABIs (universal)
+	$(call fyne-release-aab,android,universal)
+
+android-release: android-release-universal ## Signed release .aab for all ABIs (alias for android-release-universal)
 
 # ── iOS ───────────────────────────────────────────────────────────────────────
 #
-# Prerequisites:
-#   • macOS with Xcode and command-line tools installed.
-#   • The fyne CLI in PATH (make install-mobile-tools).
-#   • Xcode command-line tools and a valid Apple developer certificate in Keychain.
-#
-# `fyne package -os ios` writes a $(APP_NAME).app bundle; we move it into place.
-#
-# Manifest: unlike Android, fyne always generates the iOS Info.plist and does not read a
-# custom one. cmd/squabble/Info.plist documents the intended configuration. iOS needs no
-# change to satisfy "storage yes, network no": app storage is sandboxed (no permission) and
-# iOS has no internet permission to declare — the generated plist requests no networking
-# entitlements, matching AndroidManifest.xml's omission of INTERNET.
-ios:
+# macOS only: needs Xcode + command-line tools and a valid Apple developer certificate.
+# fyne always generates the iOS Info.plist (it does not read a custom one);
+# cmd/squabble/Info.plist documents the intended configuration.
+##@ iOS
+ios: ## Build an iOS .app bundle (macOS only)
 	cd $(CMD) && \
 	fyne package \
 		-os ios \
 		--name $(APP_NAME) \
 		--app-id $(APP_ID) \
 		--app-version $(APP_VERSION) \
+		--app-build $(APP_BUILD) \
 		--icon $(ICON)
 	mv $(CMD)/$(APP_NAME).app $(IOS_APP)
