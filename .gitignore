@@ -29,7 +29,7 @@ Thumbs.db
 *.apk
 *.apk.idsig
 buildgaddag
-squabble*
+/squabble*
 
 # signing keystores (never commit signing keys)
 *.keystore

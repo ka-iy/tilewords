@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Custom Android manifest for Squabble.
+
+  The Fyne packager (`fyne package -os android/...`, run from this directory) uses this
+  file verbatim when it is present, instead of generating one. Fyne's generated default
+  additionally requests android.permission.INTERNET; this manifest deliberately omits all
+  network/internet permissions — Squabble is fully offline and never opens a socket.
+
+  Storage: save files are written to the app's private internal storage
+  (Storage().RootURI(), i.e. getFilesDir()), which needs no permission on any Android
+  version. The external-storage permissions below are declared for completeness so the app
+  can also read/write user-visible local storage on legacy devices; they are scoped to
+  API 28 and below, since API 29+ uses scoped storage and ignores them.
+
+  Notes for maintainers:
+    - android:value for android.app.lib_name MUST be the packager's lib name, which is
+      androidPkgName(app name) = "Squabble" (app name from the Makefile name flag). If the
+      app name changes, update this value or the app will fail to load its native library.
+    - versionCode/versionName are taken from THIS file (the app-version flag does not
+      override a supplied manifest on the non-adaptive-icon build path). Keep them in sync
+      with FyneApp.toml.
+    - The <application> android:icon/android:roundIcon attributes point the launcher at the
+      adaptive-icon resources (@mipmap/ic_launcher, @mipmap/ic_launcher_round) that the
+      packager compiles from Icon-foreground.png/Icon-background.png. Fyne only injects these
+      references into ITS OWN generated manifest; because we supply a custom manifest verbatim,
+      they must be declared here or the launcher shows the default Android icon.
+    - targetSdkVersion below is honoured only via the packager's adaptive-icon path, which
+      compiles this manifest with aapt2 (aapt2 keeps a manifest-declared targetSdkVersion,
+      overriding its own default). That path is active because cmd/squabble/Icon-foreground.png
+      exists. Without an adaptive foreground icon, the packager's legacy path rejects a manual
+      <uses-sdk> and forces its own value (29 debug / 35 release) — so removing the foreground
+      icon requires removing the <uses-sdk> element below AND the android:icon/android:roundIcon
+      attributes above (the @mipmap/ic_launcher resources exist only on the adaptive path).
+    - targetSdkVersion=36 (>= 30) makes an APK Signature Scheme v2 block mandatory at install.
+      The fyne packager only v1-signs debug APKs, so the Makefile android* targets re-sign the
+      APK with apksigner (v2/v3) after packaging; without that, install fails with
+      INSTALL_PARSE_FAILED_NO_CERTIFICATES. Lowering targetSdkVersion below 30 would remove the
+      v2 requirement but is not desirable.
+-->
+<manifest
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	package="net.squabble.app"
+	android:versionCode="1"
+	android:versionName="1.0.0">
+
+	<uses-sdk android:targetSdkVersion="36" />
+
+	<application android:label="Squabble" android:debuggable="false"
+			android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round">
+		<activity android:name="org.golang.app.GoNativeActivity"
+			android:label="Squabble"
+			android:configChanges="orientation|keyboardHidden|uiMode"
+			android:exported="true"
+			android:theme="@android:style/Theme">
+			<meta-data android:name="android.app.lib_name" android:value="Squabble" />
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+		</activity>
+
+		<receiver android:name="org.golang.app.FyneNotificationReceiver"
+				  android:exported="false" />
+	</application>
+
+	<!-- Local storage for save files (legacy devices only); no network permissions. -->
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+</manifest>

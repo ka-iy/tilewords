@@ -16,7 +16,9 @@
         android android-arm64-v8a android-x86_64 android-armeabi-v7a android-universal \
         android-release android-release-arm64-v8a android-release-x86_64 \
         android-release-armeabi-v7a android-release-universal \
-        ios install-mobile-tools install-desktop
+        android-release-apk android-release-apk-arm64-v8a android-release-apk-x86_64 \
+        android-release-apk-armeabi-v7a android-release-apk-universal \
+        install-mobile-tools install-desktop
 
 .DEFAULT_GOAL := all
 
@@ -39,6 +41,10 @@ ANDROID_NDK_HOME ?= $(ANDROID_HOME)/ndk/$(shell ls $(ANDROID_HOME)/ndk 2>/dev/nu
 ANDROID_BUILD_TOOLS ?= $(ANDROID_HOME)/build-tools/$(shell ls $(ANDROID_HOME)/build-tools 2>/dev/null | sort -V | tail -1)
 APKSIGNER            = $(ANDROID_BUILD_TOOLS)/apksigner
 
+# bundletool — required by the android-release* (.aab) and android-release-apk* targets.
+# Expected on PATH (e.g. `brew install bundletool`); override if it lives elsewhere.
+BUNDLETOOL ?= bundletool
+
 # Debug keystore for the android-* debug APKs. If $(DEBUG_KEYSTORE) exists, those targets
 # re-sign the APK with it; otherwise the APK keeps the fyne debug key/cert signature. It is
 # not committed (see .gitignore). Create one with the conventional Android debug credentials:
@@ -56,12 +62,9 @@ KEYSTORE      ?= release.keystore
 KEYSTORE_PASS ?= changeme
 KEY_ALIAS     ?= squabble
 
-# iOS package output (a .app bundle, i.e. a directory).
-IOS_APP := $(BINARY).app
-
-# Mobile app metadata. fyne normally reads these from FyneApp.toml, but mobile builds
-# (android/ios) must run from the main-package directory (cmd/squabble), where that
-# file is not present — so they are passed explicitly. Keep in sync with FyneApp.toml.
+# Mobile app metadata. fyne normally reads these from FyneApp.toml, but Android builds
+# must run from the main-package directory (cmd/squabble), where that file is not
+# present — so they are passed explicitly. Keep in sync with FyneApp.toml.
 APP_NAME    := Squabble
 APP_ID      := net.squabble.app
 APP_VERSION := 1.0.0
@@ -77,8 +80,13 @@ ICON        := $(CURDIR)/ui/Icon.png
 help: ## Show this help (targets grouped by section)
 	@echo 'Squabble — make targets:'
 	@awk 'BEGIN {FS = ":.*## "} \
-		/^##@ / {printf "\n\033[1m%s\033[0m\n", substr($$0, 5); next} \
-		/^[a-zA-Z0-9][a-zA-Z0-9_-]*:.*## / {printf "  \033[36m%-28s\033[0m %s\n", $$1, $$2}' \
+		/^##@ / {n++; kind[n]="s"; text[n]=substr($$0, 5); next} \
+		/^[a-zA-Z0-9][a-zA-Z0-9_-]*:.*## / {n++; kind[n]="t"; name[n]=$$1; desc[n]=$$2; \
+			if (length($$1) > w) w = length($$1)} \
+		END {fmt = "  \033[36m%-" w "s\033[0m  %s\n"; \
+			for (i = 1; i <= n; i++) \
+				if (kind[i] == "s") printf "\n\033[1m%s\033[0m\n", text[i]; \
+				else printf fmt, name[i], desc[i]}' \
 		$(MAKEFILE_LIST)
 
 # ── GADDAG assets ─────────────────────────────────────────────────────────────
@@ -156,8 +164,8 @@ vet: ## Run go vet
 
 clean: ## Remove build artefacts and generated GADDAG assets
 	rm -f $(BINARY) $(BUILDGADDAG_BIN) $(BINARY).apk $(BINARY)-*.apk $(BINARY)-*.apk.idsig
-	rm -f $(BINARY)-release*.aab
-	rm -rf $(IOS_APP)
+# Release bundles, plus the APK Set intermediate a failed bundletool run can leave.
+	rm -f $(BINARY)-release*.aab $(BINARY)-release*.apks
 	rm -f $(DICT_DIR)/*.gob $(DICT_DIR)/*.gob.tmp
 
 # ── Mobile tooling ────────────────────────────────────────────────────────────
@@ -234,6 +242,25 @@ fyne release \
 mv $(CMD)/$(APP_NAME).aab $(BINARY)-release-$(2).aab
 endef
 
+# bundletool-release-apk: convert a signed release .aab into a signed release APK.
+# $(1)=ABI label, matching the .aab built by the corresponding android-release-* target.
+# --mode=universal emits one APK carrying every ABI present in the bundle, so a per-ABI
+# bundle yields that single ABI and the universal bundle yields all of them. bundletool
+# writes an APK Set (.apks, a zip holding universal.apk); we extract it and drop the set.
+define bundletool-release-apk
+$(BUNDLETOOL) build-apks \
+	--bundle=$(BINARY)-release-$(1).aab \
+	--output=$(BINARY)-release-$(1).apks \
+	--mode=universal \
+	--overwrite \
+	--ks=$(CURDIR)/$(KEYSTORE) \
+	--ks-pass=pass:$(KEYSTORE_PASS) \
+	--ks-key-alias=$(KEY_ALIAS) \
+	--key-pass=pass:$(KEYSTORE_PASS)
+unzip -p $(BINARY)-release-$(1).apks universal.apk > $(BINARY)-release-$(1).apk
+rm -f $(BINARY)-release-$(1).apks
+endef
+
 ##@ Android — debug APKs
 # Signed with $(DEBUG_KEYSTORE) if present, else the fyne debug key/cert. `adb install`-able.
 android-arm64-v8a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Debug APK for arm64-v8a (modern phones)
@@ -266,19 +293,34 @@ android-release-universal: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Signed release .
 
 android-release: android-release-universal ## Signed release .aab for all ABIs (alias for android-release-universal)
 
-# ── iOS ───────────────────────────────────────────────────────────────────────
+# ── Android release APKs ──────────────────────────────────────────────────────
 #
-# macOS only: needs Xcode + command-line tools and a valid Apple developer certificate.
-# fyne always generates the iOS Info.plist (it does not read a custom one);
-# cmd/squabble/Info.plist documents the intended configuration.
-##@ iOS
-ios: ## Build an iOS .app bundle (macOS only)
-	cd $(CMD) && \
-	fyne package \
-		-os ios \
-		--name $(APP_NAME) \
-		--app-id $(APP_ID) \
-		--app-version $(APP_VERSION) \
-		--app-build $(APP_BUILD) \
-		--icon $(ICON)
-	mv $(CMD)/$(APP_NAME).app $(IOS_APP)
+# Signed, sideloadable release APKs (for distribution outside Google Play, which wants the
+# .aab). fyne cannot emit a release APK directly — its release build is only produced as an
+# App Bundle — so each target here first builds the matching .aab via the corresponding
+# android-release-* target, then converts that bundle to an APK. The APK is therefore a real
+# release build (symbols stripped), not a debug build re-signed.
+#
+# REQUIRES bundletool on PATH (https://github.com/google/bundletool), e.g.
+# `brew install bundletool`; override with BUNDLETOOL=/path/to/bundletool. bundletool is
+# needed by the android-release-* .aab targets themselves too, so it is not an extra
+# dependency for this section alone.
+#
+# These targets sign with the release key, so they need KEYSTORE / KEYSTORE_PASS / KEY_ALIAS
+# (see the release-signing config above) just like the .aab targets.
+
+##@ Android — release APKs (requires bundletool)
+android-release-apk-arm64-v8a: android-release-arm64-v8a ## Signed release APK for arm64-v8a
+	$(call bundletool-release-apk,arm64-v8a)
+
+android-release-apk-x86_64: android-release-x86_64 ## Signed release APK for x86_64
+	$(call bundletool-release-apk,x86_64)
+
+android-release-apk-armeabi-v7a: android-release-armeabi-v7a ## Signed release APK for armeabi-v7a
+	$(call bundletool-release-apk,armeabi-v7a)
+
+android-release-apk-universal: android-release-universal ## Signed release APK for all ABIs (universal)
+	$(call bundletool-release-apk,universal)
+
+android-release-apk: android-release-apk-universal ## Signed release APK, all ABIs (alias for android-release-apk-universal)
+
