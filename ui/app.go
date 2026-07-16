@@ -37,6 +37,12 @@ type App struct {
 func Run() error {
 	fapp := app.New()
 
+	// Set the app icon from a resource bundled into the binary (ui/bundled_icon.go), so the
+	// window/taskbar icon is available regardless of the working directory or build mode.
+	// Relying on Fyne's dev-mode FyneApp.toml lookup is not enough: it loads the icon via a
+	// path resolved from the current directory and is skipped entirely in release builds.
+	fapp.SetIcon(resourceIconPng)
+
 	// Respect the system light/dark theme, but brighten the dark variant's text and
 	// enlarge the status line (see squabbleTheme).
 	fapp.Settings().SetTheme(squabbleTheme{})

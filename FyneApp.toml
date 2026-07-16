@@ -3,7 +3,7 @@
 Website = "https://github.com/squabble"
 
 [Details]
-Icon = "Icon.png"
+Icon = "ui/Icon.png"
 Name = "Squabble"
 ID = "net.squabble.app"
 Version = "1.0.0"

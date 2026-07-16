@@ -27,5 +27,10 @@ Thumbs.db
 
 # binaries
 *.apk
+*.apk.idsig
 buildgaddag
 squabble*
+
+# signing keystores (never commit signing keys)
+*.keystore
+*.jks
