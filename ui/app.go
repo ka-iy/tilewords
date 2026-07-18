@@ -10,12 +10,12 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // windowTitle is the application/window title.
-const windowTitle = "Squabble"
+const windowTitle = "TileWords"
 
 // App owns the single Fyne application and window and routes between screens.
 // Every screen is rendered by calling win.SetContent with the screen's content.
@@ -39,7 +39,7 @@ func Run() error {
 	// storage APIs have a stable ID regardless of build mode or whether FyneApp.toml is
 	// present on disk at runtime (a plain `go build`/`go run` binary reads that file from
 	// the filesystem and does not embed it).
-	fapp := app.NewWithID("fyi.squabble.game")
+	fapp := app.NewWithID("fyi.tilewords.game")
 
 	// Set the app icon from a resource bundled into the binary (ui/bundled_icon.go), so the
 	// window/taskbar icon is available regardless of the working directory or build mode.
@@ -48,8 +48,8 @@ func Run() error {
 	fapp.SetIcon(resourceIconPng)
 
 	// Respect the system light/dark theme, but brighten the dark variant's text and
-	// enlarge the status line (see squabbleTheme).
-	fapp.Settings().SetTheme(squabbleTheme{})
+	// enlarge the status line (see tileWordsTheme).
+	fapp.Settings().SetTheme(tileWordsTheme{})
 
 	// NewSaveManager("") defaults the save directory to os.UserConfigDir(), but on
 	// Android/iOS neither $HOME nor $XDG_CONFIG_HOME is set, so that lookup fails and
@@ -135,9 +135,10 @@ func (a *App) showGame(state *engine.GameState, dict *dictionary.Dictionary) {
 // fyne.Do. onErr reports a sanitised, user-facing error string on the UI
 // goroutine; the caller uses it to display the message on the current screen.
 
-// startNewGame loads dictName asynchronously and, on success, creates a fresh
-// game and shows the game screen. scrabbleNotation selects the move-history format.
-func (a *App) startNewGame(dictName dictionary.DictName, level int, scrabbleNotation bool, onErr func(string)) {
+// startNewGame loads dictName asynchronously and, on success, creates a fresh game in
+// the given mode and shows the game screen. scrabbleNotation selects the move-history
+// format.
+func (a *App) startNewGame(dictName dictionary.DictName, level int, mode engine.GameMode, scrabbleNotation bool, onErr func(string)) {
 	go func() {
 		dict, err := dictionary.Load(dictName)
 		fyne.Do(func() {
@@ -146,7 +147,7 @@ func (a *App) startNewGame(dictName dictionary.DictName, level int, scrabbleNota
 				return
 			}
 			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-			state := engine.New(dict.Name(), level, rng)
+			state := engine.NewWithMode(dict.Name(), level, mode, rng)
 			state.ScrabbleNotation = scrabbleNotation
 			logOpeningDraw(state)
 			a.showGame(state, dict)

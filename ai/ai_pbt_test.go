@@ -9,9 +9,9 @@ import (
 
 	"pgregory.net/rapid"
 
-	"squabble/ai"
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/ai"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // boardStateGen generates a valid game state by replaying a random number of AI

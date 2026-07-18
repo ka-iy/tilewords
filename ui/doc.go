@@ -1,4 +1,4 @@
-// Package ui implements the Squabble user interface using the Fyne toolkit.
+// Package ui implements the TileWords user interface using the Fyne toolkit.
 //
 // Fyne is a retained-mode, event-driven GUI toolkit. Unlike the previous
 // Ebitengine implementation there is no per-frame game loop: the UI reacts to
@@ -41,7 +41,7 @@
 // # Persistence
 //
 // SaveManager (save.go) is unchanged from the original implementation: it writes
-// engine.GameState to os.UserConfigDir()/squabble/savegame.gob with an atomic
+// engine.GameState to os.UserConfigDir()/tilewords/savegame.gob with an atomic
 // temp-file rename and is injectable for headless testing.
 //
 // # Usage

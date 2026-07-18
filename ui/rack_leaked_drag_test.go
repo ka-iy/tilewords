@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // TestRackDisplay_LeakedDragSourceRecovers reproduces the reported "rack is short one

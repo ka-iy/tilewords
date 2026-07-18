@@ -13,9 +13,9 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"squabble/ai"
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/ai"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // aiTimeoutSecs is the maximum time the UI waits for the AI to return a move

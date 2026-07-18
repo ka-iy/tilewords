@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // newTileObjects creates the three canvas objects used to render a single tile or
@@ -35,9 +35,13 @@ const (
 	tilePointsFactor = 0.33
 
 	// tileLetterShiftFactor nudges a tile's letter right of centre, as a fraction of the
-	// cell width, so it sits clear of the bottom-left points value. Premium-square labels
-	// pass 0 and stay centred.
+	// cell width, so it sits clear of the points value. Premium-square labels pass 0 and
+	// stay centred.
 	tileLetterShiftFactor = 0.08
+
+	// tileLetterDropFactor nudges a tile's letter down, as a fraction of the cell height,
+	// so a two-digit "10" points value in the top-left corner does not overlap it.
+	tileLetterDropFactor = 0.10
 )
 
 // styleAsTile sets bg/letter/points to display a committed or staged tile.
@@ -82,7 +86,13 @@ func layoutTileText(letter, points *canvas.Text, size fyne.Size, letterFactor, l
 	letter.TextSize = size.Height * letterFactor
 	lh := letter.MinSize().Height
 	letter.Resize(fyne.NewSize(size.Width, lh))
-	letter.Move(fyne.NewPos(size.Width*letterShift, (size.Height-lh)/2))
+	// A tile's letter (letterShift > 0) is nudged down as well as right so a two-digit "10"
+	// points value in the top-left corner does not overlap it; premium labels stay centred.
+	letterY := (size.Height - lh) / 2
+	if letterShift > 0 {
+		letterY += size.Height * tileLetterDropFactor
+	}
+	letter.Move(fyne.NewPos(size.Width*letterShift, letterY))
 
 	// The points value is drawn bold, sized relative to the letter, and anchored near the
 	// top-left corner (inset from the top, and a little further in from the left) so it

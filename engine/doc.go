@@ -1,5 +1,5 @@
 // Package engine implements all game rules, board state management, tile handling,
-// scoring, and the command/undo system for the Squabble crossword board game.
+// scoring, and the command/undo system for the TileWords crossword board game.
 //
 // # Architecture
 //

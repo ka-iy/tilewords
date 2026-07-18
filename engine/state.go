@@ -4,7 +4,7 @@ package engine
 import (
 	"math/rand"
 
-	"squabble/dictionary"
+	"tilewords/dictionary"
 )
 
 // Turn identifies whose turn it is.
@@ -49,6 +49,10 @@ type GameState struct {
 	DictName   dictionary.DictName
 	// AILevel is the difficulty level (1–10) selected at game start.
 	AILevel int
+	// Mode is the game mode (board layout + tile economy) chosen at game start. It is
+	// persisted so a resumed game keeps the same board and economy. Older save files
+	// without this field decode as the zero value, ClassicMode.
+	Mode GameMode
 
 	// LastHumanCommand and LastAICommand store the most recent commands for undo.
 	// These fields are intentionally excluded from save files: undo state is
@@ -106,15 +110,21 @@ type OpeningDraw struct {
 	First       Turn // the player who won the draw and plays first
 }
 
-// New initialises a fresh GameState: creates a shuffled bag, decides who plays
-// first via the standard opening draw (BR-E19), then deals 7 tiles to each rack.
+// New initialises a fresh ClassicMode GameState.
 func New(dictName dictionary.DictName, aiLevel int, rng *rand.Rand) *GameState {
-	board := NewBoard()
-	bag := NewBag(rng)
+	return NewWithMode(dictName, aiLevel, ClassicMode, rng)
+}
+
+// NewWithMode initialises a fresh GameState for mode: creates a shuffled bag and board
+// for that mode, decides who plays first via the standard opening draw (BR-E19), then
+// deals 7 tiles to each rack.
+func NewWithMode(dictName dictionary.DictName, aiLevel int, mode GameMode, rng *rand.Rand) *GameState {
+	board := NewBoardForMode(mode)
+	bag := NewBagForMode(rng, mode)
 
 	// Decide the first player by the standard opening draw, then deal the racks.
 	// drawForFirstTurn returns its tiles to the bag and reshuffles, so the racks
-	// are dealt from the full 100-tile bag.
+	// are dealt from the full bag.
 	firstTurn, humanLetter, aiLetter := drawForFirstTurn(bag, rng)
 
 	humanRack := &Rack{}
@@ -131,6 +141,7 @@ func New(dictName dictionary.DictName, aiLevel int, rng *rand.Rand) *GameState {
 		CurrentTurn: firstTurn,
 		DictName:    dictName,
 		AILevel:     aiLevel,
+		Mode:        mode,
 		OpeningDraw: &OpeningDraw{
 			HumanLetter: humanLetter,
 			AILetter:    aiLetter,
@@ -179,6 +190,7 @@ func (s *GameState) Clone() *GameState {
 		MoveNumber:        s.MoveNumber,
 		DictName:          s.DictName,
 		AILevel:           s.AILevel,
+		Mode:              s.Mode,
 		// LastHumanCommand and LastAICommand are deliberately omitted.
 	}
 }

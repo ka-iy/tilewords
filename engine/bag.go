@@ -13,11 +13,14 @@ type Bag struct {
 	tiles []Tile // current remaining tiles; draw pops from the end
 }
 
-// NewBag returns a shuffled standard 100-tile North American English bag.
+// NewBag returns a shuffled ClassicMode bag (100 tiles).
+func NewBag(rng *rand.Rand) *Bag { return NewBagForMode(rng, ClassicMode) }
+
+// NewBagForMode returns a shuffled bag filled from mode's tile distribution.
 // The shuffle uses the Fisher-Yates algorithm seeded from rng.
-func NewBag(rng *rand.Rand) *Bag {
+func NewBagForMode(rng *rand.Rand, mode GameMode) *Bag {
 	var tiles []Tile
-	for _, entry := range tileDistribution {
+	for _, entry := range distributionForMode(mode) {
 		for i := 0; i < entry.count; i++ {
 			tiles = append(tiles, Tile{
 				Letter:  entry.letter,

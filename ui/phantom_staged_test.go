@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // TestApplyAIMove_ClearsStaleStaged verifies the human's turn always begins with no

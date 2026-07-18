@@ -5,7 +5,7 @@ import (
 
 	"fyne.io/fyne/v2"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // TestRackSlotAtRel_ToleratesVerticalDrift verifies a reorder drop is resolved to the

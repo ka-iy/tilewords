@@ -4,8 +4,8 @@ package ai
 import (
 	"sort"
 
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // recordCandidate validates a candidate placement, scores it, and appends it to

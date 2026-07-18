@@ -4,8 +4,8 @@ package ai
 import (
 	"math/rand"
 
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // ChooseMove selects and returns the AI's move for the current turn.

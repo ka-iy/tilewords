@@ -8,11 +8,11 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// TestSquabbleTheme_Colors confirms the high-contrast overrides for each variant: the
+// TestTileWordsTheme_Colors confirms the high-contrast overrides for each variant: the
 // dark variant brightens foreground/success/error; the light variant darkens the status
 // success/error (and leaves the foreground to the default light theme).
-func TestSquabbleTheme_Colors(t *testing.T) {
-	th := squabbleTheme{}
+func TestTileWordsTheme_Colors(t *testing.T) {
+	th := tileWordsTheme{}
 
 	// Dark variant: bright overrides.
 	dark := []struct {

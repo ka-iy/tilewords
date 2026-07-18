@@ -3,9 +3,9 @@
 *A measurement-driven study of five strategies for shrinking a Scrabble move-generation
 automaton, and why automaton minimization subsumes cross-dictionary deduplication.*
 
-**Project:** Squabble (Go + Fyne Scrabble)
+**Project:** TileWords (Go + Fyne Scrabble)
 **Status of measurements:** taken on Go 1.26.4, linux/amd64; figures are indicative of
-this hardware and toolchain. The Android failure is from a `fyi.squabble.game` low-memory
+this hardware and toolchain. The Android failure is from a `fyi.tilewords.game` low-memory
 kill on an emulator.
 **Implementation status:** Strategies I (CSR), II (load cache), and **V (minimization)**
 are implemented in the codebase; III (deduplication) and IV (runtime merge) were
@@ -16,7 +16,7 @@ implementation, not projections.
 
 ## Abstract
 
-Squabble embeds four large word-list dictionaries as GADDAG automata for its AI move
+TileWords embeds four large word-list dictionaries as GADDAG automata for its AI move
 generator. On Android, loading a second dictionary (the "load saved game" flow) crashed
 the app: the process was terminated by the low-memory killer at ~2.4 GB resident. We
 trace the failure to two independent causes — a memory-profligate in-memory representation
@@ -55,7 +55,7 @@ reduction end-to-end.
 The GADDAG is the standard automaton for Scrabble move generation: it encodes, for every
 dictionary word, every way of reading that word outward from an anchor square, enabling a
 single left-to-right graph walk to enumerate all legal plays through a square
-[Gordon 1994]. Squabble ships four dictionaries:
+[Gordon 1994]. TileWords ships four dictionaries:
 
 | Dictionary | Words (2–15, A–Z) | Character |
 | --- | ---: | --- |
@@ -85,7 +85,7 @@ On Android, the sequence *new game → play → save → main menu → load save
 The `logcat` evidence is unambiguous — this is not a Go panic but an OS kill:
 
 ```
-lowmemorykiller: Kill 'fyi.squabble.game' (…) to free 2459784kB anon rss …
+lowmemorykiller: Kill 'fyi.tilewords.game' (…) to free 2459784kB anon rss …
                  reason: min watermark is breached even after kill
 ```
 
@@ -109,7 +109,7 @@ anchor and extend leftward, then cross `+` and extend rightward [Gordon 1994].
 
 ### 2.2 Our construction is a trie, not a minimized DAWG
 
-Squabble's builder (`dictionary.Build`) inserts every GADDAG string into a graph, creating
+TileWords's builder (`dictionary.Build`) inserts every GADDAG string into a graph, creating
 a node whenever an edge is absent. This shares **prefixes** — two strings with a common
 leading sequence reuse nodes — but it never shares **suffixes**. The result is a *trie*
 (prefix tree), not the minimized directed acyclic word graph (DAWG) the literature assumes.
@@ -458,7 +458,7 @@ Three ideas organize the whole investigation:
 Stated generally: *for a family of dictionaries compiled to acyclic word automata,
 cross-dictionary word-set deduplication is dominated by per-dictionary automaton
 minimization, because inter-dictionary word overlap is a strict subset of the intra- and
-inter-word suffix redundancy that minimization eliminates.* On the Squabble corpus, despite
+inter-word suffix redundancy that minimization eliminates.* On the TileWords corpus, despite
 61% word overlap, minimization yields a larger reduction than exploiting that overlap
 directly.
 
@@ -580,7 +580,7 @@ driver is field fusion and tail-sharing.
 
 - Strategy V accounts for the reduction from an un-minimized trie in hash maps (843 MB) to a
   minimized automaton in flat arrays (8 MB), ~105×. KWG's denser layout yields a further
-  ~1.7× (§13.3). That factor does not change the outcome for Squabble: the OOM is resolved
+  ~1.7× (§13.3). That factor does not change the outcome for TileWords: the OOM is resolved
   under either encoding.
 - A KWG is a raw little-endian array and can be `mmap`-ed directly from an uncompressed
   asset: near-zero heap, no decode step, pages faulted in on demand. The gob format decodes
@@ -593,8 +593,8 @@ driver is field fusion and tail-sharing.
 
 Closing the gap would require switching to a packed 32-bit-per-edge cell array (letter +
 accepts + is_end + arc_index), indexing children by cell position, and `mmap`-ing it, which
-would take Squabble from ~8 MB heap to ~5 MB or less mapped with near-zero heap. The Gaddawg
-DAWG-union does not apply to Squabble, which never anagrams; only the KWG encoding, not its
+would take TileWords from ~8 MB heap to ~5 MB or less mapped with near-zero heap. The Gaddawg
+DAWG-union does not apply to TileWords, which never anagrams; only the KWG encoding, not its
 dual-graph role, would be relevant.
 
 ### 13.5 When CSR is preferable
@@ -641,7 +641,7 @@ so there is no dense node-to-index mapping.
   locality for the follow-edge step.
 
 - **This project.** Strategy V is implemented, tested, and brings pigpods to 8 MB, below any
-  relevant watermark. KWG's byte and mmap gains do not change that outcome, so for Squabble
+  relevant watermark. KWG's byte and mmap gains do not change that outcome, so for TileWords
   the operative advantage is an existing, verified implementation with no migration.
 
 Where KWG wins and the CSR cannot follow without becoming KWG: raw byte size (field fusion

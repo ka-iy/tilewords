@@ -2,8 +2,8 @@
 package ai
 
 import (
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // extendLeft builds the reversed-prefix portion of a play by filling board cells
@@ -66,7 +66,7 @@ func extendLeft(
 			continue
 		}
 		if next, ok := g.Successor(node, l); ok {
-			pt := newRackTile(l, isBlank, row, col)
+			pt := newRackTile(board, l, isBlank, row, col)
 			afterLeft(board, g, dict, cc, counts, anchor, next, row, col, limit-1, append(placed, pt), candidates, seen)
 		}
 		if isBlank {
@@ -180,7 +180,7 @@ func extendRight(
 			continue
 		}
 		if next, ok := g.Successor(node, l); ok {
-			pt := newRackTile(l, isBlank, row, col)
+			pt := newRackTile(board, l, isBlank, row, col)
 			nr, nc := nextRightPos(anchor, row, col)
 			extendRight(board, g, dict, cc, counts, anchor, next,
 				nr, nc, leftTiles, append(newRight, pt), candidates, seen)
@@ -222,9 +222,10 @@ func traverseExistingRight(
 }
 
 // newRackTile builds the PlacedTile for a rack letter placed at (row, col). Blank
-// tiles carry their assigned letter but always score zero.
-func newRackTile(l byte, isBlank bool, row, col int) engine.PlacedTile {
-	pts := engine.LetterPoints(l)
+// tiles carry their assigned letter but always score zero. The face value is taken
+// from the board's mode so Interesting-mode plays score with the right economy.
+func newRackTile(board *engine.Board, l byte, isBlank bool, row, col int) engine.PlacedTile {
+	pts := board.LetterPoints(l)
 	if isBlank {
 		pts = 0
 	}

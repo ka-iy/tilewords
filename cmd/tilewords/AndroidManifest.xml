@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Custom Android manifest for Squabble.
+  Custom Android manifest for TileWords.
 
   The Fyne packager (`fyne package -os android/...`, run from this directory) uses this
   file verbatim when it is present, instead of generating one. Fyne's generated default
   additionally requests android.permission.INTERNET; this manifest deliberately omits all
-  network/internet permissions — Squabble is fully offline and never opens a socket.
+  network/internet permissions — TileWords is fully offline and never opens a socket.
 
   Storage: save files are written to the app's private internal storage
   (Storage().RootURI(), i.e. getFilesDir()), which needs no permission on any Android
@@ -15,7 +15,7 @@
 
   Notes for maintainers:
     - android:value for android.app.lib_name MUST be the packager's lib name, which is
-      androidPkgName(app name) = "Squabble" (app name from the Makefile name flag). If the
+      androidPkgName(app name) = "TileWords" (app name from the Makefile name flag). If the
       app name changes, update this value or the app will fail to load its native library.
     - versionCode/versionName are taken from THIS file (the app-version flag does not
       override a supplied manifest on the non-adaptive-icon build path). Keep them in sync
@@ -27,7 +27,7 @@
       they must be declared here or the launcher shows the default Android icon.
     - targetSdkVersion below is honoured only via the packager's adaptive-icon path, which
       compiles this manifest with aapt2 (aapt2 keeps a manifest-declared targetSdkVersion,
-      overriding its own default). That path is active because cmd/squabble/Icon-foreground.png
+      overriding its own default). That path is active because cmd/tilewords/Icon-foreground.png
       exists. Without an adaptive foreground icon, the packager's legacy path rejects a manual
       <uses-sdk> and forces its own value (29 debug / 35 release) — so removing the foreground
       icon requires removing the <uses-sdk> element below AND the android:icon/android:roundIcon
@@ -40,20 +40,20 @@
 -->
 <manifest
 	xmlns:android="http://schemas.android.com/apk/res/android"
-	package="fyi.squabble.game"
+	package="fyi.tilewords.game"
 	android:versionCode="1"
 	android:versionName="1.0.0">
 
 	<uses-sdk android:targetSdkVersion="36" />
 
-	<application android:label="Squabble" android:debuggable="false"
+	<application android:label="TileWords" android:debuggable="false"
 			android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round">
 		<activity android:name="org.golang.app.GoNativeActivity"
-			android:label="Squabble"
+			android:label="TileWords"
 			android:configChanges="orientation|keyboardHidden|uiMode"
 			android:exported="true"
 			android:theme="@android:style/Theme">
-			<meta-data android:name="android.app.lib_name" android:value="Squabble" />
+			<meta-data android:name="android.app.lib_name" android:value="TileWords" />
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN" />
 				<category android:name="android.intent.category.LAUNCHER" />

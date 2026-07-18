@@ -7,8 +7,8 @@ import (
 
 	"fyne.io/fyne/v2/test"
 
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 func newOpeningHarness(t *testing.T, od *engine.OpeningDraw) *gameScreen {

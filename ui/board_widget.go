@@ -6,7 +6,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // cellWidget is a single tappable board square. It displays either a premium

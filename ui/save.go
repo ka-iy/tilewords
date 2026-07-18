@@ -8,21 +8,21 @@ import (
 	"path/filepath"
 	"strings"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // SaveManager persists and restores engine.GameState to a single save slot.
 // The save file is written atomically (temp file → rename) to prevent corruption
 // on process death mid-write — Pattern 3 / NFR-UI-R3.
 //
-// Use NewSaveManager("") for production (resolves os.UserConfigDir/squabble/).
+// Use NewSaveManager("") for production (resolves os.UserConfigDir/tilewords/).
 // Inject a temp directory in tests to avoid touching the real config directory (NFR-UI-TEST-1).
 type SaveManager struct {
 	path string // absolute path to savegame.gob
 }
 
 // NewSaveManager constructs a SaveManager. If configRoot is empty, it resolves to
-// os.UserConfigDir()/squabble/savegame.gob. Otherwise configRoot/squabble/savegame.gob
+// os.UserConfigDir()/tilewords/savegame.gob. Otherwise configRoot/tilewords/savegame.gob
 // is used (enables test injection without touching the real config directory).
 func NewSaveManager(configRoot string) (*SaveManager, error) {
 	if configRoot == "" {
@@ -33,7 +33,7 @@ func NewSaveManager(configRoot string) (*SaveManager, error) {
 		configRoot = dir
 	}
 	return &SaveManager{
-		path: filepath.Join(configRoot, "squabble", "savegame.gob"),
+		path: filepath.Join(configRoot, "tilewords", "savegame.gob"),
 	}, nil
 }
 

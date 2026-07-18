@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"time"
 
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // aiRequest carries everything the AI goroutine needs to compute one move.

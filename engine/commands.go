@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 
-	"squabble/dictionary"
+	"tilewords/dictionary"
 )
 
 // Command is the sole mechanism for mutating GameState.

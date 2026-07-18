@@ -5,7 +5,7 @@ import (
 
 	"fyne.io/fyne/v2"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // Board cells and rack slots are tappable and draggable. Cells deliberately do NOT

@@ -1,22 +1,22 @@
-// Command squabble launches the Squabble word game.
+// Command tilewords launches the TileWords word game.
 //
 // Usage:
 //
-//	squabble
+//	tilewords
 //
 // The UI is built with the Fyne toolkit, which renders an event-driven, resizable
 // window on desktop platforms and a touch UI on mobile (Android/iOS). Save files
-// are stored under os.UserConfigDir()/squabble/savegame.gob.
+// are stored under os.UserConfigDir()/tilewords/savegame.gob.
 package main
 
 import (
 	"log"
 
-	"squabble/ui"
+	"tilewords/ui"
 )
 
 func main() {
 	if err := ui.Run(); err != nil {
-		log.Fatalf("squabble: %v", err)
+		log.Fatalf("tilewords: %v", err)
 	}
 }

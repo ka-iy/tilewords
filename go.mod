@@ -1,4 +1,4 @@
-module squabble
+module tilewords
 
 go 1.25.0
 

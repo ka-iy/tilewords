@@ -1,4 +1,4 @@
-// Package ai implements the computer player for Squabble.
+// Package ai implements the computer player for TileWords.
 //
 // Move generation uses the GADDAG left-extension algorithm described in:
 //

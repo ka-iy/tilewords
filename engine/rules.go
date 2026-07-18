@@ -4,7 +4,7 @@ package engine
 import (
 	"fmt"
 
-	"squabble/dictionary"
+	"tilewords/dictionary"
 )
 
 // ValidatePlacement checks that move is legally playable on board given dict.

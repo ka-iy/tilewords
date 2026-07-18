@@ -11,7 +11,8 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
-	"squabble/dictionary"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // dictPlayableWords is the number of playable words (2–15 letters, A–Z only, after
@@ -137,6 +138,37 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		dictDesc.SetText(dictDescription(selectedDict))
 	}
 
+	// Game mode: board layout + tile economy. Classic is the standard board and 100-tile
+	// set; Interesting is the alternative pinwheel board and 110-tile economy. Each mode is
+	// its own single-option radio so a small per-mode "Info" button can sit inline; the two
+	// radios are kept mutually exclusive by hand (Required blocks deselect-by-tapping).
+	selectedMode := engine.ClassicMode
+	var classicRadio, interestingRadio *widget.RadioGroup
+	classicRadio = widget.NewRadioGroup([]string{"Classic Mode"}, func(s string) {
+		if s == "" {
+			return // ignore the deselection callback raised when the other radio is chosen
+		}
+		selectedMode = engine.ClassicMode
+		interestingRadio.SetSelected("")
+	})
+	interestingRadio = widget.NewRadioGroup([]string{"Interesting Mode"}, func(s string) {
+		if s == "" {
+			return
+		}
+		selectedMode = engine.InterestingMode
+		classicRadio.SetSelected("")
+	})
+	classicRadio.Required, interestingRadio.Required = true, true
+	classicRadio.SetSelected("Classic Mode")
+
+	classicInfo := newBevelButton("Info", func() { a.showModeInfo(engine.ClassicMode) })
+	interestingInfo := newBevelButton("Info", func() { a.showModeInfo(engine.InterestingMode) })
+
+	modeSection := container.NewVBox(
+		container.NewHBox(classicRadio, classicInfo),
+		container.NewHBox(interestingRadio, interestingInfo),
+	)
+
 	// Difficulty 1–10 via a slider with a live value label.
 	level := 5
 	levelLabel := widget.NewLabelWithStyle("Difficulty: 5  (1 = easy, 10 = hard)", fyne.TextAlignCenter, fyne.TextStyle{})
@@ -162,7 +194,7 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		startBtn.Disable()
 		backBtn.Disable()
 		status.SetText("Loading dictionary…")
-		a.startNewGame(selectedDict, level, notationCheck.Checked, func(msg string) {
+		a.startNewGame(selectedDict, level, selectedMode, notationCheck.Checked, func(msg string) {
 			status.SetText(msg)
 			startBtn.Enable()
 			backBtn.Enable()
@@ -184,6 +216,9 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		widget.NewLabelWithStyle("Dictionary", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		dictRadio,
 		dictDesc,
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle("Game Mode", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		modeSection,
 		widget.NewSeparator(),
 		levelLabel,
 		levelSlider,

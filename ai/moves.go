@@ -1,7 +1,7 @@
 // Package ai is documented in doc.go.
 package ai
 
-import "squabble/engine"
+import "tilewords/engine"
 
 // MoveCandidate is a fully validated, scored play candidate returned by GenerateMoves.
 type MoveCandidate struct {
@@ -98,4 +98,3 @@ func hasOccupiedNeighbour(board *engine.Board, r, c int) bool {
 	}
 	return false
 }
-

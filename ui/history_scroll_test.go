@@ -6,7 +6,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // TestHistoryAutoScroll verifies the move-history panel follows its newest line: after the

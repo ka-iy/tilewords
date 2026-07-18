@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // sortedRackLetters returns the human rack's letters sorted, i.e. its multiset.

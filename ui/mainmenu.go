@@ -3,23 +3,24 @@ package ui
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+
+	"tilewords/engine"
 )
 
 // buildMainMenu returns the main-menu content. errMsg, when non-empty, is shown
 // below the buttons (e.g. a forwarded load failure).
 func (a *App) buildMainMenu(errMsg string) fyne.CanvasObject {
-	title := canvas.NewText("SQUABBLE", titleColor())
-	title.TextSize = 48
-	title.Alignment = fyne.TextAlignCenter
-	title.TextStyle = fyne.TextStyle{Bold: true}
+	title := menuTitleTiles()
 
-	subtitle := canvas.NewText("A word game", bodyTextColor())
-	subtitle.Alignment = fyne.TextAlignCenter
+	subtitle := widget.NewLabelWithStyle(
+		"A two-player almost-free-form cross×word game, quite like That Game We Shall "+
+			"Not Name For Fear Of Being Sued By That Company That Sounds Like It Has A Male Sibling",
+		fyne.TextAlignCenter, fyne.TextStyle{Italic: true})
+	subtitle.Wrapping = fyne.TextWrapWord
 
 	status := widget.NewLabel("")
 	status.Alignment = fyne.TextAlignCenter
@@ -99,4 +100,20 @@ func (a *App) buildMainMenu(errMsg string) fyne.CanvasObject {
 		layout.NewSpacer(),
 	)
 	return container.NewPadded(content)
+}
+
+// menuTitleTiles renders the app name "TILEWORDS" as a row of game tiles (each letter with
+// its Classic-mode point value), so the main-menu title uses the actual tile styling. The
+// tiles are kept small enough that all nine fit one row on a phone.
+func menuTitleTiles() fyne.CanvasObject {
+	const word = "TILEWORDS"
+	const sz = 34
+	cells := make([]fyne.CanvasObject, 0, len(word))
+	for i := 0; i < len(word); i++ {
+		bg, letter, points := newTileObjects()
+		styleAsTile(bg, letter, points, engine.Tile{Letter: word[i], Points: engine.LetterPoints(word[i])}, false)
+		tile := container.New(tileFillLayout{}, bg, letter, points)
+		cells = append(cells, container.NewGridWrap(fyne.NewSize(sz, sz), tile))
+	}
+	return container.NewCenter(container.NewHBox(cells...))
 }

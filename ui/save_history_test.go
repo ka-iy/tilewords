@@ -7,8 +7,8 @@ import (
 
 	"fyne.io/fyne/v2/test"
 
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // TestSaveManager_PersistsMoveHistory verifies that the move history — and the status

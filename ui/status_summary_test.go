@@ -6,7 +6,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // segText returns a RichText segment's text and colour name.

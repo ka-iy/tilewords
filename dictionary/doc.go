@@ -1,5 +1,5 @@
 // Package dictionary implements the GADDAG word-graph data structure and provides
-// word validation and AI traversal support for the Squabble crossword board game.
+// word validation and AI traversal support for the TileWords crossword board game.
 //
 // # GADDAG Algorithm
 //

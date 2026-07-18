@@ -9,8 +9,8 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/test"
 
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // TestPhoneColumn_BoardFillsWidthAndClamps verifies the board scales up to fill the

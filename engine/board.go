@@ -39,15 +39,22 @@ type Cell struct {
 // row 0 at the top and col 0 at the left.
 type Board struct {
 	cells [15][15]Cell // unexported; accessed via methods
+	// mode records the game mode this board was built for. It selects both the
+	// premium-square layout (baked into cells) and the letter point values used by
+	// LetterPoints, so the AI (which is handed only the board) scores in the right mode.
+	mode GameMode
 }
 
 // boardWire is the exported wire struct used by GobEncode/GobDecode.
 // All fields must be exported for encoding/gob to process them.
 type boardWire struct {
 	Cells [15][15]Cell
+	// Mode persists the board's game mode. Absent in older saves, where it decodes
+	// as the zero value (ClassicMode) — matching the layout those saves stored.
+	Mode GameMode
 }
 
-// premiumSquares defines the standard premium-square layout for a 15×15 board.
+// premiumSquares defines the ClassicMode premium-square layout for a 15×15 board.
 // The layout is symmetric about both axes. Coordinates are (row, col).
 // Source: standard crossword board game tournament layout.
 var premiumSquares = []struct {
@@ -86,14 +93,68 @@ var premiumSquares = []struct {
 	{14, 3, DoubleLetter}, {14, 11, DoubleLetter},
 }
 
-// NewBoard returns a 15×15 board initialised with the standard premium-square layout.
+// premiumSquaresInteresting defines the InterestingMode premium-square layout: an
+// independently-designed 4-fold rotational ("pinwheel") pattern with even coverage
+// (every cell is within two steps of a premium) and no orthogonally adjacent word
+// multipliers. Corners are empty. Distinct from the ClassicMode layout.
+var premiumSquaresInteresting = []struct {
+	row, col int
+	sq       SquareType
+}{
+	// Triple Word Score
+	{0, 10, TripleWord}, {4, 0, TripleWord}, {10, 14, TripleWord}, {14, 4, TripleWord},
+
+	// Centre — also acts as Double Word for the first move
+	{7, 7, Centre},
+
+	// Double Word Score
+	{2, 3, DoubleWord}, {3, 6, DoubleWord}, {3, 12, DoubleWord}, {5, 8, DoubleWord},
+	{6, 5, DoubleWord}, {6, 11, DoubleWord}, {8, 3, DoubleWord}, {8, 9, DoubleWord},
+	{9, 6, DoubleWord}, {11, 2, DoubleWord}, {11, 8, DoubleWord}, {12, 11, DoubleWord},
+
+	// Triple Letter Score
+	{0, 2, TripleLetter}, {0, 4, TripleLetter}, {2, 14, TripleLetter}, {3, 10, TripleLetter},
+	{4, 3, TripleLetter}, {4, 14, TripleLetter}, {10, 0, TripleLetter}, {10, 11, TripleLetter},
+	{11, 4, TripleLetter}, {12, 0, TripleLetter}, {14, 10, TripleLetter}, {14, 12, TripleLetter},
+
+	// Double Letter Score
+	{0, 13, DoubleLetter}, {1, 0, DoubleLetter}, {1, 6, DoubleLetter}, {1, 7, DoubleLetter},
+	{1, 8, DoubleLetter}, {1, 11, DoubleLetter}, {3, 1, DoubleLetter}, {3, 5, DoubleLetter},
+	{3, 9, DoubleLetter}, {5, 3, DoubleLetter}, {5, 11, DoubleLetter}, {6, 1, DoubleLetter},
+	{6, 13, DoubleLetter}, {7, 1, DoubleLetter}, {7, 13, DoubleLetter}, {8, 1, DoubleLetter},
+	{8, 13, DoubleLetter}, {9, 3, DoubleLetter}, {9, 11, DoubleLetter}, {11, 5, DoubleLetter},
+	{11, 9, DoubleLetter}, {11, 13, DoubleLetter}, {13, 3, DoubleLetter}, {13, 6, DoubleLetter},
+	{13, 7, DoubleLetter}, {13, 8, DoubleLetter}, {13, 14, DoubleLetter}, {14, 1, DoubleLetter},
+}
+
+// NewBoard returns a 15×15 ClassicMode board. All cells start unoccupied (Tile == nil).
+func NewBoard() *Board { return NewBoardForMode(ClassicMode) }
+
+// NewBoardForMode returns a 15×15 board initialised with mode's premium-square layout.
 // All cells start unoccupied (Tile == nil).
-func NewBoard() *Board {
-	b := &Board{}
-	for _, ps := range premiumSquares {
+func NewBoardForMode(mode GameMode) *Board {
+	b := &Board{mode: mode}
+	squares := premiumSquares
+	if mode == InterestingMode {
+		squares = premiumSquaresInteresting
+	}
+	for _, ps := range squares {
 		b.cells[ps.row][ps.col].Square = ps.sq
 	}
 	return b
+}
+
+// Mode returns the game mode this board was built for.
+func (b *Board) Mode() GameMode { return b.mode }
+
+// LetterPoints returns the face value of an uppercase letter A–Z in this board's mode
+// (0 for any other byte, including the blank sentinel). The AI move generator uses it to
+// stamp the correct per-mode face value onto tiles it places.
+func (b *Board) LetterPoints(letter byte) int {
+	if letter < 'A' || letter > 'Z' {
+		return 0
+	}
+	return letterPointsForMode(b.mode)[letter-'A']
 }
 
 // Cell returns the cell at (row, col). Panics if coordinates are out of bounds.
@@ -150,7 +211,7 @@ func (b *Board) HasAnyTile() bool {
 // tiles on the board are immutable after placement, so this is safe for
 // read-only AI use.
 func (b *Board) Clone() *Board {
-	clone := &Board{}
+	clone := &Board{mode: b.mode}
 	clone.cells = b.cells // array copy — all 225 Cell values copied by value
 	// Each Cell.Tile is a pointer. The pointed-to Tile is not copied, but since
 	// placed tiles are never mutated (only placed and removed), the shared pointer
@@ -162,7 +223,7 @@ func (b *Board) Clone() *Board {
 func (b *Board) GobEncode() ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
-	if err := enc.Encode(boardWire{Cells: b.cells}); err != nil {
+	if err := enc.Encode(boardWire{Cells: b.cells, Mode: b.mode}); err != nil {
 		return nil, fmt.Errorf("engine.Board.GobEncode: %w", err)
 	}
 	return buf.Bytes(), nil
@@ -176,5 +237,6 @@ func (b *Board) GobDecode(data []byte) error {
 		return fmt.Errorf("engine.Board.GobDecode: %w", err)
 	}
 	b.cells = w.Cells
+	b.mode = w.Mode
 	return nil
 }

@@ -557,7 +557,7 @@ func TestIsGameOver_SixPasses(t *testing.T) {
 func TestIsGameOver_RackExhausted(t *testing.T) {
 	state := newGameState()
 	state.Bag = newTestBag(nil) // empty bag
-	state.HumanRack = &Rack{}  // empty rack
+	state.HumanRack = &Rack{}   // empty rack
 	over, reason := IsGameOver(state)
 	if !over {
 		t.Error("expected game over with empty rack and empty bag")

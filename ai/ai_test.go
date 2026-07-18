@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"squabble/ai"
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/ai"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // aiTestWords is a curated, license-free word list used to build the test dictionary.

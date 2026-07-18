@@ -6,8 +6,8 @@ import (
 
 	"fyne.io/fyne/v2/test"
 
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // playCAT commits CAT horizontally across row 7 (cols 6–8) and logs it, returning the newest

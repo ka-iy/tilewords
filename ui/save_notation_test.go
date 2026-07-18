@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // TestSaveManager_PersistsScrabbleNotation verifies the move-history format preference

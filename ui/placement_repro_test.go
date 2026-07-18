@@ -6,8 +6,8 @@ import (
 
 	"fyne.io/fyne/v2/test"
 
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // firstNonBlankSlot returns a human rack slot index holding a non-blank tile.

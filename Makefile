@@ -1,4 +1,4 @@
-# Squabble — top-level build rules.
+# TileWords — top-level build rules.
 #
 # Run `make help` to list every target with a one-line description.
 #
@@ -24,9 +24,9 @@
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-BINARY  := squabble
-CMD     := ./cmd/squabble
-MODULE  := squabble
+BINARY  := tilewords
+CMD     := ./cmd/tilewords
+MODULE  := tilewords
 
 # The GADDAG builder is normally invoked with `go run` (see BUILDGADDAG below), but a
 # manual `go build ./tools/buildgaddag` leaves this binary in the repo root; clean it.
@@ -57,16 +57,16 @@ DEBUG_KEY_ALIAS     ?= androiddebugkey
 
 # Release signing (android-release*). Override on the command line. Generate the keystore:
 #   keytool -genkey -v -keystore release.keystore \
-#           -alias squabble -keyalg RSA -keysize 2048 -validity 10000
+#           -alias tilewords -keyalg RSA -keysize 2048 -validity 10000
 KEYSTORE      ?= release.keystore
 KEYSTORE_PASS ?= changeme
-KEY_ALIAS     ?= squabble
+KEY_ALIAS     ?= tilewords
 
 # Mobile app metadata. fyne normally reads these from FyneApp.toml, but Android builds
-# must run from the main-package directory (cmd/squabble), where that file is not
+# must run from the main-package directory (cmd/tilewords), where that file is not
 # present — so they are passed explicitly. Keep in sync with FyneApp.toml.
-APP_NAME    := Squabble
-APP_ID      := fyi.squabble.game
+APP_NAME    := TileWords
+APP_ID      := fyi.tilewords.game
 APP_VERSION := 1.0.0
 APP_BUILD   := 1
 ICON        := $(CURDIR)/ui/Icon.png
@@ -78,7 +78,7 @@ ICON        := $(CURDIR)/ui/Icon.png
 
 ##@ General
 help: ## Show this help (targets grouped by section)
-	@echo 'Squabble — make targets:'
+	@echo 'TileWords — make targets:'
 	@awk 'BEGIN {FS = ":.*## "} \
 		/^##@ / {n++; kind[n]="s"; text[n]=substr($$0, 5); next} \
 		/^[a-zA-Z0-9][a-zA-Z0-9_-]*:.*## / {n++; kind[n]="t"; name[n]=$$1; desc[n]=$$2; \
@@ -176,7 +176,7 @@ clean: ## Remove build artefacts and generated GADDAG assets
 
 # ── Mobile tooling ────────────────────────────────────────────────────────────
 
-# NOTE: Squabble's Android build needs a PATCHED fyne CLI (targets SDK 36 and adds v2/v3/v4
+# NOTE: TileWords's Android build needs a PATCHED fyne CLI (targets SDK 36 and adds v2/v3/v4
 # signing + zipalign). Install it from the fork instead of the upstream line below, e.g.
 #   (cd ~/FYNE-SOURCE/tools && go install ./cmd/fyne)
 install-mobile-tools: ## Install the fyne + gomobile CLIs for mobile builds
@@ -199,8 +199,8 @@ install-mobile-tools: ## Install the fyne + gomobile CLIs for mobile builds
 # required for targetSdk>=30) and emits an <apk>.idsig (v4); keeping that sidecar next to the
 # APK makes `adb install` use the incremental path, which installs cleanly across images.
 #
-# Manifest: cmd/squabble/AndroidManifest.xml is picked up automatically by fyne. It grants
-# only local-storage permission for save files and omits INTERNET — Squabble is offline.
+# Manifest: cmd/tilewords/AndroidManifest.xml is picked up automatically by fyne. It grants
+# only local-storage permission for save files and omits INTERNET — TileWords is offline.
 
 # fyne-package-apk: build a debug APK. $(1)=fyne -os value, $(2)=ABI label for the output.
 # The patched fyne signs the APK with its debug key/cert and emits a v4 .idsig. If a local

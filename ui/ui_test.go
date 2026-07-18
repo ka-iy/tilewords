@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // ---------- boardGeometry ----------
@@ -224,7 +224,7 @@ func TestSaveManager_LoadMissing(t *testing.T) {
 func TestSaveManager_LoadCorrupt(t *testing.T) {
 	dir := t.TempDir()
 	sm, _ := NewSaveManager(dir)
-	savePath := filepath.Join(dir, "squabble", "savegame.gob")
+	savePath := filepath.Join(dir, "tilewords", "savegame.gob")
 	if err := os.MkdirAll(filepath.Dir(savePath), 0700); err != nil {
 		t.Fatal(err)
 	}

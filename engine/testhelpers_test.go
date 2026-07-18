@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"squabble/dictionary"
+	"tilewords/dictionary"
 )
 
 // engineTestWords is a curated, license-free word list used to build the test dictionary.

@@ -6,7 +6,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
 
-	"squabble/engine"
+	"tilewords/engine"
 )
 
 // rackSlotWidget is a single tappable rack slot. It displays an empty slot, a

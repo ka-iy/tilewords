@@ -6,8 +6,8 @@ import (
 
 	"fyne.io/fyne/v2/test"
 
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // displayedRackCount mirrors refresh()'s rack-rendering rule: a slot shows a tile

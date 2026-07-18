@@ -27,7 +27,10 @@
       "Bash(gofmt -w ui/*.go)",
       "Bash(gofmt -l ui/*.go)",
       "Bash(adb shell *)",
-      "mcp__gograph__gograph_context"
+      "mcp__gograph__gograph_context",
+      "Bash(gofmt -l ui/)",
+      "Bash(grep -v '^$')",
+      "Bash(adb -s emulator-5554 install -r -d tilewords-x86_64.apk)"
     ]
   }
 }

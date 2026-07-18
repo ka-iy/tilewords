@@ -4,8 +4,8 @@ package ai
 import (
 	"sort"
 
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // GenerateMoves enumerates every legal move for the given board, rack, and dictionary

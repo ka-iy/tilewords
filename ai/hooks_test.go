@@ -3,8 +3,8 @@ package ai_test
 import (
 	"testing"
 
-	"squabble/ai"
-	"squabble/engine"
+	"tilewords/ai"
+	"tilewords/engine"
 )
 
 // formedWord returns the first candidate that forms word w, if any.

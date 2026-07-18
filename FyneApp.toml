@@ -1,11 +1,11 @@
 # Fyne application metadata, used by `fyne package` / `fyne release` when building
 # desktop installers and mobile (Android/iOS) packages.
-Website = "https://github.com/squabble"
+Website = "https://github.com/tilewords"
 
 [Details]
 Icon = "ui/Icon.png"
-Name = "Squabble"
-ID = "fyi.squabble.game"
+Name = "TileWords"
+ID = "fyi.tilewords.game"
 Version = "1.0.0"
 Build = 1
 

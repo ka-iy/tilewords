@@ -4,7 +4,7 @@ package ui
 import (
 	"testing"
 
-	"squabble/dictionary"
+	"tilewords/dictionary"
 )
 
 // TestDictDisplayNameCoversAllDicts guards against a dictionary being registered in

@@ -2,8 +2,8 @@
 package ai
 
 import (
-	"squabble/dictionary"
-	"squabble/engine"
+	"tilewords/dictionary"
+	"tilewords/engine"
 )
 
 // computeCrossChecks builds the valid-letter set for every empty cell in dir's

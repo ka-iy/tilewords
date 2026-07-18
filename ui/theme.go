@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// squabbleTheme wraps Fyne's default theme and respects the system light/dark variant
+// tileWordsTheme wraps Fyne's default theme and respects the system light/dark variant
 // (per Fyne's guideline that apps should follow the system theme), fixing two issues:
 //
 //   - In the DARK variant the default foreground/success/error colours render
@@ -19,11 +19,11 @@ import (
 //     already reads well, is passed through unchanged.
 //   - The status line (sub-heading text) is too small to read on device, so its size
 //     is increased for both variants.
-type squabbleTheme struct{}
+type tileWordsTheme struct{}
 
-var _ fyne.Theme = squabbleTheme{}
+var _ fyne.Theme = tileWordsTheme{}
 
-func (squabbleTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+func (tileWordsTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
 	if variant == theme.VariantDark {
 		switch name {
 		case theme.ColorNameForeground:
@@ -88,10 +88,10 @@ func gameOverColor() color.Color {
 	return colorGameOver
 }
 
-func (squabbleTheme) Font(s fyne.TextStyle) fyne.Resource     { return theme.DefaultTheme().Font(s) }
-func (squabbleTheme) Icon(n fyne.ThemeIconName) fyne.Resource { return theme.DefaultTheme().Icon(n) }
+func (tileWordsTheme) Font(s fyne.TextStyle) fyne.Resource     { return theme.DefaultTheme().Font(s) }
+func (tileWordsTheme) Icon(n fyne.ThemeIconName) fyne.Resource { return theme.DefaultTheme().Icon(n) }
 
-func (squabbleTheme) Size(name fyne.ThemeSizeName) float32 {
+func (tileWordsTheme) Size(name fyne.ThemeSizeName) float32 {
 	if name == theme.SizeNameSubHeadingText {
 		return 20 // enlarge the status line (default is ~16)
 	}
