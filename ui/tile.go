@@ -85,13 +85,13 @@ func layoutTileText(letter, points *canvas.Text, size fyne.Size, letterFactor, l
 	letter.Move(fyne.NewPos(size.Width*letterShift, (size.Height-lh)/2))
 
 	// The points value is drawn bold, sized relative to the letter, and anchored near the
-	// bottom-left corner (inset from the bottom, and a little further in from the left) so
-	// it stays legible on small mobile cells.
+	// top-left corner (inset from the top, and a little further in from the left) so it
+	// stays legible on small mobile cells.
 	points.TextSize = size.Height * tilePointsFactor
 	ph := points.MinSize().Height
 	inset := size.Width * 0.05
 	points.Resize(fyne.NewSize(size.Width-inset, ph))
-	points.Move(fyne.NewPos(size.Width*0.12, size.Height-ph-inset))
+	points.Move(fyne.NewPos(size.Width*0.12, inset))
 }
 
 // tileFillLayout fills its container with the tile background (first child) and lays

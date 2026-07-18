@@ -124,7 +124,7 @@ func (a *App) buildSetup() fyne.CanvasObject {
 
 	// Prose description of the selected dictionary, shown under the radio and word-wrapped
 	// so a long line neither truncates on a phone nor forces a minimum window width.
-	dictDesc := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Italic: true})
+	dictDesc := widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Italic: true})
 	dictDesc.Wrapping = fyne.TextWrapWord
 
 	dictRadio := widget.NewRadioGroup(labels, func(l string) {
