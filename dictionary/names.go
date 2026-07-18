@@ -5,12 +5,6 @@ package dictionary
 type DictName string
 
 const (
-	// DictPIGPODS selects PIGPODS (IYKYK + international additions).
-	DictPIGPODS DictName = "pigpods"
-
-	// DictTWIRL06 selects the Tournament Word List 2006 (North American club/tournament standard).
-	DictTWIRL06 DictName = "twirl06"
-
 	// DictENABLE selects the ENABLE word list (Enhanced North American Benchmark LExicon).
 	// This list is public domain and downloaded automatically by 'make gaddag-free'.
 	DictENABLE DictName = "enable"
@@ -22,8 +16,6 @@ const (
 // AllDictNames is the ordered list of dictionary names.
 // Used by the UI to populate the dictionary selection menu.
 var AllDictNames = []DictName{
-	DictPIGPODS,
-	DictTWIRL06,
 	DictENABLE,
 	DictWordnik,
 }

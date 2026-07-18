@@ -16,10 +16,6 @@ import (
 // dictDisplayName returns a friendly label for a dictionary name.
 func dictDisplayName(name dictionary.DictName) string {
 	switch name {
-	case dictionary.DictPIGPODS:
-		return "PIGPODS (IYKYK)"
-	case dictionary.DictTWIRL06:
-		return "TWIRL06 (North American)"
 	case dictionary.DictENABLE:
 		return "ENABLE (public domain)"
 	case dictionary.DictWordnik:
