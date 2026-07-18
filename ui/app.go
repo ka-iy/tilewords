@@ -35,7 +35,11 @@ type App struct {
 // Run constructs the application, shows the main menu and runs the Fyne event
 // loop. It blocks until the window is closed and returns any setup error.
 func Run() error {
-	fapp := app.New()
+	// NewWithID (rather than New) sets the app's unique ID in code, so the Preferences and
+	// storage APIs have a stable ID regardless of build mode or whether FyneApp.toml is
+	// present on disk at runtime (a plain `go build`/`go run` binary reads that file from
+	// the filesystem and does not embed it).
+	fapp := app.NewWithID("fyi.squabble.game")
 
 	// Set the app icon from a resource bundled into the binary (ui/bundled_icon.go), so the
 	// window/taskbar icon is available regardless of the working directory or build mode.

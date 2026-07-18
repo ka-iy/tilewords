@@ -66,7 +66,7 @@ KEY_ALIAS     ?= squabble
 # must run from the main-package directory (cmd/squabble), where that file is not
 # present — so they are passed explicitly. Keep in sync with FyneApp.toml.
 APP_NAME    := Squabble
-APP_ID      := net.squabble.app
+APP_ID      := fyi.squabble.game
 APP_VERSION := 1.0.0
 APP_BUILD   := 1
 ICON        := $(CURDIR)/ui/Icon.png
@@ -137,8 +137,14 @@ $(DICT_DIR)/%.gob: $(WORDLISTS_DIR)/%.txt | $(DICT_DIR)
 
 all: build ## Build the native desktop binary (default target)
 
+# The migrated_fynedo build tag opts this binary into Fyne's fyne.Do threading model at
+# compile time, so the standalone desktop binary is self-contained: it suppresses the
+# launch-time "not migrated" warning without depending on FyneApp.toml being present on
+# disk at runtime (plain `go build`/`go run` read that file from the filesystem, they do
+# not embed it). The Android build gets the same tag automatically because `fyne release`
+# translates FyneApp.toml's [Migrations] fyneDo=true into this tag.
 build: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Build the native desktop binary
-	go build -o $(BINARY) $(CMD)
+	go build -tags migrated_fynedo -o $(BINARY) $(CMD)
 
 run: build ## Build and launch the desktop app
 	./$(BINARY)

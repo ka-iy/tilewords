@@ -5,7 +5,7 @@ automaton, and why automaton minimization subsumes cross-dictionary deduplicatio
 
 **Project:** Squabble (Go + Fyne Scrabble)
 **Status of measurements:** taken on Go 1.26.4, linux/amd64; figures are indicative of
-this hardware and toolchain. The Android failure is from a `net.squabble.app` low-memory
+this hardware and toolchain. The Android failure is from a `fyi.squabble.game` low-memory
 kill on an emulator.
 **Implementation status:** Strategies I (CSR), II (load cache), and **V (minimization)**
 are implemented in the codebase; III (deduplication) and IV (runtime merge) were
@@ -85,7 +85,7 @@ On Android, the sequence *new game → play → save → main menu → load save
 The `logcat` evidence is unambiguous — this is not a Go panic but an OS kill:
 
 ```
-lowmemorykiller: Kill 'net.squabble.app' (…) to free 2459784kB anon rss …
+lowmemorykiller: Kill 'fyi.squabble.game' (…) to free 2459784kB anon rss …
                  reason: min watermark is breached even after kill
 ```
 
