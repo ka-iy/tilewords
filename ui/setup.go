@@ -3,6 +3,7 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -13,16 +14,75 @@ import (
 	"squabble/dictionary"
 )
 
-// dictDisplayName returns a friendly label for a dictionary name.
-func dictDisplayName(name dictionary.DictName) string {
+// dictPlayableWords is the number of playable words (2–15 letters, A–Z only, after
+// dedup) in each dictionary's embedded GADDAG asset, shown in the setup menu. These are
+// fixed properties of the committed .gob assets; recompute for a rebuilt list with:
+//
+//	tr a-z A-Z < wordlists/<name>.txt | grep -xE '[A-Z]{2,15}' | sort -u | wc -l
+var dictPlayableWords = map[dictionary.DictName]int{
+	dictionary.DictENABLE:  169266,
+	dictionary.DictWordnik: 194152,
+	dictionary.DictAtebits: 270652,
+}
+
+// dictShortName returns the compact name of a dictionary. It is kept short because it
+// forms the radio-button label, and the widest radio label sets the control's minimum
+// width — a long label would stop the desktop window from shrinking to a narrow width.
+func dictShortName(name dictionary.DictName) string {
 	switch name {
 	case dictionary.DictENABLE:
-		return "ENABLE (public domain)"
+		return "ENABLE"
 	case dictionary.DictWordnik:
-		return "Wordnik (crowd-sourced)"
+		return "Wordnik"
+	case dictionary.DictAtebits:
+		return "atebits"
 	default:
 		return string(name)
 	}
+}
+
+// dictDisplayName returns the setup-menu radio label for a dictionary: its short name
+// plus playable-word count. The longer prose description is shown separately, and
+// word-wrapped, by dictDescription so a long line never truncates on a phone nor forces
+// a minimum window width on desktop.
+func dictDisplayName(name dictionary.DictName) string {
+	if n, ok := dictPlayableWords[name]; ok {
+		return fmt.Sprintf("%s — %s words", dictShortName(name), groupThousands(n))
+	}
+	return dictShortName(name)
+}
+
+// dictDescription returns a one-line prose description of a dictionary, shown under the
+// dictionary radio in a word-wrapping label. Empty for an unknown dictionary.
+func dictDescription(name dictionary.DictName) string {
+	switch name {
+	case dictionary.DictENABLE:
+		return "Public-domain, non-bowdlerized Words With Friends (WWF) list."
+	case dictionary.DictWordnik:
+		return "Crowd-sourced open dictionary."
+	case dictionary.DictAtebits:
+		return "Public-domain list similar to a certain porcine UK/Euro English list."
+	default:
+		return ""
+	}
+}
+
+// groupThousands formats a non-negative integer with commas grouping every three digits
+// (e.g. 270652 → "270,652") for readable word counts in the menu.
+func groupThousands(n int) string {
+	s := strconv.Itoa(n)
+	if len(s) <= 3 {
+		return s
+	}
+	lead := len(s) % 3
+	if lead == 0 {
+		lead = 3
+	}
+	out := s[:lead]
+	for i := lead; i < len(s); i += 3 {
+		out += "," + s[i:i+3]
+	}
+	return out
 }
 
 // availableDicts returns the dictionaries whose GADDAG assets are embedded in the
@@ -61,12 +121,20 @@ func (a *App) buildSetup() fyne.CanvasObject {
 	}
 
 	var selectedDict dictionary.DictName
+
+	// Prose description of the selected dictionary, shown under the radio and word-wrapped
+	// so a long line neither truncates on a phone nor forces a minimum window width.
+	dictDesc := widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{Italic: true})
+	dictDesc.Wrapping = fyne.TextWrapWord
+
 	dictRadio := widget.NewRadioGroup(labels, func(l string) {
 		selectedDict = byLabel[l]
+		dictDesc.SetText(dictDescription(selectedDict))
 	})
 	if len(labels) > 0 {
 		dictRadio.SetSelected(labels[0])
 		selectedDict = avail[0]
+		dictDesc.SetText(dictDescription(selectedDict))
 	}
 
 	// Difficulty 1–10 via a slider with a live value label.
@@ -115,6 +183,7 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Dictionary", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		dictRadio,
+		dictDesc,
 		widget.NewSeparator(),
 		levelLabel,
 		levelSlider,
