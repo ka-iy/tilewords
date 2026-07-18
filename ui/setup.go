@@ -57,11 +57,11 @@ func dictDisplayName(name dictionary.DictName) string {
 func dictDescription(name dictionary.DictName) string {
 	switch name {
 	case dictionary.DictENABLE:
-		return "Public-domain, non-bowdlerized Words With Friends (WWF) list."
+		return "Public-domain, uncensored friendly-word-game word list."
 	case dictionary.DictWordnik:
 		return "Crowd-sourced open dictionary."
 	case dictionary.DictAtebits:
-		return "Public-domain list similar to a certain porcine UK/Euro English list."
+		return "Public-domain list with similarities to a certain porcine official UK/Euro English list."
 	default:
 		return ""
 	}
