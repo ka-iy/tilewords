@@ -130,14 +130,20 @@ func (r *cellRenderer) Layout(size fyne.Size) {
 	r.bg.Resize(size)
 	r.bg.Move(fyne.NewPos(0, 0))
 
-	// Tile letters fill the cell; multi-character premium labels (DW/TW/…) use a
+	// Tile letters fill the cell; multi-character premium labels (W×2/W×3/…) use a
 	// smaller glyph so they fit on one line. The ★ centre marker uses a tile-sized
 	// glyph.
 	factor := float32(0.5)
 	if r.cell.tile == nil && len(r.letter.Text) > 1 {
 		factor = 0.32
 	}
-	layoutTileText(r.letter, r.points, size, factor)
+	// A tile's letter is nudged right of centre (clear of the bottom-left points value);
+	// premium-square labels stay centred.
+	var shift float32
+	if r.cell.tile != nil {
+		shift = tileLetterShiftFactor
+	}
+	layoutTileText(r.letter, r.points, size, factor, shift)
 }
 
 func (r *cellRenderer) MinSize() fyne.Size { return fyne.NewSize(minCellPx, minCellPx) }

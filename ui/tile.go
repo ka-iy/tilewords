@@ -13,7 +13,8 @@ import (
 
 // newTileObjects creates the three canvas objects used to render a single tile or
 // board cell: a background rectangle (also drawing the border via its stroke), a
-// centred letter and a small upper-right points value.
+// letter (centred, or nudged right of centre for tiles) and a small bottom-left
+// points value.
 func newTileObjects() (bg *canvas.Rectangle, letter, points *canvas.Text) {
 	bg = canvas.NewRectangle(colorBoardBg)
 	bg.StrokeColor = colorGrid
@@ -24,10 +25,20 @@ func newTileObjects() (bg *canvas.Rectangle, letter, points *canvas.Text) {
 	letter.TextStyle = fyne.TextStyle{Bold: true}
 
 	points = canvas.NewText("", colorTilePoints)
-	points.Alignment = fyne.TextAlignTrailing
+	points.Alignment = fyne.TextAlignLeading
 	points.TextStyle = fyne.TextStyle{Bold: true}
 	return bg, letter, points
 }
+
+const (
+	// tilePointsFactor is the points-value glyph height as a fraction of the cell height.
+	tilePointsFactor = 0.33
+
+	// tileLetterShiftFactor nudges a tile's letter right of centre, as a fraction of the
+	// cell width, so it sits clear of the bottom-left points value. Premium-square labels
+	// pass 0 and stay centred.
+	tileLetterShiftFactor = 0.08
+)
 
 // styleAsTile sets bg/letter/points to display a committed or staged tile.
 func styleAsTile(bg *canvas.Rectangle, letter, points *canvas.Text, t engine.Tile, staged bool) {
@@ -62,22 +73,25 @@ func styleAsTile(bg *canvas.Rectangle, letter, points *canvas.Text, t engine.Til
 	}
 }
 
-// layoutTileText positions and scales the letter and points texts within a square
-// cell of the given size. letterFactor controls the glyph height relative to the
-// cell (≈0.5 for tile letters, smaller for multi-character premium labels).
-func layoutTileText(letter, points *canvas.Text, size fyne.Size, letterFactor float32) {
+// layoutTileText positions and scales the letter and points texts within a square cell of
+// the given size. letterFactor controls the glyph height relative to the cell (≈0.5 for
+// tile letters, smaller for multi-character premium labels). letterShift nudges the letter
+// right of centre as a fraction of the cell width (0 keeps it centred, used for premium
+// labels).
+func layoutTileText(letter, points *canvas.Text, size fyne.Size, letterFactor, letterShift float32) {
 	letter.TextSize = size.Height * letterFactor
 	lh := letter.MinSize().Height
 	letter.Resize(fyne.NewSize(size.Width, lh))
-	letter.Move(fyne.NewPos(0, (size.Height-lh)/2))
+	letter.Move(fyne.NewPos(size.Width*letterShift, (size.Height-lh)/2))
 
-	// The points value is drawn bold and larger relative to the letter, inset from the
-	// top-right corner towards the centre so it stays legible on small mobile cells.
-	points.TextSize = size.Height * 0.30
+	// The points value is drawn bold, sized relative to the letter, and anchored near the
+	// bottom-left corner (inset from the bottom, and a little further in from the left) so
+	// it stays legible on small mobile cells.
+	points.TextSize = size.Height * tilePointsFactor
 	ph := points.MinSize().Height
 	inset := size.Width * 0.05
 	points.Resize(fyne.NewSize(size.Width-inset, ph))
-	points.Move(fyne.NewPos(0, inset))
+	points.Move(fyne.NewPos(size.Width*0.12, size.Height-ph-inset))
 }
 
 // tileFillLayout fills its container with the tile background (first child) and lays
@@ -94,7 +108,8 @@ func (tileFillLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	letter, lok := objs[1].(*canvas.Text)
 	points, pok := objs[2].(*canvas.Text)
 	if lok && pok {
-		layoutTileText(letter, points, size, 0.5)
+		// The drag ghost is always a tile, so its letter is shifted right of centre.
+		layoutTileText(letter, points, size, 0.5, tileLetterShiftFactor)
 	}
 }
 

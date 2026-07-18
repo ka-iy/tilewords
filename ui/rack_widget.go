@@ -126,7 +126,9 @@ func (r *rackSlotRenderer) applyState() {
 func (r *rackSlotRenderer) Layout(size fyne.Size) {
 	r.bg.Resize(size)
 	r.bg.Move(fyne.NewPos(0, 0))
-	layoutTileText(r.letter, r.points, size, 0.5)
+	// Rack slots display tiles, so the letter is shifted right of centre (an empty or
+	// face-down slot has no letter, so the shift is moot there).
+	layoutTileText(r.letter, r.points, size, 0.5, tileLetterShiftFactor)
 }
 
 func (r *rackSlotRenderer) MinSize() fyne.Size {
