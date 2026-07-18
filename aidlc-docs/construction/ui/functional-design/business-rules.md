@@ -111,15 +111,19 @@ words (NFR-09 / BR-AI-15 equivalent for the ui package). All in-game text uses "
 
 | Square Type | Fill Colour | Label |
 |---|---|---|
-| DoubleWord | `#F4A460` (sandy orange) | `DW` |
-| TripleWord | `#CD5C5C` (indian red) | `TW` |
-| DoubleLetter | `#87CEEB` (sky blue) | `DL` |
-| TripleLetter | `#4169E1` (royal blue) | `TL` |
-| Centre | `#FFD700` (gold) with ★ | `★` |
+| DoubleWord | `#FFB74D` (light orange) | `W×2` |
+| TripleWord | `#E65100` (dark orange) | `W×3` |
+| DoubleLetter | `#00897B` (teal) | `L×2` |
+| TripleLetter | `#00695C` (deep teal) | `L×3` |
+| Centre | `#CE93D8` (lavender) with ★ | `★` |
 | Normal | `#228B22` (forest green) | — |
 
 This palette is independently chosen and does not reproduce Hasbro's copyrighted board
-artwork (NFR-09 / NFR-06).
+artwork (NFR-09 / NFR-06): letter premiums use a teal family and word premiums an orange
+family (lighter shade = double, darker = triple), with a lavender centre, deliberately
+avoiding the classic blue-letter / red-word arrangement. Premium labels are drawn white on
+dark-toned squares and dark on light-toned squares (light-orange 2×W, lavender centre) so
+they stay legible.
 
 ---
 
@@ -128,7 +132,7 @@ artwork (NFR-09 / NFR-06).
 Staged (uncommitted) tiles are rendered with:
 - Background colour: `#FFFACD` (lemon chiffon — slightly lighter than committed tiles).
 - Border: 2 px `#DAA520` (goldenrod) outline.
-- Committed tiles: background `#F5DEB3` (wheat), no special border.
+- Committed tiles: background `#DCE0E6` (light blue-grey), 2 px `#A0783C` (brown) border.
 
 This ensures the player can always distinguish staged from committed tiles.
 
@@ -170,7 +174,8 @@ except in an explicit legal-notice comment if required.
 
 Each tile (committed or staged) displays:
 - Uppercase letter centred in the cell (large font, dark colour).
-- Point value in the bottom-right corner (small font).
+- Point value in the upper-right corner (bold, inset slightly towards the centre for
+  legibility on small mobile cells).
 - Blank tiles (on board, assigned) display the assigned letter in a different colour
   (e.g. blue instead of black) to indicate blank status.
 - Blank tiles (on board, unassigned — impossible after BR-UI-03, but defensive): display `?`.

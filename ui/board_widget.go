@@ -122,7 +122,7 @@ func (r *cellRenderer) applyState() {
 	r.bg.StrokeColor = colorGrid
 	r.bg.StrokeWidth = 1
 	r.letter.Text = premiumLabel(c.square)
-	r.letter.Color = colorPremText
+	r.letter.Color = premLabelColor(c.square)
 	r.points.Text = ""
 }
 

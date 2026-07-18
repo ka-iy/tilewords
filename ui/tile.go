@@ -13,7 +13,7 @@ import (
 
 // newTileObjects creates the three canvas objects used to render a single tile or
 // board cell: a background rectangle (also drawing the border via its stroke), a
-// centred letter and a small bottom-right points value.
+// centred letter and a small upper-right points value.
 func newTileObjects() (bg *canvas.Rectangle, letter, points *canvas.Text) {
 	bg = canvas.NewRectangle(colorBoardBg)
 	bg.StrokeColor = colorGrid
@@ -25,6 +25,7 @@ func newTileObjects() (bg *canvas.Rectangle, letter, points *canvas.Text) {
 
 	points = canvas.NewText("", colorTilePoints)
 	points.Alignment = fyne.TextAlignTrailing
+	points.TextStyle = fyne.TextStyle{Bold: true}
 	return bg, letter, points
 }
 
@@ -37,7 +38,7 @@ func styleAsTile(bg *canvas.Rectangle, letter, points *canvas.Text, t engine.Til
 	} else {
 		bg.FillColor = colorTileBg
 		bg.StrokeColor = colorTileBorder
-		bg.StrokeWidth = 1
+		bg.StrokeWidth = 2
 	}
 
 	ch := t.DisplayLetter()
@@ -70,10 +71,13 @@ func layoutTileText(letter, points *canvas.Text, size fyne.Size, letterFactor fl
 	letter.Resize(fyne.NewSize(size.Width, lh))
 	letter.Move(fyne.NewPos(0, (size.Height-lh)/2))
 
-	points.TextSize = size.Height * 0.26
+	// The points value is drawn bold and larger relative to the letter, inset from the
+	// top-right corner towards the centre so it stays legible on small mobile cells.
+	points.TextSize = size.Height * 0.30
 	ph := points.MinSize().Height
-	points.Resize(fyne.NewSize(size.Width-2, ph))
-	points.Move(fyne.NewPos(0, size.Height-ph-1))
+	inset := size.Width * 0.05
+	points.Resize(fyne.NewSize(size.Width-inset, ph))
+	points.Move(fyne.NewPos(0, inset))
 }
 
 // tileFillLayout fills its container with the tile background (first child) and lays
@@ -102,18 +106,35 @@ func (tileFillLayout) MinSize(_ []fyne.CanvasObject) fyne.Size {
 func premiumLabel(sq engine.SquareType) string {
 	switch sq {
 	case engine.DoubleWord:
-		return "DW"
+		return "W×2"
 	case engine.TripleWord:
-		return "TW"
+		return "W×3"
 	case engine.DoubleLetter:
-		return "DL"
+		return "L×2"
 	case engine.TripleLetter:
-		return "TL"
+		return "L×3"
 	case engine.Centre:
 		return "★"
 	default:
 		return ""
 	}
+}
+
+// isLightColor reports whether c is light enough that a white label would read poorly on
+// it, so a dark label should be used instead. Uses the ITU-R BT.601 luma approximation.
+func isLightColor(c color.RGBA) bool {
+	luma := 0.299*float64(c.R) + 0.587*float64(c.G) + 0.114*float64(c.B)
+	return luma > 140
+}
+
+// premLabelColor returns the label colour for an unoccupied premium square: a dark glyph
+// on light-toned fills (light orange, lavender centre) and white on dark ones, so the
+// short label stays legible regardless of the square's fill.
+func premLabelColor(sq engine.SquareType) color.Color {
+	if isLightColor(colorForSquare(sq)) {
+		return colorPremTextDark
+	}
+	return colorPremText
 }
 
 // colorForSquare returns the background colour for an unoccupied square.

@@ -124,10 +124,10 @@ func TestPremiumLabel(t *testing.T) {
 		sq   engine.SquareType
 		want string
 	}{
-		{engine.DoubleWord, "DW"},
-		{engine.TripleWord, "TW"},
-		{engine.DoubleLetter, "DL"},
-		{engine.TripleLetter, "TL"},
+		{engine.DoubleWord, "W×2"},
+		{engine.TripleWord, "W×3"},
+		{engine.DoubleLetter, "L×2"},
+		{engine.TripleLetter, "L×3"},
 		{engine.Centre, "★"},
 		{engine.Normal, ""},
 	}

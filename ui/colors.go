@@ -3,22 +3,26 @@ package ui
 
 import "image/color"
 
-// Board and premium-square colours. This palette is independently designed and does
-// not reproduce Hasbro's copyrighted board artwork (NFR-09 / BR-UI-13).
+// Board and premium-square colours. This palette is independently designed and does not
+// reproduce Hasbro's copyrighted board artwork (NFR-09 / BR-UI-13): letter premiums use a
+// teal family and word premiums an orange family (lighter shade = double, darker =
+// triple), with a lavender centre, deliberately avoiding the classic blue-letter /
+// red-word arrangement.
 var (
-	colorBoardBg  = color.RGBA{R: 34, G: 139, B: 34, A: 255}   // forest green
-	colorDW       = color.RGBA{R: 244, G: 164, B: 96, A: 255}  // sandy orange
-	colorTW       = color.RGBA{R: 205, G: 92, B: 92, A: 255}   // indian red
-	colorDL       = color.RGBA{R: 135, G: 206, B: 235, A: 255} // sky blue
-	colorTL       = color.RGBA{R: 65, G: 105, B: 225, A: 255}  // royal blue
-	colorCentre   = color.RGBA{R: 255, G: 215, B: 0, A: 255}   // gold
-	colorGrid     = color.RGBA{R: 0, G: 80, B: 0, A: 255}      // dark green
-	colorPremText = color.RGBA{R: 255, G: 255, B: 255, A: 220} // white label on premium square
+	colorBoardBg      = color.RGBA{R: 34, G: 139, B: 34, A: 255}   // forest green — normal square
+	colorDW           = color.RGBA{R: 255, G: 183, B: 77, A: 255}  // light orange — double word
+	colorTW           = color.RGBA{R: 230, G: 81, B: 0, A: 255}    // dark orange — triple word
+	colorDL           = color.RGBA{R: 0, G: 137, B: 123, A: 255}   // teal — double letter
+	colorTL           = color.RGBA{R: 0, G: 105, B: 92, A: 255}    // deep teal — triple letter
+	colorCentre       = color.RGBA{R: 206, G: 147, B: 216, A: 255} // lavender — centre star
+	colorGrid         = color.RGBA{R: 0, G: 80, B: 0, A: 255}      // dark green
+	colorPremText     = color.RGBA{R: 255, G: 255, B: 255, A: 220} // white label on a dark premium square
+	colorPremTextDark = color.RGBA{R: 40, G: 40, B: 40, A: 255}    // dark label on a light premium square
 )
 
 // Tile colours (BR-UI-14 / BR-UI-18).
 var (
-	colorTileBg           = color.RGBA{R: 245, G: 222, B: 179, A: 255} // wheat — committed tile
+	colorTileBg           = color.RGBA{R: 220, G: 224, B: 230, A: 255} // light blue-grey — committed tile
 	colorTileStagedBg     = color.RGBA{R: 255, G: 250, B: 205, A: 255} // lemon chiffon — staged tile
 	colorTileStagedBorder = color.RGBA{R: 218, G: 165, B: 32, A: 255}  // goldenrod border on staged tile
 	colorTileLetter       = color.RGBA{R: 30, G: 30, B: 30, A: 255}    // near-black letter
