@@ -1,3 +1,29 @@
+==============================
+  ABOUT
+==============================
+
+TileWords is a Scrabble®-like game where the player competes with the machine to use individual letters to construct cromulent words on a game board to gain the endorphin hit from watching those sweet sweet points _racking_ (heh heh) up.
+
+TileWords is developed by Kartikeya IYER and is available (including source code) from:
+https://github.com/ka-iy/tilewords
+
+TileWords uses public-domain and libre/freely available word lists and definitions.
+No proprietary lexicons were harmed during the making of this game.
+
+==============================
+DISCLAIMER
+(AKA "Please don't sue me")
+==============================
+
+SCRABBLE® is a registered trademark. All intellectual property rights in and to SCRABBLE® are owned in the U.S.A. by Hasbro Inc., in Canada by Hasbro Canada Inc. and throughout the rest of the world by J.W. Spear & Sons Ltd. of England, a subsidiary of Mattel Inc.
+
+TILEWORDS IS NOT AFFILIATED WITH ANY OF THE ABOVE-MENTIONED PRODUCTS OR ENTITIES.
+
+
+==============================
+  LEXICON
+==============================
+
 TileWords is built on freely available word lists and dictionaries.
 
 Grateful acknowledgement is made to the authors and maintainers of the sources below, whose work makes possible this game and the lexicon it uses.
@@ -58,4 +84,6 @@ Glossary to Edmund Spenser's "The Faerie Queene", Book I
 
 Definitions are shown for reference during play. Where more than one source defines a word, the Wiktionary sense is preferred; Webster's 1913, WordNet, and the glossaries fill gaps for archaic and dialectal words.
 
-While (almost) every effort has been made to fill the gaps in the definitions, gaps do remain; where a played word has no definition that could be found, such will be indicated in the "Definitions" tab on the game screen.
+While (almost) every effort has been made to fill the gaps in the definitions, gaps do remain; where a pplayed word has no definition that could be found, such will be indicated in the "Definitions" tab on the game screen.
+
+

@@ -161,6 +161,25 @@ space := $(empty) $(empty)
 $(DEFS_DIR):
 	mkdir -p $@
 
+# ── About-dialog text ─────────────────────────────────────────────────────────
+#
+# The About dialog's text is generated from the top-level ABOUT.txt and LEXICON.txt
+# (in that order) so those files stay the single source of truth. Each becomes a
+# section headed by its upper-cased file name. The result is written into the ui
+# package where it is embedded (a Go //go:embed directive cannot reach a parent
+# directory, so the generated copy must live alongside the code that embeds it).
+ABOUT_SRCS  := ABOUT.txt LEXICON.txt
+ABOUT_ASSET := ui/about.txt
+
+$(ABOUT_ASSET): $(ABOUT_SRCS)
+	@: > $@
+	@for f in $(ABOUT_SRCS); do \
+	  name=$$(basename "$$f" .txt | tr '[:lower:]' '[:upper:]'); \
+	  { printf '==============================\n  %s\n==============================\n\n' "$$name"; \
+	    cat "$$f"; printf '\n\n'; } >> $@; \
+	done
+	@echo "generated $@ from $(ABOUT_SRCS)"
+
 defs: $(DEFS_ASSET) ## Build the definitions asset from KAIKKI_EXTRACT (Wiktionary extract)
 
 # Rebuild when any word list changes. Fails with guidance if the extract is absent.
@@ -226,7 +245,7 @@ all: build ## Build the native desktop binary (default target)
 # disk at runtime (plain `go build`/`go run` read that file from the filesystem, they do
 # not embed it). The Android build gets the same tag automatically because `fyne release`
 # translates FyneApp.toml's [Migrations] fyneDo=true into this tag.
-build: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Build the native desktop binary
+build: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary
 	go build -tags migrated_fynedo -o $(BINARY) $(CMD)
 
 run: build ## Build and launch the desktop app
@@ -240,7 +259,7 @@ run: build ## Build and launch the desktop app
 #
 # `fyne install` reads the app name from FyneApp.toml, which lives at the repo root rather
 # than in $(CMD), so we stage a copy there for the build (removed afterwards even on failure).
-install-desktop: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Install the desktop app + .desktop entry (taskbar icon)
+install-desktop: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Install the desktop app + .desktop entry (taskbar icon)
 	cp FyneApp.toml $(CMD)/FyneApp.toml
 	-cd $(CMD) && fyne install --release --icon $(ICON) --app-id $(APP_ID)
 	rm -f $(CMD)/FyneApp.toml
@@ -257,6 +276,7 @@ clean: ## Remove build artefacts and generated GADDAG assets
 	rm -f $(BINARY)-release*.aab $(BINARY)-release*.apks
 	rm -f $(DICT_DIR)/*.gob $(DICT_DIR)/*.gob.tmp
 	rm -f $(DEFS_ASSET) $(DEFS_ASSET).tmp
+	rm -f $(ABOUT_ASSET)
 
 # ── Mobile tooling ────────────────────────────────────────────────────────────
 
@@ -353,32 +373,32 @@ endef
 
 ##@ Android — debug APKs
 # Signed with $(DEBUG_KEYSTORE) if present, else the fyne debug key/cert. `adb install`-able.
-android-arm64-v8a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Debug APK for arm64-v8a (modern phones)
+android-arm64-v8a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for arm64-v8a (modern phones)
 	$(call fyne-package-apk,android/arm64,arm64-v8a)
 
-android-x86_64: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Debug APK for x86_64 (emulators / x86 devices)
+android-x86_64: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for x86_64 (emulators / x86 devices)
 	$(call fyne-package-apk,android/amd64,x86_64)
 
-android-armeabi-v7a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Debug APK for armeabi-v7a (old 32-bit devices)
+android-armeabi-v7a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for armeabi-v7a (old 32-bit devices)
 	$(call fyne-package-apk,android/arm,armeabi-v7a)
 
-android-universal: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Debug APK for all ABIs (universal, ~4x size)
+android-universal: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for all ABIs (universal, ~4x size)
 	$(call fyne-package-apk,android,universal)
 
 android: android-arm64-v8a ## Debug APK for arm64-v8a (alias for android-arm64-v8a)
 
 ##@ Android — signed release App Bundles (.aab)
 # Need KEYSTORE / KEYSTORE_PASS / KEY_ALIAS (see the release-signing config above).
-android-release-arm64-v8a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Signed release .aab for arm64-v8a
+android-release-arm64-v8a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for arm64-v8a
 	$(call fyne-release-aab,android/arm64,arm64-v8a)
 
-android-release-x86_64: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Signed release .aab for x86_64
+android-release-x86_64: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for x86_64
 	$(call fyne-release-aab,android/amd64,x86_64)
 
-android-release-armeabi-v7a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Signed release .aab for armeabi-v7a
+android-release-armeabi-v7a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for armeabi-v7a
 	$(call fyne-release-aab,android/arm,armeabi-v7a)
 
-android-release-universal: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Signed release .aab for all ABIs (universal)
+android-release-universal: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for all ABIs (universal)
 	$(call fyne-release-aab,android,universal)
 
 android-release: android-release-universal ## Signed release .aab for all ABIs (alias for android-release-universal)

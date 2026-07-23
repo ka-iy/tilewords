@@ -74,9 +74,13 @@ func (a *App) buildMainMenu(errMsg string) fyne.CanvasObject {
 		deleteBtn.Disable()
 	}
 
+	aboutBtn := widget.NewButton("About", func() {
+		a.showAbout()
+	})
+
 	// A centred column of equal-width buttons (the VBox stretches its children to
 	// its own width; NewCenter shrinks the VBox to its widest child).
-	buttons := []fyne.CanvasObject{newBtn, loadBtn, deleteBtn}
+	buttons := []fyne.CanvasObject{newBtn, loadBtn, deleteBtn, aboutBtn}
 
 	// Quit is only offered on desktop. Android/iOS guidelines forbid an app quitting
 	// itself, so Fyne's mobile driver ignores App.Quit — a "Quit" button there does
