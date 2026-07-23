@@ -24,6 +24,10 @@ type App struct {
 	win  fyne.Window
 	sm   *SaveManager
 
+	// settings persists the New Game Setup defaults (word list, mode, difficulty, notation)
+	// so the setup screen can pre-populate the player's previous choices. See settings.go.
+	settings *settingsStore
+
 	// redraw re-renders the current screen. It is invoked when the theme changes so the
 	// screens' canvas.Text elements (title, labels, rack cue) — which, unlike widgets, do
 	// not re-query the theme on their own — pick up the new variant's colours. On mobile
@@ -66,8 +70,9 @@ func Run() error {
 	}
 
 	a := &App{
-		fapp: fapp,
-		sm:   sm,
+		fapp:     fapp,
+		sm:       sm,
+		settings: newSettingsStore(fapp.Preferences()),
 	}
 	a.win = a.fapp.NewWindow(windowTitle)
 	a.win.Resize(fyne.NewSize(960, 760))

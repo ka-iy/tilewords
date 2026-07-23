@@ -70,3 +70,23 @@ previously-uncaptured work (application code was already implemented and committ
 bundled word lists are `enable`, `wordnik`, `atebits-letterpress` (not the placeholder
 `csw/sowpods/…` names in the original design docs). These divergences are noted where relevant
 but the original v1 design docs were left intact as the historical record.
+
+## Feature Increment — Persistent Default Setup Settings (FR-15)
+- **Type**: post-v1 brownfield feature addition
+- **Owning unit**: `ui` (+ a preferences-backed settings store)
+- **Started**: 2026-07-23T14:30:00Z
+- **Extensions**: Property-Based Testing (enabled, applicable), Security Baseline (enabled,
+  applicable), Resiliency (mostly N/A)
+
+### Stage Progress (increment)
+- [x] Workspace Detection — brownfield; Reverse Engineering skipped (artifacts current)
+- [x] Requirements Analysis — FR-15 added; `feature-persistent-default-settings.md` created — APPROVED 2026-07-23T14:45:00Z
+- [x] Workflow Planning — `feature-persistent-default-settings-execution-plan.md` created — APPROVED 2026-07-23T14:45:00Z
+- [-] User Stories — SKIP (simple single-touchpoint enhancement; FR-15 criteria are clear)
+- [-] Application Design — SKIP (within `ui` boundary; one small settings store, no new cross-component services/APIs)
+- [-] Units Generation — SKIP (single unit: `ui`)
+- [x] Construction: Functional Design (ui) — `construction/ui/functional-design/persistent-default-settings.md` created — APPROVED 2026-07-23T15:00:00Z
+- [-] Construction: NFR Requirements/Design (ui) — SKIP as separate stages (folded into Functional Design; extensions still enforced at Code Generation)
+- [-] Construction: Infrastructure Design — SKIP (no infrastructure)
+- [x] Construction: Code Generation (ui) — Part 1 (Planning) APPROVED 2026-07-23T15:15:00Z; Part 2 (Generation) APPROVED 2026-07-23T15:30:00Z (all 6 plan steps [x])
+- [x] Build and Test — build/vet/fmt clean; full `ui` suite 106 pass (10 new); whole repo green — `construction/build-and-test/` docs created — **awaiting user approval (next: Operations placeholder)**

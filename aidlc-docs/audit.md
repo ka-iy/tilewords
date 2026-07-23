@@ -1,5 +1,59 @@
 # AI-DLC Audit Log
 
+## Feature Increment — Persistent Default Setup Settings — Build and Test
+**Timestamp**: 2026-07-23T15:45:00Z
+**User Input**: "approved, continue"
+**Build Status**: Success (`go build ./...` exit 0; `go vet ./...` clean; `gofmt -l ui/` clean)
+**Test Status**: Pass — full `ui` suite 106 passed / 0 failed (10 new incl. 2 rapid properties at 100 cases each); whole-repo `go test ./...` green.
+**Files Generated**:
+- construction/build-and-test/build-instructions.md
+- construction/build-and-test/unit-test-instructions.md
+- construction/build-and-test/build-and-test-summary.md
+**AI Response**: Code Generation approved. Ran Build & Test. Verified build/vet/fmt/tests for real. Noted one pre-existing, out-of-scope gofmt nit in `dictionary/doc.go` (untouched by this increment). Created the build-and-test instruction + summary docs; updated `aidlc-state.md`. Presenting Build & Test completion for approval (next: Operations placeholder).
+**Context**: Feature Increment — Build and Test complete, awaiting user approval.
+
+---
+
+## Feature Increment — Persistent Default Setup Settings — Code Generation Part 2 (Generation)
+**Timestamp**: 2026-07-23T15:30:00Z
+**User Input**: "approved, continue"
+**AI Response**: Code Generation plan approved. Executed all 6 plan steps. Created `ui/settings.go` (GameSettings + encode/decode/sanitize + settingsStore over fyne.Preferences + App.defaultsFor), `ui/settings_test.go` (unit + rapid round-trip/load-robustness + store round-trip), `ui/setup_settings_test.go` (nil-guard, App round-trip, load-mapping + build no-panic). Modified `ui/app.go` (settings store on App, init in Run) and `ui/setup.go` (load-on-build control init, saveDefaultsCheck checked-by-default, save-on-Start). Created code summary `construction/ui/code/persistent-default-settings-code-summary.md`; marked all plan steps [x]. Verified at generation time: go build ./... clean, go vet ./ui clean, gofmt clean, full ui suite green (incl. new PBT properties, 100 cases each). Presenting Code Generation completion for approval.
+**Context**: Feature Increment — Code Generation Part 2 (Generation) complete, awaiting user approval.
+
+---
+
+## Feature Increment — Persistent Default Setup Settings — Code Generation Part 1 (Planning)
+**Timestamp**: 2026-07-23T15:15:00Z
+**User Input**: "continue"
+**AI Response**: Functional Design approved. Started Code Generation Part 1 (Planning) for the `ui` unit. Checked existing PBT convention (project uses `pgregory.net/rapid` v1.2.0). Created `construction/plans/ui-persistent-default-settings-code-generation-plan.md`: 6 numbered steps — Step 1 `ui/settings.go` (GameSettings model + encode/decode/sanitize + settingsStore over fyne.Preferences), Step 2 `ui/settings_test.go` (unit + rapid round-trip/load-robustness properties + fake-prefs store round-trip), Step 3 modify `ui/app.go` (settings store on App, init in Run), Step 4 modify `ui/setup.go` (load-on-build, control init, saveDefaultsCheck, save-on-Start), Step 5 `ui/setup_settings_test.go` (mapping guard + build smoke), Step 6 code-summary doc. Presenting plan for approval before generation.
+**Context**: Feature Increment — Code Generation Part 1 (Planning) complete, awaiting user approval of the plan.
+
+---
+
+## Feature Increment — Persistent Default Setup Settings — Functional Design (ui)
+**Timestamp**: 2026-07-23T15:00:00Z
+**User Input**: "approved, continue"
+**AI Response**: Workflow Planning approved. Executed Functional Design for the `ui` unit. No clarifying questions needed (decisions D1–D4 locked at Requirements). Created `construction/ui/functional-design/persistent-default-settings.md`: domain entity `GameSettings` (Dict/Mode/Difficulty/Notation) serialised as one JSON document; pure `encode`/`decode`/`sanitize` functions (headless/PBT-testable); a `settingsStore` adapter over `fyne.Preferences` on `App`; load-on-build + save-on-Start-Game flow; business rules BR-1..BR-6 (validation of untrusted persisted input, best-effort save); frontend delta (new `saveDefaultsCheck` checked by default, controls initialised from loaded settings); extension compliance (Extensibility by design, Security validation, PBT round-trip + load-robustness properties). Updated `aidlc-state.md`. Presenting Functional Design completion for approval.
+**Context**: Feature Increment — Functional Design (ui) complete, awaiting user approval.
+
+---
+
+## Feature Increment — Persistent Default Setup Settings — Workflow Planning
+**Timestamp**: 2026-07-23T14:45:00Z
+**User Input**: "approved, continue"
+**AI Response**: Requirements Analysis approved (FR-15, design decisions D1–D4). Ran Workflow Planning. Risk = Low, isolated `ui` change. Plan: SKIP User Stories (simple single-touchpoint), SKIP Application Design (within `ui` boundary; one small settings store), SKIP Units Generation (single unit), SKIP Infrastructure Design (no infra). EXECUTE Functional Design (ui — new settings model + persistence + validation), with PBT + Security extension properties folded in; EXECUTE Code Generation (ui); EXECUTE Build and Test. Created `inception/plans/feature-persistent-default-settings-execution-plan.md`; updated `aidlc-state.md`. Presenting Workflow Planning completion for approval.
+**Context**: Feature Increment — Workflow Planning complete, awaiting user approval.
+
+---
+
+## Feature Increment — Persistent Default Setup Settings — Requirements Analysis
+**Timestamp**: 2026-07-23T14:30:00Z
+**User Input**: "using AI-DLC, add a feature for a checkbox to the \"New Game Setup\" screen to save the current choices (word list, game mode, move history in scrabble notation) as default settings. check the box by default. When the app is re-started or goes back to the main screen to start a new game, the saved defaults should be loaded so that the user can just click on \"Start Game\" with their previously-made choices" — then, mid-task: "add the selected difficulty level to the options to be saved" — then: "when specing the feature, spec it so that any additional settings added in the future will also be saved"
+**AI Response**: Started AI-DLC for a brownfield feature increment. Workspace Detection: brownfield (Go/Fyne app, existing AIDLC artifacts) → Reverse Engineering skipped. Extensions already configured and enabled (Property-Based Testing, Security Baseline) — no re-opt-in. Requirements Analysis (Standard depth; request clear/simple, scope = `ui` unit + a preferences-backed settings store). Grounded the design in the current code (setup.go controls, App.fapp, fyne.Preferences, engine.GameMode enum, dictionary.DictName). No blocking ambiguities after the two clarifications (difficulty included; persistence must be extensible for future settings), so no question file was created; design decisions are surfaced at the approval gate instead. Added FR-15 to requirements.md and created feature-persistent-default-settings.md. Presenting Requirements Analysis completion for approval.
+**Context**: Feature Increment — Requirements Analysis complete, awaiting user approval.
+
+---
+
 ## Framework Maintenance — AI-DLC Upgrade v0.1.7 → v1.0.1
 **Timestamp**: 2026-07-23T00:30:00Z
 **User Input**: "update the AIDLC framework to the latest release. Do not replace the existing CLAUDE.md in this project's root directory - instead, add the AIDLC bits at the top of the existing CLAUDE.md" — then: "According to https://github.com/awslabs/aidlc-workflows/releases/ v1.0.1 is the latest release, not 0.1.8"

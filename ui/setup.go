@@ -112,6 +112,10 @@ func (a *App) buildSetup() fyne.CanvasObject {
 
 	avail := availableDicts()
 
+	// Load the player's saved defaults (or the built-in defaults) so every control below
+	// opens on the previously-chosen value; see FR-15 / settings.go.
+	gs := a.defaultsFor(avail)
+
 	// Map display label → dictionary name for the selection control.
 	labels := make([]string, len(avail))
 	byLabel := make(map[string]dictionary.DictName, len(avail))
@@ -133,7 +137,10 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		dictDesc.SetText(dictDescription(selectedDict))
 	})
 	if len(labels) > 0 {
-		dictRadio.SetSelected(labels[0]) // fires the callback above, setting selectedDict and the description
+		// gs.Dict is guaranteed available (sanitised on load), so its display label is one of
+		// the radio labels; selecting it fires the callback above, setting selectedDict and
+		// the description.
+		dictRadio.SetSelected(dictDisplayName(gs.Dict))
 	}
 
 	// Game mode: board layout + tile economy. Classic is the standard board and 100-tile
@@ -141,7 +148,7 @@ func (a *App) buildSetup() fyne.CanvasObject {
 	// two-option radio gives natural mutual exclusion; its two rows are laid out each beside
 	// a small per-mode "Info" button.
 	const classicOpt, interestingOpt = "Classic Mode", "Interesting Mode"
-	selectedMode := engine.ClassicMode
+	selectedMode := gs.Mode
 	modeRadio := newTouchRadio([]string{classicOpt, interestingOpt}, func(s string) {
 		if s == interestingOpt {
 			selectedMode = engine.InterestingMode
@@ -149,7 +156,11 @@ func (a *App) buildSetup() fyne.CanvasObject {
 			selectedMode = engine.ClassicMode
 		}
 	})
-	modeRadio.SetSelected(classicOpt)
+	modeLabel := classicOpt
+	if gs.Mode == engine.InterestingMode {
+		modeLabel = interestingOpt
+	}
+	modeRadio.SetSelected(modeLabel)
 
 	classicInfo := newBevelButton("Info", func() { a.showModeInfo(engine.ClassicMode) })
 	interestingInfo := newBevelButton("Info", func() { a.showModeInfo(engine.InterestingMode) })
@@ -160,8 +171,8 @@ func (a *App) buildSetup() fyne.CanvasObject {
 	)
 
 	// Difficulty 1–10 via a slider with a live value label.
-	level := 5
-	levelLabel := widget.NewLabelWithStyle("Difficulty: 5  (1 = easy, 10 = hard)", fyne.TextAlignCenter, fyne.TextStyle{})
+	level := gs.Difficulty
+	levelLabel := widget.NewLabelWithStyle(fmt.Sprintf("Difficulty: %d  (1 = easy, 10 = hard)", level), fyne.TextAlignCenter, fyne.TextStyle{})
 	levelSlider := widget.NewSlider(1, 10)
 	levelSlider.Step = 1
 	levelSlider.SetValue(float64(level))
@@ -173,6 +184,12 @@ func (a *App) buildSetup() fyne.CanvasObject {
 	// Move-history format: plain word list by default, Scrabble coordinate notation when
 	// checked (e.g. "8D UNMIX +28").
 	notationCheck := newTouchCheck("Show move history in Scrabble notation", nil)
+	notationCheck.Checked = gs.Notation
+
+	// When checked at Start Game, the current selections are persisted as the player's
+	// defaults (FR-15). It opens checked every time and is not itself persisted.
+	saveDefaultsCheck := newTouchCheck("Save these as my defaults", nil)
+	saveDefaultsCheck.Checked = true
 
 	var startBtn, backBtn *touchButton
 
@@ -180,6 +197,14 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		if len(avail) == 0 {
 			status.SetText("No dictionaries are available in this build.")
 			return
+		}
+		if saveDefaultsCheck.Checked && a.settings != nil {
+			a.settings.save(GameSettings{
+				Dict:       selectedDict,
+				Mode:       selectedMode,
+				Difficulty: level,
+				Notation:   notationCheck.Checked,
+			})
 		}
 		startBtn.Disable()
 		backBtn.Disable()
@@ -214,6 +239,7 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		levelSlider,
 		widget.NewSeparator(),
 		notationCheck,
+		saveDefaultsCheck,
 		widget.NewSeparator(),
 		container.NewHBox(layout.NewSpacer(), backBtn, startBtn),
 		status,

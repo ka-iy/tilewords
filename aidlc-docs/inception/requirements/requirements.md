@@ -122,6 +122,28 @@
 - **Implemented by**: `engine` notation + UI toggle. See
   `construction/engine/functional-design/notation-and-move-records.md`.
 
+### FR-15: Persistent Default Setup Settings (post-v1)
+- The New Game Setup screen provides a **"Save these as my defaults"** checkbox, checked by
+  default whenever the screen opens.
+- When the player starts a game with the box checked, the current setup selections are
+  persisted as the player's default settings:
+  - dictionary (word list),
+  - game mode,
+  - AI difficulty level,
+  - move-history Scrabble-notation toggle.
+- When the setup screen is next opened — on app restart, or on returning to it from the main
+  menu to start another game — the saved defaults pre-populate every control, so the player
+  can start with their previous choices in a single tap on **Start Game**.
+- Persistence MUST be **extensible**: it is defined over a single settings model serialised
+  as one document, so any setup option added in the future is saved and restored
+  automatically, with no change to the save/load mechanism itself.
+- Persisted values are untrusted input on load: unknown or out-of-range values (e.g. a
+  dictionary no longer bundled, a difficulty outside 1–10) MUST fall back to the built-in
+  default rather than error or crash.
+- **Implemented by**: `ui` setup screen + a settings store over Fyne `Preferences`. Detailed
+  spec: `inception/requirements/feature-persistent-default-settings.md`; construction design
+  to be produced at `construction/ui/functional-design/persistent-default-settings.md`.
+
 > **Note on FR-10 (Save and Resume)**: implemented as a single atomic save slot
 > (`savegame.gob`) that persists the full game state including game mode, move history, and
 > notation preference, with backward-compatible decoding of older saves. See
