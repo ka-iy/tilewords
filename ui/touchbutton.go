@@ -57,3 +57,34 @@ func (b *touchButton) TouchUp(*mobile.TouchEvent) {}
 
 // TouchCancel satisfies mobile.Touchable; see TouchDown.
 func (b *touchButton) TouchCancel(*mobile.TouchEvent) {}
+
+// touchCheck is a widget.Check that also implements mobile.Touchable, for the same reason
+// as touchButton: a plain Check inside a Scroll loses a slightly-moved tap to the scroll's
+// pan on touch screens. Check taps on itself (unlike RadioGroup, whose tap target is an
+// unexported radioItem), so embedding it and adding the no-op Touch* methods is enough.
+type touchCheck struct {
+	widget.Check
+}
+
+// touchCheck must satisfy mobile.Touchable for the tap-in-scroll fix to hold.
+var _ mobile.Touchable = (*touchCheck)(nil)
+
+// newTouchCheck returns a labelled check box that reliably taps inside a Scroll on touch
+// screens. changed may be nil.
+func newTouchCheck(label string, changed func(bool)) *touchCheck {
+	c := &touchCheck{}
+	c.Text = label
+	c.OnChanged = changed
+	c.ExtendBaseWidget(c)
+	return c
+}
+
+// TouchDown satisfies mobile.Touchable; being Touchable is what keeps the enclosing Scroll
+// from stealing the tap. The check-toggle logic lives in the embedded Check.
+func (c *touchCheck) TouchDown(*mobile.TouchEvent) {}
+
+// TouchUp satisfies mobile.Touchable; see TouchDown.
+func (c *touchCheck) TouchUp(*mobile.TouchEvent) {}
+
+// TouchCancel satisfies mobile.Touchable; see TouchDown.
+func (c *touchCheck) TouchCancel(*mobile.TouchEvent) {}

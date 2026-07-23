@@ -62,3 +62,15 @@ func TestTabButtonsAreTouchable(t *testing.T) {
 func TestBevelButtonIsTouchable(t *testing.T) {
 	assertTouchable(t, "bevel Info button", newBevelButton("Info", func() {}))
 }
+
+// TestSetupControlsAreTouchable guards the fix for the setup screen's non-button controls:
+// the dictionary and game-mode radio rows and the notation checkbox all sit inside that
+// screen's vertical Scroll, so each must be mobile.Touchable to tap reliably on mobile.
+func TestSetupControlsAreTouchable(t *testing.T) {
+	_ = test.NewApp()
+	assertTouchable(t, "notation check", newTouchCheck("Show notation", nil))
+	tr := newTouchRadio([]string{"A", "B"}, nil)
+	for _, b := range tr.buttons {
+		assertTouchable(t, "radio row", b)
+	}
+}

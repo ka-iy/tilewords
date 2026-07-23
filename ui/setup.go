@@ -128,45 +128,35 @@ func (a *App) buildSetup() fyne.CanvasObject {
 	dictDesc := widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Italic: true})
 	dictDesc.Wrapping = fyne.TextWrapWord
 
-	dictRadio := widget.NewRadioGroup(labels, func(l string) {
+	dictRadio := newTouchRadio(labels, func(l string) {
 		selectedDict = byLabel[l]
 		dictDesc.SetText(dictDescription(selectedDict))
 	})
 	if len(labels) > 0 {
-		dictRadio.SetSelected(labels[0])
-		selectedDict = avail[0]
-		dictDesc.SetText(dictDescription(selectedDict))
+		dictRadio.SetSelected(labels[0]) // fires the callback above, setting selectedDict and the description
 	}
 
 	// Game mode: board layout + tile economy. Classic is the standard board and 100-tile
-	// set; Interesting is the alternative pinwheel board and 110-tile economy. Each mode is
-	// its own single-option radio so a small per-mode "Info" button can sit inline; the two
-	// radios are kept mutually exclusive by hand (Required blocks deselect-by-tapping).
+	// set; Interesting is the alternative pinwheel board and 110-tile economy. A single
+	// two-option radio gives natural mutual exclusion; its two rows are laid out each beside
+	// a small per-mode "Info" button.
+	const classicOpt, interestingOpt = "Classic Mode", "Interesting Mode"
 	selectedMode := engine.ClassicMode
-	var classicRadio, interestingRadio *widget.RadioGroup
-	classicRadio = widget.NewRadioGroup([]string{"Classic Mode"}, func(s string) {
-		if s == "" {
-			return // ignore the deselection callback raised when the other radio is chosen
+	modeRadio := newTouchRadio([]string{classicOpt, interestingOpt}, func(s string) {
+		if s == interestingOpt {
+			selectedMode = engine.InterestingMode
+		} else {
+			selectedMode = engine.ClassicMode
 		}
-		selectedMode = engine.ClassicMode
-		interestingRadio.SetSelected("")
 	})
-	interestingRadio = widget.NewRadioGroup([]string{"Interesting Mode"}, func(s string) {
-		if s == "" {
-			return
-		}
-		selectedMode = engine.InterestingMode
-		classicRadio.SetSelected("")
-	})
-	classicRadio.Required, interestingRadio.Required = true, true
-	classicRadio.SetSelected("Classic Mode")
+	modeRadio.SetSelected(classicOpt)
 
 	classicInfo := newBevelButton("Info", func() { a.showModeInfo(engine.ClassicMode) })
 	interestingInfo := newBevelButton("Info", func() { a.showModeInfo(engine.InterestingMode) })
 
 	modeSection := container.NewVBox(
-		container.NewHBox(classicRadio, classicInfo),
-		container.NewHBox(interestingRadio, interestingInfo),
+		container.NewHBox(modeRadio.buttons[0], classicInfo),
+		container.NewHBox(modeRadio.buttons[1], interestingInfo),
 	)
 
 	// Difficulty 1–10 via a slider with a live value label.
@@ -182,7 +172,7 @@ func (a *App) buildSetup() fyne.CanvasObject {
 
 	// Move-history format: plain word list by default, Scrabble coordinate notation when
 	// checked (e.g. "8D UNMIX +28").
-	notationCheck := widget.NewCheck("Show move history in Scrabble notation", nil)
+	notationCheck := newTouchCheck("Show move history in Scrabble notation", nil)
 
 	var startBtn, backBtn *touchButton
 
@@ -214,7 +204,7 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		title,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Dictionary", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		dictRadio,
+		dictRadio.list(),
 		dictDesc,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Game Mode", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
