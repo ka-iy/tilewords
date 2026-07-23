@@ -1,5 +1,11 @@
 # Code Generation Plan — Unit 4: `ui`
 
+> **Correction addendum** — This document reflects the initial **Ebitengine** design. The UI
+> was implemented on **Fyne** instead, so parts below (game loop, `Screen` FSM, pixel
+> renderers, input polling, fixed 960×640 resolution) do not match the shipped code. See
+> `aidlc-docs/corrections.md` and the post-v1 `ui` functional-design addenda for the actual
+> design. The project name is **TileWords**, not "Squabble".
+
 ## Pre-Generation Steps
 
 Before generating Go source, add Ebitengine and x/image to go.mod:

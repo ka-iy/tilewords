@@ -48,3 +48,25 @@
 - **Current Stage**: Workflow Planning — awaiting user approval
 - **Next Stage**: Application Design
 - **Units Planned**: dictionary, engine, ai, ui (dependency order)
+
+## Post-v1 Retroactive Documentation
+A pass was run to bring the AIDLC docs up to the current code. Documented the following
+previously-uncaptured work (application code was already implemented and committed):
+
+- **Unit 6: `defs`** (NEW) — word definitions shown during gameplay. Full construction doc set
+  under `construction/defs/` (functional-design, nfr-requirements, nfr-design, code) + tools
+  (`builddefs`, `defslookup`, `memcheck`). Registered in `unit-of-work.md` / `components.md`.
+- **`engine` additions** — game modes (Classic/Interesting), Scrabble-notation formatting,
+  persisted move records / opening draw. See `construction/engine/functional-design/{game-modes,
+  notation-and-move-records}.md`.
+- **`ui` additions** — Move history / Definitions two-tab panel (copy + touch scrolling),
+  game-mode selection with preview dialog, notation toggle, single-slot atomic save/resume.
+  See `construction/ui/functional-design/{move-history-and-definitions, game-setup-and-modes,
+  save-and-resume}.md`.
+- **Requirements/Stories** — added FR-12 (definitions), FR-13 (game modes), FR-14 (notation);
+  US-20–US-23.
+
+**Note**: the shipped UI toolkit is **Fyne** (the initial design named Ebitengine), and the
+bundled word lists are `enable`, `wordnik`, `atebits-letterpress` (not the placeholder
+`csw/sowpods/…` names in the original design docs). These divergences are noted where relevant
+but the original v1 design docs were left intact as the historical record.

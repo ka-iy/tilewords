@@ -1,5 +1,10 @@
 # Domain Entities — Unit 1: `dictionary`
 
+> **Correction addendum** — The shipped dictionaries are **enable**, **wordnik**, and
+> **atebits-letterpress** (public-domain / open lists), not the placeholder
+> `csw/sowpods/ospd/naspa/otcwl/all` names used below, and there is no combined "all" GADDAG.
+> The project name is **TileWords**. See `aidlc-docs/corrections.md`.
+
 ## Entity: `NodeID`
 
 **Type**: `uint32`

@@ -1,5 +1,10 @@
 # Business Rules — Unit 1: `dictionary`
 
+> **Correction addendum** — The shipped dictionaries are **enable**, **wordnik**, and
+> **atebits-letterpress** (public-domain / open lists), not the placeholder
+> `csw/sowpods/ospd/naspa/otcwl/all` names used below, and there is no combined "all" GADDAG.
+> The project name is **TileWords**. See `aidlc-docs/corrections.md`.
+
 ## BR-01: Letter Normalisation
 - All word inputs (from source word lists and from validation callers) are normalised to uppercase before processing.
 - Normalisation is applied byte-by-byte: bytes in range `a`–`z` (0x61–0x7A) are converted to `A`–`Z` (0x41–0x5A). All other bytes are left unchanged.

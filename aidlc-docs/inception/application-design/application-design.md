@@ -1,5 +1,10 @@
 # Application Design — Squabble (Consolidated)
 
+> **Correction addendum** — Some choices below changed during implementation — notably
+> "Squabble" → **TileWords**, **Ebitengine → Fyne**, and the dictionary set
+> (`enable`/`wordnik`/`atebits-letterpress`). See `aidlc-docs/corrections.md` for the
+> authoritative corrections, and `aidlc-docs/aidlc-state.md` for post-v1 additions.
+
 ## Design Decisions Summary
 
 | Decision | Choice | Rationale |

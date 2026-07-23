@@ -1,5 +1,10 @@
 # Components — Squabble
 
+> **Correction addendum** — Some choices below changed during implementation — notably
+> "Squabble" → **TileWords**, **Ebitengine → Fyne**, and the dictionary set
+> (`enable`/`wordnik`/`atebits-letterpress`). See `aidlc-docs/corrections.md` for the
+> authoritative corrections, and `aidlc-docs/aidlc-state.md` for post-v1 additions.
+
 ## Module Structure
 
 Single `go.mod` at repository root. Top-level package directories:
@@ -108,3 +113,39 @@ squabble/
 - `AIWorker` communicates results to `GameScreen` via a non-blocking channel poll in `Update()`
 - Asset images loaded once at startup via `//go:embed`; no runtime file I/O for images
 - Save files written only to OS app-data directory with user-only permissions
+
+---
+
+## Component: `defs` (post-v1)
+
+**Purpose**: Provide the definition of a word formed during gameplay. Sources meanings from
+Wiktionary (kaikki.org `wiktextract`), filters them to the shipped word lists at build time,
+and resolves a played word to a definition at runtime.
+
+**Responsibilities**:
+- Build a gzip-compressed gob asset of headword definitions + inflection edges, filtered to
+  the union of the bundled word lists (offline `tools/builddefs`)
+- Resolve a played word via a layered matcher: exact → form-of → rule-based stem →
+  orthographic variant; never invent a definition from an unrelated near-spelling
+- Surface a homograph's inflected reading additively (`Result.AlsoForm`)
+- Load the asset once (cached, off the UI goroutine) and gate the feature on its presence
+  (`Available()`)
+
+**Key types**: `DB`, `Entry`, `Sense`, `MatchKind`, `Result`, `WordList`, `Report`
+
+**Constraints**:
+- Read-only after decode; `Lookup` is thread-safe for concurrent use
+- Definitions are CC BY-SA (Wiktionary); attribution required
+- Optional asset — the game runs without it
+
+---
+
+## Post-v1 additions to existing components
+
+- **`engine`** — `GameMode` (Classic/Interesting: mode-parameterised premium layout + tile
+  economy), Scrabble-notation formatting (`AnnotatedWords`), and persisted display records
+  (`MoveRecord`, `OpeningDraw`, `GameState.{Mode, History, ScrabbleNotation}`).
+- **`ui`** — the actual toolkit is **Fyne** (not Ebitengine as in the original design). Added:
+  the Move history / Definitions two-tab panel (`tabPanel`) with a Copy button and mobile
+  drag-scroll/long-press-copy overlay; the definitions worker; the game-mode chooser + preview
+  dialog; the Scrabble-notation toggle; and the single-slot atomic `SaveManager`.

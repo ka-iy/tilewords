@@ -1,5 +1,13 @@
 # AI-DLC Audit Log
 
+## Post-v1 — Retroactive Documentation Pass
+**Timestamp**: 2026-07-23T00:00:00Z
+**User Input**: "Using the aidlc flow, examine the existing aidlc docs against the current state of the code, and retroactively add aidlc documentation for everything that is not currently captured" — then, mid-task: "note that the save game feature and the 'Interesting mode' features are also not captured in the aidlc docs. include these as well" — then: "also uncaptured is the option to use scrabble notation for the move history"
+**AI Response**: Examined existing AIDLC docs against the code. Documented previously-uncaptured work: NEW **Unit 6 `defs`** (word definitions) — full construction doc set (`construction/defs/functional-design/{domain-entities,business-logic-model,business-rules}.md`, `nfr-requirements/{nfr-requirements,tech-stack-decisions}.md`, `nfr-design/{logical-components,nfr-design-patterns}.md`, `code/code-summary.md`) plus tools (builddefs, defslookup, memcheck). Added `engine` addenda (`game-modes.md`, `notation-and-move-records.md`) for Interesting mode, Scrabble notation, and persisted move records. Added `ui` addenda (`move-history-and-definitions.md`, `game-setup-and-modes.md`, `save-and-resume.md`) for the definitions panel, mode selection + preview, notation toggle, and single-slot atomic save/resume. Registered Unit 6 and the feature additions in `unit-of-work.md` and `components.md`; added FR-12/13/14 and US-20–US-23; updated `aidlc-state.md`. Noted the Ebitengine→Fyne toolkit divergence and the actual bundled dictionary names; left original v1 design docs intact as historical record.
+**Context**: Retroactive documentation to reconcile AIDLC docs with the current (already-committed) code.
+
+---
+
 ## Construction — Unit 4 ui — NFR Design Complete
 **Timestamp**: 2026-04-19T04:35:00Z
 **User Input**: "approved. continue"

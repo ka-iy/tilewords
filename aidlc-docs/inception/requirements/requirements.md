@@ -1,5 +1,10 @@
 # Requirements Document — Squabble (Cross-Platform Scrabble in Go)
 
+> **Correction addendum** — Some choices below changed during implementation — notably
+> "Squabble" → **TileWords**, **Ebitengine → Fyne**, and the dictionary set
+> (`enable`/`wordnik`/`atebits-letterpress`). See `aidlc-docs/corrections.md` for the
+> authoritative corrections, and `aidlc-docs/aidlc-state.md` for post-v1 additions.
+
 ## Intent Analysis Summary
 
 - **User Request**: Build a complete, graphical Scrabble game in Go targeting desktop (Windows/macOS/Linux) and Android mobile, with an Appel-Jacobson (1998) engine, 1–10 AI difficulty levels, multi-dictionary support, and no bluffing.
@@ -90,6 +95,37 @@
 ### FR-11: Game Language
 - English only at v1 launch.
 - All UI text, tile labels, and in-game messages are in English.
+
+### FR-12: Word Definitions (post-v1)
+- During gameplay, the player can view the meaning of each word formed.
+- Definitions come from a public-domain / open source with strong coverage of word-game
+  vocabulary (Wiktionary via kaikki.org), attributed per its licence (CC BY-SA).
+- Definitions are shown in a "Definitions" tab beside the move history, one entry per word,
+  and repopulate when a saved game is resumed.
+- The feature is optional: if its asset is not built, the game runs without definitions.
+- **Implemented by**: Unit 6 `defs` + UI integration. See `construction/defs/` and
+  `construction/ui/functional-design/move-history-and-definitions.md`.
+
+### FR-13: Game Modes (post-v1)
+- At game start the player selects a game mode. **Classic** uses the standard premium-square
+  layout and 100-tile economy; **Interesting** uses an independently-designed pinwheel layout
+  and a 110-tile frequency-derived economy.
+- A per-mode preview shows the board layout and tile economy before selection.
+- The chosen mode is fixed for the game and persisted so a resumed game keeps the same board
+  and economy. The designs must not copy any trademarked board (NFR-09).
+- **Implemented by**: `engine` game modes + UI selection. See
+  `construction/engine/functional-design/game-modes.md`.
+
+### FR-14: Move-History Notation (post-v1)
+- The player can choose to display the move history in Scrabble coordinate notation
+  (e.g. `8D UNMIX +28`) instead of the plain word list; the choice is persisted per game.
+- **Implemented by**: `engine` notation + UI toggle. See
+  `construction/engine/functional-design/notation-and-move-records.md`.
+
+> **Note on FR-10 (Save and Resume)**: implemented as a single atomic save slot
+> (`savegame.gob`) that persists the full game state including game mode, move history, and
+> notation preference, with backward-compatible decoding of older saves. See
+> `construction/ui/functional-design/save-and-resume.md`.
 
 ---
 

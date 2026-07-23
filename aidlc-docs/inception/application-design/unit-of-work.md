@@ -1,5 +1,10 @@
 # Units of Work — Squabble
 
+> **Correction addendum** — Some choices below changed during implementation — notably
+> "Squabble" → **TileWords**, **Ebitengine → Fyne**, and the dictionary set
+> (`enable`/`wordnik`/`atebits-letterpress`). See `aidlc-docs/corrections.md` for the
+> authoritative corrections, and `aidlc-docs/aidlc-state.md` for post-v1 additions.
+
 ## Overview
 
 The system is decomposed into **5 units**, developed strictly sequentially. Each unit must have all code written and all tests passing before the next unit begins.
@@ -146,3 +151,36 @@ Week 5:  Unit 5 — cmd + cross-platform builds
 ```
 
 *(Timelines are indicative; each unit begins only after the previous unit's tests pass.)*
+
+---
+
+## Post-v1 Additions (retroactively documented)
+
+Work added after the initial five units. Full designs are under `construction/`.
+
+### Unit 6: `defs`
+
+**Package path**: `defs/`
+**Build/inspection tools**: `tools/builddefs/`, `tools/defslookup/`, `tools/memcheck/`
+
+**Description**: Word definitions shown during gameplay. Sources meanings from Wiktionary
+(kaikki.org `wiktextract`), filters them to the shipped word lists at build time, and resolves
+a played word to a definition at runtime via a layered matcher (exact → form-of → stem →
+orthographic variant). See `construction/defs/`.
+
+**Deliverables**: `defs/*.go`; `tools/builddefs`, `tools/defslookup`, `tools/memcheck`;
+`defs/assets/definitions/definitions.gob.gz` (built locally via `make defs`, gitignored);
+`ui/definitions.go`, `ui/tabpanel.go`, `ui/dragscroll.go` (UI integration).
+
+**Done when**: `go test ./defs/...` passes headless; the game shows definitions for played
+words when the asset is built, and degrades gracefully when it is not.
+
+### Feature additions to existing units
+
+- **`engine`** — Game modes (`ClassicMode`/`InterestingMode`: mode-parameterised board layout
+  + tile economy); Scrabble-coordinate move notation; persisted move records / opening draw.
+  See `construction/engine/functional-design/{game-modes, notation-and-move-records}.md`.
+- **`ui`** — Move history / Definitions two-tab panel with copy + touch scrolling; game-mode
+  selection with a preview dialog; the notation toggle; the single-slot atomic save/resume.
+  See `construction/ui/functional-design/{move-history-and-definitions, game-setup-and-modes,
+  save-and-resume}.md`.

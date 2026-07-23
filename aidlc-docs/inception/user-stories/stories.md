@@ -309,6 +309,57 @@
 
 ---
 
+## Post-v1 Stories (retroactively documented)
+
+### US-20: View the Definition of a Played Word
+**As** a player,
+**I want** to see the meaning of each word formed during the game,
+**so that** I learn new words and can verify why an obscure word is valid.
+
+**Acceptance Criteria:**
+- A "Definitions" tab beside the move history lists an entry per word played, one meaning per line.
+- Resuming a saved game repopulates the definitions for words already played.
+- The whole panel can be copied to the clipboard; on touch, dragging scrolls and a long press copies.
+- If the definitions asset is not present, the game still runs and the tab notes definitions are unavailable.
+
+**References**: FR-12
+
+### US-21: Choose a Game Mode
+**As** a player,
+**I want** to pick a game mode (Classic or Interesting) and preview its board and tiles,
+**so that** I can play a familiar layout or a fresh, independently-designed variant.
+
+**Acceptance Criteria:**
+- New Game Setup offers Classic and Interesting, each with an Info button showing the premium-square layout and the tile economy.
+- The selected mode's board layout and tile distribution/points are used for the game and persisted with the save.
+
+**References**: FR-13
+
+### US-22: Show Move History in Scrabble Notation
+**As** a player,
+**I want** to optionally display the move history in Scrabble coordinate notation,
+**so that** I can read moves in the standard tournament format.
+
+**Acceptance Criteria:**
+- A setup toggle switches the move history between the plain word list and coordinate notation (e.g. "8D UNMIX +28").
+- The choice is persisted so a resumed game keeps the same format.
+
+**References**: FR-14
+
+### US-23: Save and Resume a Game
+**As** a player,
+**I want** to save my game and resume it later exactly as I left it,
+**so that** I can stop and continue without losing progress.
+
+**Acceptance Criteria:**
+- Saving overwrites a single slot atomically; the main menu offers Load (when a save exists) and Delete.
+- Resuming restores the board and economy (mode), scores, racks, bag, move history (in the saved notation), and the definitions already shown.
+- A corrupt or missing save fails gracefully with a clear message; older saves still load.
+
+**References**: FR-10
+
+---
+
 ## INVEST Compliance Summary
 
 | Story | Independent | Negotiable | Valuable | Estimable | Small | Testable |

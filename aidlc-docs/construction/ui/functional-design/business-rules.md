@@ -1,5 +1,11 @@
 # Business Rules — Unit 4: `ui`
 
+> **Correction addendum** — This document reflects the initial **Ebitengine** design. The UI
+> was implemented on **Fyne** instead, so parts below (game loop, `Screen` FSM, pixel
+> renderers, input polling, fixed 960×640 resolution) do not match the shipped code. See
+> `aidlc-docs/corrections.md` and the post-v1 `ui` functional-design addenda for the actual
+> design. The project name is **TileWords**, not "Squabble".
+
 ## BR-UI-01: Human Input Only During Human Turn
 
 All tile-placement actions, rack interactions, and game-control buttons (Play, Exchange,

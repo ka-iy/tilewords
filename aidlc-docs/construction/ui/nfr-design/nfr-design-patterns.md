@@ -1,5 +1,11 @@
 # NFR Design Patterns — Unit 4: `ui`
 
+> **Correction addendum** — This document reflects the initial **Ebitengine** design. The UI
+> was implemented on **Fyne** instead, so parts below (game loop, `Screen` FSM, pixel
+> renderers, input polling, fixed 960×640 resolution) do not match the shipped code. See
+> `aidlc-docs/corrections.md` and the post-v1 `ui` functional-design addenda for the actual
+> design. The project name is **TileWords**, not "Squabble".
+
 ## Pattern 1: Screen Interface FSM (NFR-UI-T1, NFR-UI-P6)
 
 **Problem**: The application transitions between four screens (MainMenu, Setup, Game,
