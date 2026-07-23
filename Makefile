@@ -101,9 +101,10 @@ WORDLISTS_DIR ?= wordlists
 DICT_DIR      := dictionary/assets/dictionaries
 BUILDGADDAG   := go run ./tools/buildgaddag
 
-# ENABLE — public domain word list (Alan Beale).  Downloaded automatically when its
-# source is absent; every other list must be supplied by placing it under wordlists/.
-WL_ENABLE_URL := https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt
+# ENABLE2K — public domain word list (Alan Beale and others), the 2K edition.
+# Downloaded automatically (and decompressed) when its source is absent; every other
+# list must be supplied by placing it under wordlists/.
+WL_ENABLE_URL := https://raw.githubusercontent.com/BartMassey/wordlists/main/enable2k.txt.gz
 WL_ENABLE     ?= $(WORDLISTS_DIR)/enable.txt
 
 # Discover every word list currently present and map each to its GADDAG asset:
@@ -125,9 +126,10 @@ download-wordlists: $(WL_ENABLE) ## Download the free (ENABLE) word list
 $(WORDLISTS_DIR) $(DICT_DIR):
 	mkdir -p $@
 
-# Download ENABLE from GitHub (public domain mirror of the original list).
+# Download ENABLE2K from GitHub (a gzip-compressed public-domain distribution) and
+# decompress it into the plain-text word list the build consumes.
 $(WL_ENABLE): | $(WORDLISTS_DIR)
-	curl -fsSL $(WL_ENABLE_URL) -o $@
+	curl -fsSL $(WL_ENABLE_URL) | gunzip -c > $@
 
 # Compile any word list into its GADDAG asset. The stem ($*) is the dictionary name.
 $(DICT_DIR)/%.gob: $(WORDLISTS_DIR)/%.txt | $(DICT_DIR)
@@ -169,6 +171,50 @@ $(DEFS_ASSET): $(WORDLIST_SRCS) | $(DEFS_DIR)
 	  exit 1; }
 	$(BUILDDEFS) -kaikki "$(KAIKKI_EXTRACT)" \
 	  -input "$(subst $(space),$(comma),$(WORDLIST_SRCS))" -output $@
+
+# ── Definitions augmentation (secondary public-domain sources) ─────────────────
+#
+# `make defs` builds the base asset from Wiktionary. `make defs-augment` then folds
+# in glosses from Webster's 1913 (public domain) and WordNet (permissive) for the
+# words Wiktionary does not define, closing part of the coverage gap. It edits
+# $(DEFS_ASSET) in place and is idempotent: existing (Wiktionary) definitions always
+# win, and only a word that is itself a headword in a source is added, so no
+# definition is invented from a near-spelling.
+#
+# Run it after `make defs` (a fresh `make defs` drops the supplements, so re-run
+# this to fold them back in). Both sources are external downloads and NOT committed:
+#   - Webster's 1913 JSON:
+#       https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary_compact.json
+#   - WordNet 3.1 dict (extract the archive; point WORDNET_DICT at its 'dict' folder):
+#       https://wordnetcode.princeton.edu/wn3.1.dict.tar.gz
+MERGEDEFS    := go run ./tools/mergedefs
+MISSAUDIT    := go run ./tools/missaudit
+WEBSTER_JSON ?= wordlists/webster1913.json
+WORDNET_DICT ?= wordlists/wordnet/dict
+# Committed, reviewable glossary of smaller curated public-domain sources (Jamieson's
+# Scots dictionary, Spenser glossaries). See defs/assets/definitions/SOURCES.md.
+SUPP_GLOSSARY := defs/supplemental-glossary.tsv
+
+.PHONY: defs-augment
+defs-augment: ## Fold Webster's 1913 + WordNet + the supplemental glossary into the defs asset for uncovered words
+	@test -f "$(DEFS_ASSET)" || { echo "make defs-augment: $(DEFS_ASSET) not found; run 'make defs' first."; exit 1; }
+	@test -f "$(WEBSTER_JSON)" || { \
+	  echo "make defs-augment: Webster's 1913 JSON not found at '$(WEBSTER_JSON)'."; \
+	  echo "  Download it (see the Makefile comment above defs-augment) and set WEBSTER_JSON=<path>."; \
+	  exit 1; }
+	@test -d "$(WORDNET_DICT)" || { \
+	  echo "make defs-augment: WordNet dict directory not found at '$(WORDNET_DICT)'."; \
+	  echo "  Download+extract wn3.1.dict.tar.gz and set WORDNET_DICT=<path-to-dict>."; \
+	  exit 1; }
+	$(MERGEDEFS) -db $(DEFS_ASSET) \
+	  -webster "$(WEBSTER_JSON)" -wordnet "$(WORDNET_DICT)" \
+	  -glossary "$(SUPP_GLOSSARY)" \
+	  -lists "$(subst $(space),$(comma),$(WORDLIST_SRCS))" -output $(DEFS_ASSET)
+
+.PHONY: defs-audit
+defs-audit: ## Report per-list definition coverage and the deduplicated set of undefined words
+	@test -f "$(DEFS_ASSET)" || { echo "make defs-audit: $(DEFS_ASSET) not found; run 'make defs' first."; exit 1; }
+	$(MISSAUDIT) -db $(DEFS_ASSET) $(WORDLIST_SRCS)
 
 # ── Desktop ───────────────────────────────────────────────────────────────────
 

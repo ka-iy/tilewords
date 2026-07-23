@@ -159,6 +159,53 @@ func TestLookupExactMergesInflection(t *testing.T) {
 	}
 }
 
+func TestWithSupplement(t *testing.T) {
+	base := NewDB(
+		map[string]*Entry{
+			"cat": {Word: "cat", Senses: []Sense{{POS: "noun", Gloss: "authoritative feline"}}},
+		},
+		map[string]string{"cats": "cat"},
+	)
+
+	sup := base.WithSupplement(
+		map[string]*Entry{
+			// New headword the base lacks — must be added.
+			"abrege": {Word: "abrege", Senses: []Sense{{Gloss: "an abridgment"}}},
+			// Collides with an existing headword — base must win, not be overwritten.
+			"cat": {Word: "cat", Senses: []Sense{{Gloss: "lower-priority feline"}}},
+		},
+		map[string]string{
+			// New edge for a word the base cannot resolve — must be added.
+			"abreges": "abrege",
+			// Collides with an existing edge — base edge must win.
+			"cats": "dog",
+		},
+	)
+
+	// The supplement leaves the original DB untouched.
+	if base.Len() != 1 || base.FormCount() != 1 {
+		t.Fatalf("base mutated by WithSupplement: len=%d forms=%d", base.Len(), base.FormCount())
+	}
+
+	// New headword resolves from the supplement.
+	if res, ok := sup.Lookup("abrege"); !ok || res.Kind != MatchExact {
+		t.Errorf("Lookup(abrege) = %+v,%v; want exact", res, ok)
+	}
+	// New edge resolves the inflected form to the supplemental headword.
+	if res, ok := sup.Lookup("abreges"); !ok || res.Headword != "abrege" || res.Kind != MatchFormOf {
+		t.Errorf("Lookup(abreges) = %+v,%v; want formof abrege", res, ok)
+	}
+	// Colliding headword keeps the base (authoritative) definition.
+	res, ok := sup.Lookup("cat")
+	if !ok || len(res.Entry.Senses) == 0 || res.Entry.Senses[0].Gloss != "authoritative feline" {
+		t.Errorf("Lookup(cat) = %+v; want base definition preserved", res)
+	}
+	// Colliding edge keeps the base target ("cats" -> "cat", not "dog").
+	if res, ok := sup.Lookup("cats"); !ok || res.Headword != "cat" {
+		t.Errorf("Lookup(cats) = %+v,%v; want base edge to cat preserved", res, ok)
+	}
+}
+
 func TestEncodeDecodeRoundTrip(t *testing.T) {
 	entries := map[string]*Entry{
 		"cat":   {Word: "cat", Senses: []Sense{{POS: "noun", Gloss: "a small feline"}}},

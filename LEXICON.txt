@@ -1,0 +1,55 @@
+LEXICON
+
+TileWords is built on freely available word lists and dictionaries.
+Grateful acknowledgement is made to the authors and maintainers of the
+sources below, whose work makes the game and its definitions possible.
+
+
+WORD LISTS
+
+ENABLE2K
+    The Enhanced North American Benchmark LExicon (ENABLE), 2K edition,
+    a Scrabble-style word list compiled by Alan Beale and others.
+    Placed in the public domain by its creators.
+    https://github.com/BartMassey/wordlists
+
+Wordnik word list
+    Copyright (c) 2020 Wordnik. Used under the MIT License.
+    https://github.com/wordnik/wordlist
+
+atebits "Words" (Letterpress word list)
+    By Loren Brichter / atebits.
+    Released under CC0 1.0 (public domain dedication).
+    https://github.com/atebits/Words
+
+
+DEFINITIONS
+
+Wiktionary (English)
+    (C) Wiktionary contributors, via the kaikki.org wiktextract project.
+    Used under CC BY-SA 4.0. Definitions derived from Wiktionary remain
+    available under the same license.
+    https://kaikki.org/dictionary/English/
+
+Webster's Revised Unabridged Dictionary (1913)
+    Public domain.
+    https://github.com/matthewreagan/WebstersEnglishDictionary
+
+Princeton WordNet 3.1
+    Copyright 2011 by Princeton University. All rights reserved.
+    Used under the WordNet License (permissive, with attribution).
+    https://wordnet.princeton.edu/
+
+An Etymological Dictionary of the Scottish Language
+    By John Jamieson. Public domain.
+    Project Gutenberg eBook #40521.
+    https://www.gutenberg.org/ebooks/40521
+
+Glossary to Edmund Spenser's "The Faerie Queene", Book I
+    Public domain, via Wikisource.
+    https://en.wikisource.org/wiki/The_Faerie_Queene_(unsourced)/Book_I/Glossary
+
+
+Definitions are shown for reference during play. Where more than one
+source defines a word, the Wiktionary sense is preferred; Webster's 1913,
+WordNet, and the glossaries fill gaps for archaic and dialectal words.

@@ -36,6 +36,37 @@ func NewDB(entries map[string]*Entry, formOf map[string]string) *DB {
 // Len returns the number of headwords in the DB.
 func (db *DB) Len() int { return len(db.entries) }
 
+// WithSupplement returns a new DB that layers supplemental headword entries and
+// inflection edges on top of db without mutating db. Existing keys take
+// precedence: a supplemental entry or edge whose key is already present in db is
+// dropped, so the authoritative (primary-source) definitions and edges are never
+// overwritten by a lower-priority source. Both argument maps are read, not
+// retained. It is used to fold definitions from secondary public-domain
+// dictionaries into the DB for words the primary source does not cover.
+func (db *DB) WithSupplement(entries map[string]*Entry, forms map[string]string) *DB {
+	mergedEntries := make(map[string]*Entry, len(db.entries)+len(entries))
+	for k, v := range db.entries {
+		mergedEntries[k] = v
+	}
+	for k, v := range entries {
+		if _, exists := mergedEntries[k]; !exists {
+			mergedEntries[k] = v
+		}
+	}
+
+	mergedForms := make(map[string]string, len(db.formOf)+len(forms))
+	for k, v := range db.formOf {
+		mergedForms[k] = v
+	}
+	for k, v := range forms {
+		if _, exists := mergedForms[k]; !exists {
+			mergedForms[k] = v
+		}
+	}
+
+	return NewDB(mergedEntries, mergedForms)
+}
+
 // FormLemma returns the lemma an inflected form maps to and whether such an edge
 // exists. It reports the raw edge regardless of whether word is also a headword,
 // so callers can detect a word that is both a headword and an inflection.

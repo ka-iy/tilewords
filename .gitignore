@@ -1,8 +1,7 @@
 .aidlc
 
-# Dictionary gobs and the compressed definitions asset
+# Dictionary gobs
 *.gob
-*.gob.gz
 
 # Claude's Test data
 testdata/

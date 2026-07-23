@@ -1,0 +1,13 @@
+TileWords is a Scrabble®-like game where the player competes with the machine to construct words on a game board to gain the endorphin of those sweet sweet points.
+
+TileWords is developed by Kartikeya IYER and is available (including source code) from:
+https://github.com/ka-iy/tilewords
+
+TileWords uses public-domain and libre/freely available word lists and definitions.
+
+DISCLAIMER (AKA the "Please don't sue me" section):
+
+SCRABBLE® is a registered trademark. All intellectual property rights in and to SCRABBLE® are owned in the U.S.A. by Hasbro Inc., in Canada by Hasbro Canada Inc. and throughout the rest of the world by J.W. Spear & Sons Ltd. of England, a subsidiary of Mattel Inc.
+
+THIS PROJECT IS NOT AFFILIATED WITH ANY OF THE ABOVE ENCUMBERED PRODUCTS OR ENTITIES OR THE LACKEYS THEREOF.
+NEITHER IS THE DEVELOPER.

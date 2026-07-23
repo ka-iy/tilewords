@@ -1,0 +1,317 @@
+# Supplemental public-domain glossary for the definitions asset.
+#
+# Format: one entry per line, "<word>\t<gloss>". Lines starting with # and blank
+# lines are ignored. Consumed by tools/mergedefs via -glossary. Only a word that is
+# itself missing from a word list is folded into the asset, and existing
+# (Wiktionary / Webster / WordNet) definitions always win.
+#
+# These glosses were extracted from public-domain sources for words the primary
+# layers do not define. Provenance per section below; details in
+# defs/assets/definitions/SOURCES.md.
+#
+# --- jamieson-scots ---
+# Jamieson, Etymological Dictionary of the Scottish Language (PD); Gutenberg #40521.
+aefauld	Honest, upright, without duplicity
+afald	Honest, upright, without duplicity
+almous	Alms
+anerly	Only, alone, singly. Hence allanerly.
+appleringie	Southernwood
+asklent	Obliquely, asquint, on one side
+badderlock	A species of eatable fucus
+baith	Both
+bayle	A flame, or blaze of what kind soever.
+bien	Wealthy, well-provided, possessing abundance
+billie	A companion, a comrade. Minstrelsy
+birsle	A hasty toasting or scorching
+blastie	A shrivelled dwarf; a term of contempt,
+blaud	A large piece of any thing, a considerable portion
+blaw	A blow, a stroke.
+blellum	An idle talking fellow
+bonnock	A cake, baked of dough in a pretty wet state, and toasted on a girdle
+bountree	Common elder, a tree; Sambucus nigra
+bowat	A hand-lanthern.
+bowet	A hand-lanthern
+braide	A start, a spring, a quick motion of the body.
+breid	Breadth. On breid, broad, or in breadth.
+brochan	(gutt.) Oat-meal boiled to a consistence somewhat thicker than gruel
+brogh	Ye man bring brogh and hammer for't, i. e. You must bring proof for it
+brugh	An encampment of a circular form
+buik	The trunk of the body, as distinguished from the head or extremity
+buke	Baked.
+callan	A stripling, a lad; "a young calland," a boy
+cannie	Cautious, prudent
+capernoited	Crabbed, irritable, peevish
+cauld	Cold
+claucht	Snatched, laid hold of eagerly and suddenly.
+cleik	Lively, agile, fleet
+contrair	Contrary
+cranreuch	Hoar frost
+crummie	A name for a cow that has crooked horns
+cuddie	An ass, often cuddie-ass
+daimen	Rare, occasional
+daine	Gentle, modest.
+dant	V.
+deid	Death
+deisheal	Motion contrary to that of the sun
+disjune	Breakfast
+docht	Could, availed.
+doilt	Stupid, confused
+doitit	Stupid, confused.
+donsie	Affectedly neat and trim, implying the idea of self-importance
+dool	The goal in a game.
+droich	A dwarf, droch
+dule	The goal in a game.
+dyvour	A bankrupt.
+eastlin	Easterly
+effeir	Condition, state.
+effeirs	Becomes, belongs to, is proper or expedient; frequently used in our laws.
+effere	Condition, state.
+eirack	A hen-pullet
+eldin	Fuel of any kind
+faik	A stratum of stone
+farle	Properly, the fourth part of a thin cake, whether of flour or oatmeal; but now used often for a third
+farren	Belonging to the fir.
+ferlie	A wonder
+fernitickles	Freckles
+flaught	A handful
+fodgel	Squat and plump
+fowth	Abundance
+fuddy	A designation given to the wind
+gaid	Went
+gair	A triangular piece of cloth inserted at the bottom of a shift or robe
+gaucy	Plump, jolly
+gawsie	Jolly.
+gawsy	Plump, jolly
+geit	A child.
+gizzen	Childbed.
+glit	Tough phlegm
+gool	Yellow.
+gosse	Abbrev. of gossip.
+goustrous	Dark, wet, stormy
+griece	Gray griece, a fur worn by the Lords of
+groser	A gooseberry
+grosert	A gooseberry
+groset	A gooseberry
+grouf	The disturbed sleep which one has during sickness
+grufe	, flat, with the face towards the earth. To be on one's grufe, to be in this manner
+gryce	A pig
+gude	Good
+hagg	A hagbut; denominated from the butt being crooked.
+hairst	Harvest
+hawkit	Having a white face; applied to cattle
+heid	denoting state or quality, as in bairnheid, &c.
+heuch	Hewed. Gawan and
+hidlins	Secretly
+hippen	A towel used for wrapping about the hips of an infant
+hirsle	A multitude, a throng
+histie	Dry, chaft
+hoddin	Expressive of the jogging motion of one who rides a horse that moves stiffly
+houff	A hall.
+ingan	Onion
+keavie	A species of crab.
+keltie	A large glass or bumper, imposed under the notion of punishment on those who, as it is expressed, do not drink fair
+kelties	Children
+kirn	The feast of harvest-home
+kow	A scarecrow
+laigh	Low
+lauch	lauwin, s. A tavern-bill. Peblis
+lawin	lauwin, s. A tavern-bill. Peblis
+leglin	A milk-pail
+leir	V.
+leuch	Laughed
+leugh	Laughed
+liart	Having grey hairs intermixed
+lichter	Delivered of a child
+lisk	The groin
+loor	Rather. The comparative of leif, willing
+lozen	. A pane of glass
+lucken	Shut up, contracted
+luggie	Applied to corn which grows mostly to the straw
+luit	Let.
+lunyie	The loin.
+lyart	Having grey hairs intermixed
+lyte	Little.
+magg	A cant word for a halfpenny, pl. maggs; the gratuity which servants expect from those to whom they drive any goods
+maik	A cant term for a halfpenny
+maire	An officer attending a sheriff for executions and arrestments
+mein	Common.
+meith	Might.
+menyie	A hurt, a maim
+mishanter	Misfortune
+moch	Moist. Palice
+moniplies	That part of the tripe of a beast which consists of many folds
+muist	Musk
+murlan	A round narrow-mouthed basket
+murling	The skin of a young lamb, or of a sheep soon after it has been shorn.
+nacket	An insignificant person.
+nane	No, none
+neive	The fist
+niffnaffs	(pron. nyiffnyaffs), s. pl. 1. Small articles of little value
+nirl	A crumb
+notour	Notorious
+nouvelles	News
+oubit	A hairy worm
+oulk	A week
+outspeckle	A laughing-stock. Minstrelsy
+owrelay	A cravat
+oye	Grandson.
+paal	A post
+pand	A pledge
+parochin	Parish
+parpane	A wall in general, or a partition.
+pattle	A stick with which the ploughman clears away the earth that adheres to the plough
+pechan	The stomach
+pele	A place of strength, a fortification, properly of earth.
+perfay	Verily.
+plainstanes	The pavement
+pleuch	A plough
+pliskie	A trick, properly of a mischievous kind; though not necessarily including the idea of any evil design
+poortith	Poverty.
+powin	The peacock.
+practique	Practice, experience.
+primsie	Demure, precise
+puir	Poor.
+pyat	The magpie
+quyte	Requited. Gawan and
+ragment	A long piece of writing.
+ramgunshoch	Rugged.
+raucle	Rash, fearless
+raun	Roe of fish
+rauns	The beard of barley
+rawn	Roe of fish
+reik	A blow
+renk	A course, a race; also reik
+richt	In health
+richts	, straight.
+ripp	A handful of corn not thrashed
+rizards	Currants
+roch	A rock
+rone	Sheep-skin dressed so as to appear like goat-skin
+rowth	Plenty
+rozet	Rosin.
+rund	A border, a selvage
+russe	Boast.
+ryke	Potent.
+saikless	Guiltless
+sair	Painful
+sall	L. stal, stole.
+salut	Health, safety
+sauch	The willow
+scaff	Food of any kind
+scail	A sort of tub.
+scarth	The corvorant
+scoup	Abundance of room
+scouth	Liberty to range
+scouther	A flying shower
+scowp	Abundance of room
+scowth	Liberty to range
+seir	Several.
+shauling	The act of killing salmon by means of a leister
+sheuch	A furrow
+shilpit	Insipid, applied to fermented liquors
+shottle	Short and thick
+sibb	Related by blood
+sinsyne	Since
+skarth	Puny creature
+skeigh	Apt to startle
+skelf	A shelf
+skellie	A squint look
+skyre	A schirrus.
+slaid	A hollow, a den
+sleepery	V.
+smaik	A mean fellow
+smytrie	A numerous collection of small individuals
+snab	The projecting part of a rock or hill
+sneeshin	Snuff
+sonce	Prosperity.
+sourock	Sorrel
+spail	V.
+spait	A flood
+spaul	A limb.
+spek	Speech.
+sperthe	A battle-axe.
+splore	A frolic
+sprush	Spruce
+staig	A horse of one, two, or three years old, not yet broken for riding, nor employed in work
+staumrel	Half-witted.
+stede	Place. 2. Fute stede, a footstep.
+steil	Handle, as, of a plough.
+stibble	Stubble.
+stirrah	A stout boy
+stouth	Theft
+stowlins	Clandestinely, from stouth, stealth
+stown	Stolen.
+strack	Strict
+strae	Straw.
+strak	Straight.
+straucht	Stretched.
+stroup	The spout of a pump, tea-kettle, &c.
+stunkard	V.
+sture	The agitation of any body, the parts of which are easily separable.
+sugh	Whistling sound.
+swey	A long crow for raising stones
+synd	Appearance, aspect.
+syver	A covered drain
+taivers	Tatters; as, boiled to taivers
+tappit	HEN, s. 1. A crested hen
+tapsalteerie	Topsyturvy
+tawted	Matted.
+thegither	Corr. of together
+thraward	Froward, perverse.
+thrawart	Froward, perverse.
+tirrivee	A fit of passion
+touk	A hasty pull, a tug
+towmon	A year; corr. of twelve-month, used in the same sense
+towmond	A year; corr. of twelve-month, used in the same sense
+towmont	A year; corr. of twelve-month, used in the same sense
+traik	A plague, a mischief.
+trowth	Truth.
+tuilyie	A quarrel, a broil
+turdion	A species of galliard or gay dance
+twal	Twelve
+tyte	Gay.
+unsonsie	Unlucky
+uptak	Apprehension
+wakerife	V.
+walise	Saddlebags
+wanwordy	Unworthy
+wanworth	Unworthy
+wate	Wet, moist
+weid	A kind of fever to which women in child-bed, or nurses, are subject
+westlin	Western
+westlins	Westwards
+wheeps	An instrument for raising the brig-heads of a mill
+widdie	A rope made of twigs of willow; used to denote a halter
+wiel	A small whirlpool.
+windock	A window
+winnock	A window
+worset	Corr. of
+ybet	Supplied.
+#
+# --- spenser-fq ---
+# Glossary to Spenser, The Faerie Queene, Book I (PD); Wikisource.
+agraste	favor, show grace
+andvile	anvil
+bowrs	muscles
+bylive	quickly
+chaufe	chafe, warm by rubbing
+counterfesaunce	fraud, imposture
+disaventrous	unfortunate
+drere	sorrow
+droome	drum
+fordonne	undone, ruined, wounded to death
+griesie	horrible
+imperceable	that cannot be pierced
+leke	leaky
+overcraw	insult, crow over
+perceable	that can be pierced
+persaunt	piercing
+pollicie	statecraft, cunning
+scryne	chest, or case for keeping books
+snubbe	knob, snag
+sperst	dispersed
+swowne	heavy sleep
+talaunts	talons
+teene	grief, trouble, hurt
+unlich	unlike
+welke	fade, grow dim
