@@ -12,7 +12,7 @@
 # First-time mobile setup:
 #   make install-mobile-tools     # then set ANDROID_HOME and ANDROID_NDK_HOME
 
-.PHONY: all build run test vet clean gaddag gaddag-free download-wordlists help \
+.PHONY: all build run test vet clean gaddag gaddag-free download-wordlists defs help \
         android android-arm64-v8a android-x86_64 android-armeabi-v7a android-universal \
         android-release android-release-arm64-v8a android-release-x86_64 \
         android-release-armeabi-v7a android-release-universal \
@@ -133,6 +133,43 @@ $(WL_ENABLE): | $(WORDLISTS_DIR)
 $(DICT_DIR)/%.gob: $(WORDLISTS_DIR)/%.txt | $(DICT_DIR)
 	$(BUILDGADDAG) -input $< -output $@ -name $*
 
+# ── Definitions asset ─────────────────────────────────────────────────────────
+#
+# The definitions asset holds the word meanings shown during gameplay, filtered
+# from a Wiktionary extract down to just the words the shipped lists can form.
+# The extract is ~3 GB and is NOT committed; download it once and point
+# KAIKKI_EXTRACT at it:
+#
+#   https://kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl
+#
+# `make defs` is opt-in: the game builds and runs without it (definitions are
+# simply unavailable), so `build` does not depend on it.
+
+DEFS_DIR       := defs/assets/definitions
+DEFS_ASSET     := $(DEFS_DIR)/definitions.gob.gz
+BUILDDEFS      := go run ./tools/builddefs
+KAIKKI_EXTRACT ?= wordlists/kaikki-en.jsonl
+
+# comma/space let the space-separated $(WORDLIST_SRCS) be passed as one
+# comma-separated -input argument.
+comma := ,
+empty :=
+space := $(empty) $(empty)
+
+$(DEFS_DIR):
+	mkdir -p $@
+
+defs: $(DEFS_ASSET) ## Build the definitions asset from KAIKKI_EXTRACT (Wiktionary extract)
+
+# Rebuild when any word list changes. Fails with guidance if the extract is absent.
+$(DEFS_ASSET): $(WORDLIST_SRCS) | $(DEFS_DIR)
+	@test -f "$(KAIKKI_EXTRACT)" || { \
+	  echo "make defs: Wiktionary extract not found at '$(KAIKKI_EXTRACT)'."; \
+	  echo "  Download it from https://kaikki.org/dictionary/English/ and set KAIKKI_EXTRACT=<path>."; \
+	  exit 1; }
+	$(BUILDDEFS) -kaikki "$(KAIKKI_EXTRACT)" \
+	  -input "$(subst $(space),$(comma),$(WORDLIST_SRCS))" -output $@
+
 # ── Desktop ───────────────────────────────────────────────────────────────────
 
 all: build ## Build the native desktop binary (default target)
@@ -173,6 +210,7 @@ clean: ## Remove build artefacts and generated GADDAG assets
 # Release bundles, plus the APK Set intermediate a failed bundletool run can leave.
 	rm -f $(BINARY)-release*.aab $(BINARY)-release*.apks
 	rm -f $(DICT_DIR)/*.gob $(DICT_DIR)/*.gob.tmp
+	rm -f $(DEFS_ASSET) $(DEFS_ASSET).tmp
 
 # ── Mobile tooling ────────────────────────────────────────────────────────────
 

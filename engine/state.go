@@ -97,6 +97,10 @@ type MoveRecord struct {
 	// Cells are the board cells this move placed, used to restore the AI's last-word
 	// highlight; nil for a pass or exchange.
 	Cells [][2]int
+	// Words are the words this play formed (main word + cross-words), used to repopulate the
+	// definitions panel when a save is loaded; nil for a pass or exchange. Absent from saves
+	// written before this field existed, in which case a resumed game's definitions stay empty.
+	Words []string
 }
 
 // OpeningDraw records the single tile each player drew to decide who plays first

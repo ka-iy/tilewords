@@ -61,6 +61,14 @@ func TestSaveManager_PersistsMoveHistory(t *testing.T) {
 			gs2.history[0].line, gs2.history[1].line, gs.history[0].line, gs.history[1].line)
 	}
 
+	// Words restored so the definitions panel can repopulate on load.
+	if got := gs2.history[0].words; len(got) != 1 || got[0] != "CAT" {
+		t.Errorf("restored words[0] = %v, want [CAT]", got)
+	}
+	if got := gs2.history[1].words; len(got) != 1 || got[0] != "QI" {
+		t.Errorf("restored words[1] = %v, want [QI]", got)
+	}
+
 	// Status summary derived from the restored history.
 	if gs2.lastHumanPts != 5 || gs2.lastAIPts != 22 {
 		t.Errorf("restored points = You %d / AI %d, want 5 / 22", gs2.lastHumanPts, gs2.lastAIPts)

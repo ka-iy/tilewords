@@ -100,12 +100,11 @@ type phoneColumnLayout struct {
 	minBoard float32
 }
 
-// boardSide returns the square edge for a column of the given width: the full width
-// when there is room, otherwise the tappable minimum.
+// boardSide returns the square edge for a column of the given width: the board always
+// fills the full column width. On a screen narrower than the board's preferred minimum
+// (minBoard) the cells shrink to fit rather than the board overflowing the viewport —
+// the column lives in a vertical-only scroll, so any horizontal overflow is clipped.
 func (p phoneColumnLayout) boardSide(width float32) float32 {
-	if width < p.minBoard {
-		return p.minBoard
-	}
 	return width
 }
 
@@ -124,12 +123,16 @@ func (p phoneColumnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 }
 
 func (p phoneColumnLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
-	// The width is fixed at the board's tappable minimum and is deliberately NOT widened to
-	// the widest child. The column lives in a vertical scroll, which sizes its content to
-	// MinSize().Max(viewport): if a child (e.g. the status row at a large system font) were
-	// allowed to push this width past the viewport, the scroll would make the whole column —
-	// and the board that fills it — wider than the screen, and it would grow on the first
-	// re-layout. Children are instead clamped to the column width in Layout.
+	// The width floor is zero, so the column never advertises a minimum wider than the
+	// viewport. The column lives in a vertical scroll, which sizes its content to
+	// MinSize().Max(viewport): any positive width floor larger than the viewport — such as
+	// the board's tappable minimum on a phone narrower than that (measured 352 vs a 360
+	// minimum) — would make the scroll size the content, and the board and tabs that fill
+	// it, past the screen; the vertical-only scroll then clips the overflow. The board and
+	// every other child instead fill/clamp to the actual width in Layout, so a wide child
+	// (e.g. the status row at a large system font) can never inflate the column either.
+	//
+	// Only the height is summed, so the column scrolls when it is taller than the screen.
 	total := float32(0)
 	for i, o := range objs {
 		if o == p.board {
@@ -141,5 +144,5 @@ func (p phoneColumnLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 			total += phoneColGap
 		}
 	}
-	return fyne.NewSize(p.minBoard, total)
+	return fyne.NewSize(0, total)
 }

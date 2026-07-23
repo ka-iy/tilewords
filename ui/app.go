@@ -117,6 +117,10 @@ func (a *App) showSetup() {
 func (a *App) showGame(state *engine.GameState, dict *dictionary.Dictionary) {
 	gs := newGameScreen(a, state, dict)
 	content := gs.build()
+	// Start the definitions lookup worker once the screen's widgets exist. This is done
+	// here rather than in build() so tests that build a screen directly do not spawn the
+	// worker or load the (large) definitions asset.
+	gs.startDefinitions()
 	// Overlay the drag ghost above the content in a no-layout layer so it can float to
 	// any pixel and follow the cursor during a drag.
 	a.win.SetContent(container.NewStack(content, container.NewWithoutLayout(gs.ghost)))

@@ -13,10 +13,10 @@ import (
 	"tilewords/engine"
 )
 
-// TestPhoneColumn_BoardFillsWidthAndClamps verifies the board scales up to fill the
-// phone width as a square, and clamps to the tappable minimum when the column is
-// narrower than that minimum.
-func TestPhoneColumn_BoardFillsWidthAndClamps(t *testing.T) {
+// TestPhoneColumn_BoardFillsWidth verifies the board fills the phone column width as a
+// square, both when there is ample room and when the column is narrower than the board's
+// preferred minimum — where it shrinks to fit rather than overflowing the viewport.
+func TestPhoneColumn_BoardFillsWidth(t *testing.T) {
 	board := canvas.NewRectangle(color.Black)
 	other := canvas.NewRectangle(color.White)
 	l := phoneColumnLayout{board: board, minBoard: minBoardPx}
@@ -26,9 +26,32 @@ func TestPhoneColumn_BoardFillsWidthAndClamps(t *testing.T) {
 		t.Errorf("fill: board = %v, want 390x390", board.Size())
 	}
 
+	// Narrower than minBoardPx: the board shrinks to the width, it does NOT clamp up (which
+	// would overflow the viewport, since the vertical scroll cannot pan horizontally).
 	l.Layout([]fyne.CanvasObject{board}, fyne.NewSize(300, 1000))
-	if board.Size().Width != float32(minBoardPx) {
-		t.Errorf("clamp: board width = %v, want %d", board.Size().Width, minBoardPx)
+	if board.Size().Width != 300 {
+		t.Errorf("narrow: board width = %v, want 300 (fills the width, no overflow)", board.Size().Width)
+	}
+}
+
+// TestPhoneColumn_FitsSubMinimumViewport is a regression guard: on a phone whose width is
+// below the board's preferred minimum (e.g. 352 vs a 360 minimum, as measured on an
+// emulator), the column must not advertise a width wider than the viewport, and the board
+// must fit within it. Otherwise the vertical-only scroll — which sizes content to
+// MinSize().Max(viewport) — makes the board and tab row wider than the screen and clips
+// their right edge.
+func TestPhoneColumn_FitsSubMinimumViewport(t *testing.T) {
+	board := canvas.NewRectangle(color.Black)
+	board.SetMinSize(fyne.NewSize(minBoardPx, minBoardPx))
+	l := phoneColumnLayout{board: board, minBoard: minBoardPx}
+	const viewport = minBoardPx - 8 // 352 on the measured device
+
+	if w := l.MinSize([]fyne.CanvasObject{board}).Width; w > viewport {
+		t.Fatalf("MinSize width %.0f exceeds sub-minimum viewport %d; content would be forced past the screen", w, viewport)
+	}
+	l.Layout([]fyne.CanvasObject{board}, fyne.NewSize(viewport, 1000))
+	if bw := board.Size().Width; bw > viewport {
+		t.Errorf("board width %.0f exceeds viewport %d (right edge clipped)", bw, viewport)
 	}
 }
 
@@ -44,8 +67,8 @@ func TestPhoneColumn_MinWidthIgnoresWideChildren(t *testing.T) {
 	l := phoneColumnLayout{board: board, minBoard: minBoardPx}
 	objs := []fyne.CanvasObject{board, wide}
 
-	if w := l.MinSize(objs).Width; w != float32(minBoardPx) {
-		t.Fatalf("MinSize width = %.0f, want %d (a wide child must not inflate the column)", w, minBoardPx)
+	if w := l.MinSize(objs).Width; w != 0 {
+		t.Fatalf("MinSize width = %.0f, want 0 (the column advertises no width floor, so a wide child cannot inflate it)", w)
 	}
 
 	// At a normal phone width the board fills the viewport and the wide child is clamped to

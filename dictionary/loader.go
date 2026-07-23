@@ -10,11 +10,12 @@ import (
 //go:embed all:assets/dictionaries
 var embeddedAssets embed.FS
 
-// A loaded GADDAG is very large in memory (hundreds of MB to ~1 GB, far larger than the
-// on-disk .gob), and decoding one is slow. Load therefore caches the most recently loaded
-// dictionary: re-loading the same name (e.g. starting a game, saving, then loading that
-// save) returns the existing instance instead of decoding a second copy, which would
-// otherwise briefly hold two GADDAGs live and can exhaust memory on a phone.
+// A loaded GADDAG's in-memory size is close to its on-disk .gob, since both are the
+// same flat slice-of-integers representation (the largest shipped list is on the order
+// of ~10 MB resident). Decoding one still allocates and copies those slices, so Load
+// caches the most recently loaded dictionary: re-loading the same name (e.g. starting a
+// game, saving, then loading that save) returns the existing instance instead of
+// decoding a second copy, which would otherwise briefly hold two GADDAGs live.
 //
 // A single slot (rather than a per-name map) bounds resident memory to one dictionary:
 // switching to a different dictionary drops the previous one's reference so it can be

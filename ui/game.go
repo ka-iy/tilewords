@@ -58,6 +58,7 @@ type historyEntry struct {
 	line   string
 	points int      // score this move contributed (a play's score; 0 for pass/exchange)
 	cells  [][2]int // board cells this move placed; nil for pass/exchange
+	words  []string // words this play formed (main + cross), for the definitions panel; nil for pass/exchange
 }
 
 // gameScreen is the gameplay controller. It owns all mutable game state for one
@@ -131,6 +132,12 @@ type gameScreen struct {
 	lastPressCell [2]int
 	lastPressAt   time.Time
 
+	// afterFunc schedules the flash-press revert (see flashPress). It defaults to
+	// time.AfterFunc; tests override it to run the revert synchronously on the test
+	// goroutine, since Fyne's test driver runs the revert's fyne.Do inline on the timer
+	// goroutine rather than marshalling it, which would otherwise race the test's reads.
+	afterFunc func(time.Duration, func()) *time.Timer
+
 	youLabel   *widget.Label
 	aiLabel    *widget.Label
 	bagLabel   *widget.Label
@@ -146,6 +153,17 @@ type gameScreen struct {
 	// openingLine is a fixed first line in the move history summarising the opening draw.
 	// It is not a move, so it is not part of the undo stack and is never popped.
 	openingLine string
+
+	// Definitions panel (second tab beside the move history). Each word a move forms
+	// is dispatched on defsWordCh to defsWorker, which looks its meaning up and appends
+	// a formatted entry to defsEntries; defsLabel shows the entries separated by blank
+	// lines. defsWordCh is nil when the definitions asset is not embedded in the build.
+	defsLabel   *widget.Label
+	defsScroll  *container.Scroll
+	defsEntries []string
+	defsWordCh  chan string
+	// defsClosed guards against closing defsWordCh more than once when the screen is left.
+	defsClosed bool
 
 	// aiLastPlaced holds the board cells of the AI's most recently played word; the
 	// board outlines these tiles in red. Derived from history by recomputeAIHighlight.
@@ -198,7 +216,7 @@ func restoreHistory(records []engine.MoveRecord) []historyEntry {
 	}
 	h := make([]historyEntry, len(records))
 	for i, r := range records {
-		h[i] = historyEntry{player: r.Player, line: r.Line, points: r.Points, cells: r.Cells}
+		h[i] = historyEntry{player: r.Player, line: r.Line, points: r.Points, cells: r.Cells, words: r.Words}
 	}
 	return h
 }
@@ -211,7 +229,7 @@ func (gs *gameScreen) moveRecords() []engine.MoveRecord {
 	}
 	recs := make([]engine.MoveRecord, len(gs.history))
 	for i, e := range gs.history {
-		recs[i] = engine.MoveRecord{Player: e.player, Line: e.line, Points: e.points, Cells: e.cells}
+		recs[i] = engine.MoveRecord{Player: e.player, Line: e.line, Points: e.points, Cells: e.cells, Words: e.words}
 	}
 	return recs
 }
@@ -307,15 +325,40 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 		aiRack,
 	)
 
-	// Move-history panel: a non-editable, scrollable log of each turn — the player,
-	// the word(s) played, and the score. Selectable so the log can be copied.
+	// Right-hand panel: two tabs sharing the space beside the board. Both are
+	// non-editable, scrollable, and selectable so their text can be copied.
+	//   - "Move history" (shown first): a log of each turn — player, word(s), score.
+	//   - "Definitions": the meaning of every word played, one entry per word.
+	// On touch a finger drag scrolls the panel rather than selecting text, so the whole
+	// panel is copied via the tab bar's Copy button or a long press on the panel itself
+	// (see dragscroll.go); both report through onCopied.
+	onCopied := func() {
+		gs.setStatus("Copied to clipboard.", false)
+		gs.refresh()
+	}
+
 	gs.historyLabel = widget.NewLabel("")
 	gs.historyLabel.Wrapping = fyne.TextWrapWord
 	gs.historyLabel.Selectable = true
 	gs.historyScroll = container.NewVScroll(gs.historyLabel)
-	historyTitle := widget.NewLabelWithStyle("Move history", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	historyBox := container.NewBorder(historyTitle, nil, nil, nil, gs.historyScroll)
-	gs.refreshHistory() // show the opening-draw line before any move is made
+	historyText := func() string { return gs.historyLabel.Text }
+	enableTouchScroll(gs.historyScroll, historyText, onCopied) // drag pans; long press copies (touch only)
+	gs.refreshHistory()                                        // show the opening-draw line before any move is made
+
+	gs.defsLabel = widget.NewLabel("")
+	gs.defsLabel.Wrapping = fyne.TextWrapWord
+	gs.defsLabel.Selectable = true
+	gs.defsScroll = container.NewVScroll(gs.defsLabel)
+	defsText := func() string { return gs.defsLabel.Text }
+	enableTouchScroll(gs.defsScroll, defsText, onCopied)
+	// The definitions lookup worker is started from App.showGame (not here), so tests
+	// that build a screen directly do not spawn it or load the definitions asset.
+
+	historyBox := newTabPanel(
+		onCopied,
+		tabItem{title: "Move history", content: gs.historyScroll, copyText: historyText},
+		tabItem{title: "Definitions", content: gs.defsScroll, copyText: defsText},
+	).root
 
 	// Drag ghost: a floating tile that follows the cursor; hidden until a drag begins.
 	// App.showGame stacks it in a no-layout overlay above this content.
@@ -540,7 +583,11 @@ func (gs *gameScreen) flashPress(b *widget.Button) {
 	}
 	b.Importance = pressFlashImportance
 	b.Refresh()
-	time.AfterFunc(pressFlashDuration, func() {
+	after := gs.afterFunc
+	if after == nil {
+		after = time.AfterFunc
+	}
+	after(pressFlashDuration, func() {
 		fyne.Do(func() {
 			b.Importance = base
 			b.Refresh()
@@ -856,6 +903,7 @@ func (gs *gameScreen) toggleAIRack() {
 
 func (gs *gameScreen) goMainMenu() {
 	gs.abandoned = true // ignore any in-flight AI callback
+	gs.stopDefinitions()
 	gs.app.showMainMenu("")
 }
 
@@ -1408,9 +1456,12 @@ func (gs *gameScreen) playLine(player string, move *engine.PlayMove) string {
 // and appends its line to the move-history panel.
 func (gs *gameScreen) logCommand(player string, cmd engine.Command) {
 	var line string
+	var words []string
 	switch c := cmd.(type) {
 	case *engine.PlayCommand:
 		line = gs.playLine(player, &c.Move)
+		words = c.Move.WordsFormed
+		gs.dispatchDefinitions(words)
 	case *engine.ExchangeCommand:
 		line = fmt.Sprintf("%s: exchanged %d tile(s)", player, len(c.Move.Tiles))
 	case *engine.PassCommand:
@@ -1420,7 +1471,7 @@ func (gs *gameScreen) logCommand(player string, cmd engine.Command) {
 	}
 	gs.history = append(gs.history, historyEntry{
 		cmd: cmd, player: player, line: line,
-		points: movePoints(cmd), cells: playCells(cmd),
+		points: movePoints(cmd), cells: playCells(cmd), words: words,
 	})
 	gs.recomputeLastPoints()
 	// A completed move clears any transient message so the score summary is shown.
