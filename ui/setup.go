@@ -184,9 +184,9 @@ func (a *App) buildSetup() fyne.CanvasObject {
 	// checked (e.g. "8D UNMIX +28").
 	notationCheck := widget.NewCheck("Show move history in Scrabble notation", nil)
 
-	var startBtn, backBtn *widget.Button
+	var startBtn, backBtn *touchButton
 
-	startBtn = widget.NewButton("Start Game", func() {
+	startBtn = newTouchButton("Start Game", func() {
 		if len(avail) == 0 {
 			status.SetText("No dictionaries are available in this build.")
 			return
@@ -206,7 +206,7 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		status.SetText("No dictionaries are available in this build.")
 	}
 
-	backBtn = widget.NewButton("Back", func() {
+	backBtn = newTouchButton("Back", func() {
 		a.showMainMenu("")
 	})
 

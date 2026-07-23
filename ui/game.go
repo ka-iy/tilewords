@@ -169,15 +169,15 @@ type gameScreen struct {
 	// board outlines these tiles in red. Derived from history by recomputeAIHighlight.
 	aiLastPlaced map[[2]int]bool
 
-	playBtn    *widget.Button
-	exchBtn    *widget.Button
-	passBtn    *widget.Button
-	undoBtn    *widget.Button
-	saveBtn    *widget.Button
-	toggleBtn  *widget.Button
-	menuBtn    *widget.Button
-	shuffleBtn *widget.Button
-	recallBtn  *widget.Button
+	playBtn    *touchButton
+	exchBtn    *touchButton
+	passBtn    *touchButton
+	undoBtn    *touchButton
+	saveBtn    *touchButton
+	toggleBtn  *touchButton
+	menuBtn    *touchButton
+	shuffleBtn *touchButton
+	recallBtn  *touchButton
 }
 
 // newGameScreen constructs the controller (no widgets yet; see build). The move-history
@@ -542,7 +542,7 @@ func (gs *gameScreen) syncButtons() {
 }
 
 // setEnabled toggles a button's enabled state.
-func setEnabled(b *widget.Button, enabled bool) {
+func setEnabled(b *touchButton, enabled bool) {
 	if enabled {
 		b.Enable()
 	} else {
@@ -552,9 +552,9 @@ func setEnabled(b *widget.Button, enabled bool) {
 
 // newControlButton creates a text control button whose tap first flashes the button (a
 // momentary colour change — see flashPress) and then runs tapped.
-func (gs *gameScreen) newControlButton(label string, tapped func()) *widget.Button {
-	var b *widget.Button
-	b = widget.NewButton(label, func() {
+func (gs *gameScreen) newControlButton(label string, tapped func()) *touchButton {
+	var b *touchButton
+	b = newTouchButton(label, func() {
 		gs.flashPress(b)
 		tapped()
 	})
@@ -562,9 +562,9 @@ func (gs *gameScreen) newControlButton(label string, tapped func()) *widget.Butt
 }
 
 // newControlIconButton is newControlButton for an icon-only control button.
-func (gs *gameScreen) newControlIconButton(icon fyne.Resource, tapped func()) *widget.Button {
-	var b *widget.Button
-	b = widget.NewButtonWithIcon("", icon, func() {
+func (gs *gameScreen) newControlIconButton(icon fyne.Resource, tapped func()) *touchButton {
+	var b *touchButton
+	b = newTouchButtonWithIcon("", icon, func() {
 		gs.flashPress(b)
 		tapped()
 	})
@@ -576,7 +576,7 @@ func (gs *gameScreen) newControlIconButton(icon fyne.Resource, tapped func()) *w
 // goroutine (the tap handler and the fyne.Do revert), so no lock is needed. A re-tap
 // while a flash is in progress is ignored for the flash (its pending revert restores the
 // resting colour) but still runs the button's action.
-func (gs *gameScreen) flashPress(b *widget.Button) {
+func (gs *gameScreen) flashPress(b *touchButton) {
 	base := b.Importance
 	if base == pressFlashImportance {
 		return

@@ -33,7 +33,7 @@ type tabPanel struct {
 	// items are the tabs, parallel to buttons; retained so doCopy can read the active tab's copyText.
 	items []tabItem
 	// buttons are the tab-selector buttons, one per tab, parallel to items.
-	buttons []*widget.Button
+	buttons []*touchButton
 	// body stacks every content object and is refreshed when the selection changes.
 	body *fyne.Container
 	// onCopied, when set, is invoked after the Copy button copies text (for user feedback).
@@ -52,14 +52,14 @@ func newTabPanel(onCopied func(), items ...tabItem) *tabPanel {
 	contents := make([]fyne.CanvasObject, len(items))
 	for i, it := range items {
 		idx := i
-		b := widget.NewButton(it.title, func() { p.selectTab(idx) })
+		b := newTouchButton(it.title, func() { p.selectTab(idx) })
 		p.buttons = append(p.buttons, b)
 		contents[i] = it.content
 		tabButtons.Add(b)
 	}
 	p.body = container.NewStack(contents...)
 
-	copyBtn := widget.NewButtonWithIcon("", theme.ContentCopyIcon(), p.doCopy)
+	copyBtn := newTouchButtonWithIcon("", theme.ContentCopyIcon(), p.doCopy)
 	header := container.NewBorder(nil, nil, nil, copyBtn, tabButtons)
 	p.root = container.NewBorder(header, nil, nil, nil, p.body)
 	p.selectTab(0)

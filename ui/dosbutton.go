@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/mobile"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -31,6 +32,11 @@ type bevelButton struct {
 	onTap func()
 }
 
+// bevelButton implements mobile.Touchable so its tap survives inside a Scroll on touch
+// screens; the assertion fails the build if a refactor drops the Touch* methods. See
+// touchButton for why a Tappable-only control inside a Scroll otherwise loses its tap.
+var _ mobile.Touchable = (*bevelButton)(nil)
+
 // newBevelButton returns a DOS-style button showing text that calls onTap when tapped.
 func newBevelButton(text string, onTap func()) *bevelButton {
 	b := &bevelButton{text: text, onTap: onTap}
@@ -44,6 +50,16 @@ func (b *bevelButton) Tapped(*fyne.PointEvent) {
 		b.onTap()
 	}
 }
+
+// TouchDown satisfies mobile.Touchable. There is nothing to do on the touch phases; being
+// Touchable is what stops an enclosing Scroll from stealing the tap on touch screens.
+func (b *bevelButton) TouchDown(*mobile.TouchEvent) {}
+
+// TouchUp satisfies mobile.Touchable; see TouchDown.
+func (b *bevelButton) TouchUp(*mobile.TouchEvent) {}
+
+// TouchCancel satisfies mobile.Touchable; see TouchDown.
+func (b *bevelButton) TouchCancel(*mobile.TouchEvent) {}
 
 func (b *bevelButton) CreateRenderer() fyne.WidgetRenderer {
 	label := canvas.NewText(b.text, dosText)
