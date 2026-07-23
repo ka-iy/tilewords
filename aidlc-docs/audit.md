@@ -1,5 +1,13 @@
 # AI-DLC Audit Log
 
+## Framework Maintenance — AI-DLC Upgrade v0.1.7 → v1.0.1
+**Timestamp**: 2026-07-23T00:30:00Z
+**User Input**: "update the AIDLC framework to the latest release. Do not replace the existing CLAUDE.md in this project's root directory - instead, add the AIDLC bits at the top of the existing CLAUDE.md" — then: "According to https://github.com/awslabs/aidlc-workflows/releases/ v1.0.1 is the latest release, not 0.1.8"
+**AI Response**: Downloaded awslabs/aidlc-workflows release **v1.0.1** (`ai-dlc-rules-v1.0.1.zip`). Replaced the old-scheme framework files (`.aidlc/aws-aidlc-rules/`, `.aidlc/aws-aidlc-rule-details/`, `.aidlc/VERSION`) with the v1.0.1 layout under `.aidlc/aidlc-rules/` (VERSION 1.0.1, `aws-aidlc-rules/core-workflow.md`, 31 rule-detail files) so the new core-workflow's first resolution path (`.aidlc/aidlc-rules/aws-aidlc-rule-details/`) resolves. New in v1.x: the **resiliency** extension (alongside security-baseline and property-based-testing). Prepended the v1.0.1 `core-workflow.md` content to the **top** of the existing root `CLAUDE.md` inside `<!-- aidlc-start … -->`/`<!-- aidlc-end … -->` markers, preserving all prior CLAUDE.md content (gograph + Repository Navigation rules) unchanged below.
+**Context**: Framework maintenance — upgraded the AI-DLC workflow rules and wired them into CLAUDE.md without disturbing existing project rules.
+
+---
+
 ## Post-v1 — Retroactive Documentation Pass
 **Timestamp**: 2026-07-23T00:00:00Z
 **User Input**: "Using the aidlc flow, examine the existing aidlc docs against the current state of the code, and retroactively add aidlc documentation for everything that is not currently captured" — then, mid-task: "note that the save game feature and the 'Interesting mode' features are also not captured in the aidlc docs. include these as well" — then: "also uncaptured is the option to use scrabble notation for the move history"
