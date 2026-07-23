@@ -22,7 +22,7 @@ func TestFormatDefinitionEntry(t *testing.T) {
 	if !strings.HasPrefix(got, "UNMIX\n") {
 		t.Errorf("entry should start with the upper-case word header; got %q", got)
 	}
-	if !strings.Contains(got, "verb — To separate what has been mixed.") {
+	if !strings.Contains(got, "verb - To separate what has been mixed.") {
 		t.Errorf("entry missing the sense line; got %q", got)
 	}
 }
@@ -44,7 +44,7 @@ func TestFormatDefinitionEntryNotFound(t *testing.T) {
 func TestFormatDefinitionEntryInflectionMerge(t *testing.T) {
 	// "mice" is a headword and also the plural of "mouse"; both readings must appear.
 	got := formatDefinitionEntry(testDefsDB(), "MICE")
-	if !strings.Contains(got, "verb — To hunt mice.") {
+	if !strings.Contains(got, "verb - To hunt mice.") {
 		t.Errorf("entry missing the word's own sense; got %q", got)
 	}
 	if !strings.Contains(got, "also form of mouse: A small rodent.") {
@@ -54,10 +54,10 @@ func TestFormatDefinitionEntryInflectionMerge(t *testing.T) {
 
 func TestDefinitionsBlankLineSeparation(t *testing.T) {
 	gs := &gameScreen{}
-	gs.appendDefinition("UNMIX\nverb — To separate.")
-	gs.appendDefinition("MOUSE\nnoun — A small rodent.")
+	gs.appendDefinition("UNMIX\nverb - To separate.")
+	gs.appendDefinition("MOUSE\nnoun - A small rodent.")
 
-	want := "UNMIX\nverb — To separate.\n\nMOUSE\nnoun — A small rodent."
+	want := "UNMIX\nverb - To separate.\n\nMOUSE\nnoun - A small rodent."
 	if got := gs.definitionsText(); got != want {
 		t.Errorf("definitions text = %q, want %q", got, want)
 	}

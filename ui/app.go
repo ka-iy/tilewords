@@ -198,7 +198,7 @@ func logOpeningDraw(state *engine.GameState) {
 	if od.First == engine.AITurn {
 		firstMsg = "AI goes first"
 	}
-	log.Printf("opening draw: you drew %s, AI drew %s — %s",
+	log.Printf("opening draw: you drew %s, AI drew %s - %s",
 		drawnLetterName(od.HumanLetter), drawnLetterName(od.AILetter), firstMsg)
 }
 

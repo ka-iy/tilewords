@@ -321,7 +321,7 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	gs.rackHeader = container.NewCenter(rackHeaderRow)
 	humanRackBox := container.NewVBox(gs.rackHeader, humanRack)
 	aiRackBox := container.NewVBox(
-		widget.NewLabelWithStyle(fmt.Sprintf("AI rack — Lv %d", gs.state.AILevel), fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(fmt.Sprintf("AI rack - Lv %d", gs.state.AILevel), fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		aiRack,
 	)
 
@@ -1307,7 +1307,7 @@ func (gs *gameScreen) endGameMessage() string {
 	case gs.state.AIScore > gs.state.HumanScore:
 		winner = "AI wins!"
 	}
-	return fmt.Sprintf("Game over — %s  (You %d, AI %d)", winner, gs.state.HumanScore, gs.state.AIScore)
+	return fmt.Sprintf("Game over - %s  (You %d, AI %d)", winner, gs.state.HumanScore, gs.state.AIScore)
 }
 
 // ---------- AI turn ----------
@@ -1358,18 +1358,18 @@ func (gs *gameScreen) applyAIMove(move engine.Move, timedOut bool) {
 	case engine.PassMove:
 		cmd = &engine.PassCommand{}
 	default:
-		gs.setStatus("AI returned an unknown move — passing.", true)
+		gs.setStatus("AI returned an unknown move - passing.", true)
 		cmd = &engine.PassCommand{}
 	}
 
 	executed := cmd
 	if err := cmd.Execute(gs.state, gs.dict, gs.rng); err != nil {
-		gs.setStatus(fmt.Sprintf("AI move invalid (%s) — passing.", sanitiseError(err)), true)
+		gs.setStatus(fmt.Sprintf("AI move invalid (%s) - passing.", sanitiseError(err)), true)
 		fallback := &engine.PassCommand{}
 		_ = fallback.Execute(gs.state, gs.dict, gs.rng)
 		executed = fallback
 	} else if timedOut {
-		gs.setStatus("AI timed out — pass applied.", true)
+		gs.setStatus("AI timed out - pass applied.", true)
 	}
 
 	gs.logCommand("AI", executed)
@@ -1581,7 +1581,7 @@ func openingDrawLine(od *engine.OpeningDraw) string {
 	if od.First == engine.AITurn {
 		first = "AI goes first"
 	}
-	return fmt.Sprintf("Opening draw: you drew %s, AI drew %s — %s",
+	return fmt.Sprintf("Opening draw: you drew %s, AI drew %s - %s",
 		drawnLetterName(od.HumanLetter), drawnLetterName(od.AILetter), first)
 }
 

@@ -11,8 +11,10 @@ import (
 func TestAboutTextGenerated(t *testing.T) {
 	for _, want := range []string{
 		"ABOUT",                               // section header from ABOUT.txt
+		"FEATURES",                            // section header from FEATURES.txt
 		"LEXICON",                             // section header from LEXICON.txt
 		"github.com/ka-iy/tilewords",          // an ABOUT.txt URL
+		"Selectable AI difficulty",            // a FEATURES.txt bullet
 		"https://github.com/wordnik/wordlist", // a LEXICON.txt source URL
 	} {
 		if !strings.Contains(aboutText, want) {
@@ -20,8 +22,11 @@ func TestAboutTextGenerated(t *testing.T) {
 		}
 	}
 
-	// ABOUT must precede LEXICON, the order the sections are assembled in.
-	if strings.Index(aboutText, "\n  ABOUT") >= strings.Index(aboutText, "\n  LEXICON") {
-		t.Error("ABOUT section must come before LEXICON section")
+	// Sections must appear in assembly order: ABOUT, then FEATURES, then LEXICON.
+	iAbout := strings.Index(aboutText, "\n  ABOUT")
+	iFeatures := strings.Index(aboutText, "\n  FEATURES")
+	iLexicon := strings.Index(aboutText, "\n  LEXICON")
+	if !(iAbout < iFeatures && iFeatures < iLexicon) {
+		t.Errorf("sections out of order: ABOUT@%d FEATURES@%d LEXICON@%d", iAbout, iFeatures, iLexicon)
 	}
 }

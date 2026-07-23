@@ -168,7 +168,7 @@ $(DEFS_DIR):
 # section headed by its upper-cased file name. The result is written into the ui
 # package where it is embedded (a Go //go:embed directive cannot reach a parent
 # directory, so the generated copy must live alongside the code that embeds it).
-ABOUT_SRCS  := ABOUT.txt LEXICON.txt
+ABOUT_SRCS  := ABOUT.txt FEATURES.txt LEXICON.txt
 ABOUT_ASSET := ui/about.txt
 
 $(ABOUT_ASSET): $(ABOUT_SRCS)

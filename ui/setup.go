@@ -48,7 +48,7 @@ func dictShortName(name dictionary.DictName) string {
 // a minimum window width on desktop.
 func dictDisplayName(name dictionary.DictName) string {
 	if n, ok := dictPlayableWords[name]; ok {
-		return fmt.Sprintf("%s — %s words", dictShortName(name), groupThousands(n))
+		return fmt.Sprintf("%s - %s words", dictShortName(name), groupThousands(n))
 	}
 	return dictShortName(name)
 }

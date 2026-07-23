@@ -30,7 +30,7 @@ func newOpeningHarness(t *testing.T, od *engine.OpeningDraw) *gameScreen {
 // line from game start and stays at the top after moves are logged.
 func TestHistory_ShowsOpeningDraw(t *testing.T) {
 	gs := newOpeningHarness(t, &engine.OpeningDraw{HumanLetter: 'C', AILetter: 'T', First: engine.HumanTurn})
-	want := "Opening draw: you drew C, AI drew T — you go first"
+	want := "Opening draw: you drew C, AI drew T - you go first"
 
 	if got := gs.historyLabel.Text; got != want {
 		t.Errorf("history at start = %q, want %q", got, want)
@@ -46,7 +46,7 @@ func TestHistory_ShowsOpeningDraw(t *testing.T) {
 // TestOpeningDrawLine covers the AI-first wording and the blank rendering.
 func TestOpeningDrawLine(t *testing.T) {
 	got := openingDrawLine(&engine.OpeningDraw{HumanLetter: 0, AILetter: 'Q', First: engine.AITurn})
-	want := "Opening draw: you drew (blank), AI drew Q — AI goes first"
+	want := "Opening draw: you drew (blank), AI drew Q - AI goes first"
 	if got != want {
 		t.Errorf("openingDrawLine = %q, want %q", got, want)
 	}

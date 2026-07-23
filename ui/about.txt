@@ -2,7 +2,7 @@
   ABOUT
 ==============================
 
-TileWords is a Scrabble®-like game where the player competes with the machine to use individual letters to construct cromulent words on a game board to gain the endorphin hit from watching those sweet sweet points _racking_ (heh heh) up.
+TileWords is a Scrabble®-like offline crossword tile game in which you play against the computer, using individual letters to construct cromulent words on a game board to gain the endorphin hit from watching those sweet sweet points _racking_ (heh heh) up.
 
 TileWords is developed by Kartikeya IYER and is available (including source code) from:
 https://github.com/ka-iy/tilewords
@@ -21,69 +21,65 @@ TILEWORDS IS NOT AFFILIATED WITH ANY OF THE ABOVE-MENTIONED PRODUCTS OR ENTITIES
 
 
 ==============================
+  FEATURES
+==============================
+
+• Offline and private: the game needs no network connection and requests no internet permission. Everything runs on your device.
+
+• Free and libre word lists: at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the Lexicon.
+
+• Word definitions: the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and public-domain glossaries. Words with no definition are noted rather than silently skipped.
+
+• Two game modes: Classic uses the standard 15x15 premium-square layout and tile economy, while Interesting uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
+
+• Selectable AI difficulty: choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard).
+
+• Move history: a running log of every turn - who played, the words formed, and the score - with an option to show it in standard Scrabble notation.
+
+• Copy to clipboard: the move-history and definitions panels are copyable. On desktop, select and copy; on a phone, long-press to copy the whole panel, while a finger-drag scrolls and a double or triple tap selects a word or line.
+
+• Undo: take back the last full round - your move together with the computer's reply.
+
+• Save and restore: keep a single saved game and resume it later. The save captures the board, racks, scores, move history, and game mode.
+
+• Remembered setup defaults: optionally save your New Game choices - word list, game mode, difficulty, and notation - so that starting another game is a single tap.
+
+• Cross-platform: runs on desktop and Android from a single codebase.
+
+• About and Lexicon: an in-app dialog crediting the word lists and dictionaries, with the source links copyable to the clipboard.
+
+
+==============================
   LEXICON
 ==============================
 
-TileWords is built on freely available word lists and dictionaries.
-
-Grateful acknowledgement is made to the authors and maintainers of the sources below, whose work makes possible this game and the lexicon it uses.
+TileWords is built on freely available word lists and dictionaries. Grateful acknowledgement is made to the authors and maintainers of the sources below, whose work makes possible this game and the lexicon it uses.
 
 
 WORD LISTS
 
-ENABLE2K
-    The Enhanced North American Benchmark LExicon (ENABLE),
-    2K edition,
-    a Scrabble®-style word list compiled
-    by Alan Beale and others.
-    Placed in the public domain by its creators.
-    https://github.com/BartMassey/wordlists
+• ENABLE2K: the Enhanced North American Benchmark LExicon (ENABLE), 2K edition - a Scrabble®-style word list compiled by Alan Beale and others, placed in the public domain by its creators. https://github.com/BartMassey/wordlists
 
-Wordnik word list
-    Copyright (c) 2020 Wordnik.
-    Used under the MIT License.
-    https://github.com/wordnik/wordlist
+• Wordnik word list: Copyright (c) 2020 Wordnik, used under the MIT License. https://github.com/wordnik/wordlist
 
-atebits "Words" (Letterpress word list)
-    By Loren Brichter / atebits.
-    Released under CC0 1.0
-    (public domain dedication)
-    https://github.com/atebits/Words
+• atebits "Words" (Letterpress word list): by Loren Brichter / atebits, released under CC0 1.0 (public domain dedication). https://github.com/atebits/Words
 
 
 DEFINITIONS
 
-Wiktionary (English)
-    (C) Wiktionary contributors,
-    via the kaikki.org wiktextract project.
-    Used under CC BY-SA 4.0.
-    Definitions derived from Wiktionary remain
-    available under the same license.
-    https://kaikki.org/dictionary/English/
+• Wiktionary (English): (C) Wiktionary contributors, via the kaikki.org wiktextract project, used under CC BY-SA 4.0. Definitions derived from Wiktionary remain available under the same license. https://kaikki.org/dictionary/English/
 
-Webster's Revised Unabridged Dictionary (1913)
-    Public domain.
-    https://github.com/matthewreagan/WebstersEnglishDictionary
+• Webster's Revised Unabridged Dictionary (1913): public domain. https://github.com/matthewreagan/WebstersEnglishDictionary
 
-Princeton WordNet 3.1
-    Copyright 2011 by Princeton University.
-    All rights reserved.
-    Used under the WordNet License
-    (permissive, with attribution)
-    https://wordnet.princeton.edu/
+• Princeton WordNet 3.1: Copyright 2011 by Princeton University, all rights reserved, used under the WordNet License (permissive, with attribution). https://wordnet.princeton.edu/
 
-An Etymological Dictionary of the Scottish Language
-    By John Jamieson. Public domain.
-    Project Gutenberg eBook #40521.
-    https://www.gutenberg.org/ebooks/40521
+• An Etymological Dictionary of the Scottish Language: by John Jamieson, public domain (Project Gutenberg eBook #40521). https://www.gutenberg.org/ebooks/40521
 
-Glossary to Edmund Spenser's "The Faerie Queene", Book I
-    Public domain, via Wikisource.
-    https://en.wikisource.org/wiki/The_Faerie_Queene_(unsourced)/Book_I/Glossary
+• Glossary to Edmund Spenser's "The Faerie Queene", Book I: public domain, via Wikisource. https://en.wikisource.org/wiki/The_Faerie_Queene_(unsourced)/Book_I/Glossary
 
 
 Definitions are shown for reference during play. Where more than one source defines a word, the Wiktionary sense is preferred; Webster's 1913, WordNet, and the glossaries fill gaps for archaic and dialectal words.
 
-While (almost) every effort has been made to fill the gaps in the definitions, gaps do remain; where a pplayed word has no definition that could be found, such will be indicated in the "Definitions" tab on the game screen.
+While (almost) every effort has been made to fill the gaps in the definitions, gaps do remain; where a played word has no definition that could be found, such will be indicated in the "Definitions" tab on the game screen.
 
 

@@ -133,7 +133,7 @@ func formatDefinitionEntry(db *defs.DB, word string) string {
 		b.WriteByte('\n')
 		if s.POS != "" {
 			b.WriteString(s.POS)
-			b.WriteString(" — ")
+			b.WriteString(" - ")
 		}
 		b.WriteString(s.Gloss)
 	}
