@@ -7,6 +7,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
 
 	"tilewords/dictionary"
@@ -31,6 +32,47 @@ func TestPhoneColumn_BoardFillsWidth(t *testing.T) {
 	l.Layout([]fyne.CanvasObject{board}, fyne.NewSize(300, 1000))
 	if board.Size().Width != 300 {
 		t.Errorf("narrow: board width = %v, want 300 (fills the width, no overflow)", board.Size().Width)
+	}
+}
+
+// TestPhoneColumnScroll_HistorySizing verifies how the history pane is sized by viewport:
+//   - when the rest of the column plus a usable history fits, the pane fills exactly the
+//     spare height (so nothing scrolls);
+//   - when it does not fit (the page must scroll anyway), the pane is grown to twice its
+//     minimum so more of it shows without swallowing the page's own scroll gestures.
+func TestPhoneColumnScroll_HistorySizing(t *testing.T) {
+	_ = test.NewApp()
+	const width float32 = 400
+
+	board := canvas.NewRectangle(color.Black) // height follows the column width in Layout
+	mk := func(h float32) fyne.CanvasObject {
+		r := canvas.NewRectangle(color.White)
+		r.SetMinSize(fyne.NewSize(0, h))
+		return r
+	}
+	status, rack, controls, ai := mk(100), mk(80), mk(90), mk(70)
+	histWrap := container.New(minHeightLayout{minH: portraitHistoryMinH}, mk(0))
+	column := container.New(
+		phoneColumnLayout{board: board, minBoard: minBoardPx},
+		board, status, rack, controls, ai, histWrap,
+	)
+	p := newPhoneColumnScroll(column, board, histWrap)
+
+	// nonHistory = board(=width) + the four sections + a phoneColGap after each of the five
+	// non-history children (matching phoneColumnScroll.nonHistoryHeight).
+	nonHist := width + 100 + 80 + 90 + 70 + 5*phoneColGap
+
+	// Spare height >= portraitHistoryMinH: the pane fills exactly the spare height.
+	p.Resize(fyne.NewSize(width, nonHist+300))
+	if got := histWrap.MinSize().Height; got != 300 {
+		t.Errorf("fit case: history height = %v, want 300 (fills the spare height)", got)
+	}
+
+	// Spare height < portraitHistoryMinH: the column overflows, so the pane grows to twice
+	// its minimum (not the full viewport, which would swallow the page's scroll gestures).
+	p.Resize(fyne.NewSize(width, nonHist+100))
+	if got, want := histWrap.MinSize().Height, float32(portraitHistoryMinH*2); got != want {
+		t.Errorf("overflow case: history height = %v, want %v (twice the minimum)", got, want)
 	}
 }
 

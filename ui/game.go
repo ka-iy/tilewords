@@ -289,15 +289,24 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	// then the bag/move/level counters) only when the width cannot fit the single row.
 	counters := newStatusCounters(gs.youLabel, gs.aiLabel, gs.bagLabel, gs.moveLabel, gs.levelLabel)
 	statusItems := make([]fyne.CanvasObject, 0, 3)
+	// statusGaps[i] is the vertical gap between status row i and row i+1 (see
+	// tightColumnLayout). The word-list/counters gap is tight (statusRowGap); the gap above
+	// the current-move line is looser (statusMoveGap) so it sits centred between the
+	// counters and the rack.
+	statusGaps := make([]float32, 0, 2)
 	// The word list is fixed for the whole game; show it above the score counters.
 	if gs.dict != nil {
 		wordList := widget.NewLabelWithStyle("Word list: "+dictShortName(gs.dict.Name()),
 			fyne.TextAlignCenter, fyne.TextStyle{Italic: true})
 		wordList.Wrapping = fyne.TextWrapWord
 		statusItems = append(statusItems, wordList)
+		statusGaps = append(statusGaps, statusRowGap) // word list -> counters
 	}
 	statusItems = append(statusItems, counters, gs.statusRT)
-	statusBar := container.NewVBox(statusItems...)
+	statusGaps = append(statusGaps, statusMoveGap) // counters -> current-move line
+	// A tight column (rather than a plain VBox) closes most of the vertical gap between
+	// the status rows, per statusGaps.
+	statusBar := container.New(tightColumnLayout{gaps: statusGaps}, statusItems...)
 
 	// Control buttons (shared across layouts; arranged differently per layout). Each
 	// flashes briefly when tapped (see newControlButton / flashPress).
@@ -381,33 +390,47 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	gs.refresh()
 
 	// Two arrangements of the same widgets, chosen by available size:
-	//   wide   — board left, history right (draggable split); racks + a single control
-	//            row across the bottom.
+	//   wide   — a draggable split with the move-history panel filling the full screen
+	//            height on the right; the left pane holds the board centred above the
+	//            status/rack/control stack, with the action buttons stretched across the
+	//            full width of the left pane.
 	//   narrow — one scrollable column (board, racks, controls, history) for phone
 	//            portrait, so nothing is clipped and the page scrolls if needed.
 	buildArrangement := func(narrow bool) fyne.CanvasObject {
 		if narrow {
-			controls := container.NewGridWithColumns(2, buttons...)
-			// The board fills the column width (scaling up from its tappable minimum);
-			// the rest stack below at their natural heights, and the page scrolls.
+			// Three buttons per row keeps each one narrower than a half-width two-column
+			// grid; the seventh (Menu) sits alone on the last row.
+			controls := container.NewGridWithColumns(3, buttons...)
+			// The board fills the column width (scaling up from its tappable minimum); the
+			// rest stack below at their natural heights. The history/definitions pane
+			// stretches to fill any spare viewport height (down to portraitHistoryMinH), and
+			// the page scrolls only when the column is taller than the viewport.
+			histWrap := container.New(minHeightLayout{minH: portraitHistoryMinH}, historyBox)
+			// The status block and the rack are grouped with a tightened (statusRackGap) gap
+			// so the rack sits closer to the current-move line than the other sections.
+			statusAndRack := container.New(tightColumnLayout{gaps: []float32{statusRackGap}}, statusBar, humanRackBox)
 			column := container.New(
 				phoneColumnLayout{board: board, minBoard: minBoardPx},
 				board,
-				statusBar,
-				humanRackBox,
+				statusAndRack,
 				controls,
 				aiRackBox,
-				container.New(minHeightLayout{minH: 160}, historyBox),
+				histWrap,
 			)
-			return container.NewVScroll(column)
+			return newPhoneColumnScroll(column, board, histWrap)
 		}
+		// The action buttons stretch across the full width of the left pane: the grid
+		// sits in the full-width bottom block, so each button is a 1/len(buttons) slice
+		// of the pane width.
 		controls := container.NewGridWithColumns(len(buttons), buttons...)
-		// statusBar (score/status) sits below the board — at the top of the bottom stack,
-		// above the racks and controls.
+		// The board fills the left pane above the status/rack/control stack; boardLayout
+		// centres the board square within that space.
 		bottom := container.NewVBox(statusBar, humanRackBox, controls, aiRackBox)
-		split := container.NewHSplit(board, historyBox)
+		left := container.NewBorder(nil, bottom, nil, nil, board)
+		// The history panel is the split's right pane, so it runs the full screen height.
+		split := container.NewHSplit(left, historyBox)
 		split.SetOffset(0.72)
-		return container.NewBorder(nil, bottom, nil, nil, split)
+		return split
 	}
 
 	return newResponsiveContainer(buildArrangement)

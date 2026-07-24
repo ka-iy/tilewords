@@ -21,9 +21,9 @@ import (
 //
 //	tr a-z A-Z < wordlists/<name>.txt | grep -xE '[A-Z]{2,15}' | sort -u | wc -l
 var dictPlayableWords = map[dictionary.DictName]int{
+	dictionary.DictAtebits: 270652,
 	dictionary.DictENABLE:  169266,
 	dictionary.DictWordnik: 194152,
-	dictionary.DictAtebits: 270652,
 }
 
 // dictShortName returns the compact name of a dictionary. It is kept short because it
@@ -31,12 +31,12 @@ var dictPlayableWords = map[dictionary.DictName]int{
 // width — a long label would stop the desktop window from shrinking to a narrow width.
 func dictShortName(name dictionary.DictName) string {
 	switch name {
+	case dictionary.DictAtebits:
+		return "atebits"
 	case dictionary.DictENABLE:
 		return "ENABLE"
 	case dictionary.DictWordnik:
 		return "Wordnik"
-	case dictionary.DictAtebits:
-		return "atebits"
 	default:
 		return string(name)
 	}
@@ -57,12 +57,12 @@ func dictDisplayName(name dictionary.DictName) string {
 // dictionary radio in a word-wrapping label. Empty for an unknown dictionary.
 func dictDescription(name dictionary.DictName) string {
 	switch name {
-	case dictionary.DictENABLE:
-		return "Public-domain, uncensored friendly-word-game word list."
-	case dictionary.DictWordnik:
-		return "Crowd-sourced open dictionary."
 	case dictionary.DictAtebits:
-		return "Public-domain list with similarities to a certain porcine official UK/Euro English list."
+		return "atebits is a public-domain word list similar to the official international/UK/Euro SOWPODS list."
+	case dictionary.DictENABLE:
+		return "ENABLE(2K) is a public-domain unbowdlerized word list similar to - and allegedly better than - the offcial North American Tournament Word List (TWL)."
+	case dictionary.DictWordnik:
+		return "Wordnik is an open-source word list."
 	default:
 		return ""
 	}
