@@ -7,6 +7,14 @@ automaton, and why automaton minimization subsumes cross-dictionary deduplicatio
 **Status of measurements:** taken on Go 1.26.4, linux/amd64; figures are indicative of
 this hardware and toolchain. The Android failure is from a `fyi.tilewords.game` low-memory
 kill on an emulator.
+**Word lists:** the current, refreshed figures below are for the three shipped
+openly-licensed lists — `enable` (ENABLE2K), `wordnik`, and `atebits-letterpress`. The
+investigation was originally run with a fourth (tournament) list that has since been
+removed; its rows have been dropped and the per-list numbers refreshed for the current
+three. Figures from superseded representations (the nested-map layout of §4 and the
+un-minimized CSR trie of §6–§7) are retained as historical baselines, since that code no
+longer exists to re-measure; they are for the largest list and are within the "indicative"
+tolerance.
 **Implementation status:** Strategies I (CSR), II (load cache), and **V (minimization)**
 are implemented in the codebase; III (deduplication) and IV (runtime merge) were
 investigated and rejected. The figures for V in §8–§9 are the measured results *after*
@@ -16,7 +24,7 @@ implementation, not projections.
 
 ## Abstract
 
-TileWords embeds four large word-list dictionaries as GADDAG automata for its AI move
+TileWords embeds large word-list dictionaries as GADDAG automata for its AI move
 generator. On Android, loading a second dictionary (the "load saved game" flow) crashed
 the app: the process was terminated by the low-memory killer at ~2.4 GB resident. We
 trace the failure to two independent causes — a memory-profligate in-memory representation
@@ -31,7 +39,7 @@ Our central findings are:
    sparse-row (CSR) layout reduces resident memory ~12× (843 MB → 68 MB for the largest
    dictionary) with no algorithmic change.
 2. The dictionaries share 61.4% of their words, and deduplicating them into a common
-   automaton plus per-dictionary remainders shrinks the embedded assets 56% — but is
+   automaton plus per-dictionary remainders shrinks the embedded assets ~47% — but is
    *runtime-memory-neutral*, because only one dictionary is resident at a time.
 3. Composing the common and unique automata into a single graph at load time is
    **provably correct and reproduces the monolithic automaton exactly**, but costs a
@@ -45,7 +53,7 @@ Our central findings are:
 The practical conclusion is that **automaton minimization strictly dominates
 cross-dictionary deduplication** for this workload: set-level word overlap is a special
 case of the sub-automaton redundancy that minimization eliminates globally. Combined with
-CSR, minimization takes the largest dictionary from 843 MB to ~8 MB resident — a ~105×
+CSR, minimization takes the largest dictionary from 843 MB to ~8.4 MB resident — a ~100×
 reduction end-to-end.
 
 ---
@@ -55,14 +63,14 @@ reduction end-to-end.
 The GADDAG is the standard automaton for Scrabble move generation: it encodes, for every
 dictionary word, every way of reading that word outward from an anchor square, enabling a
 single left-to-right graph walk to enumerate all legal plays through a square
-[Gordon 1994]. TileWords ships four dictionaries:
+[Gordon 1994]. TileWords ships three dictionaries, all openly licensed (see the project's
+Lexicon):
 
 | Dictionary | Words (2–15, A–Z) | Character |
 | --- | ---: | --- |
-| `enable` | 168,551 | public-domain baseline |
-| `pigpods` | 267,752 | largest; the outlier in overlap |
-| `twirl06` | 178,691 | North-American tournament |
+| `enable` | 169,266 | public-domain baseline (ENABLE2K) |
 | `wordnik` | 194,152 | crowd-sourced |
+| `atebits-letterpress` | 270,652 | largest; the outlier in overlap |
 
 Each is compiled offline into a `.gob`-serialized GADDAG and embedded in the binary via
 `//go:embed`. The AI move generator (`ai/generate.go`, `ai/traverse.go`) consumes a
@@ -121,10 +129,9 @@ collapse:
 
 | Dictionary | Trie nodes | Trie edges | Edges/node |
 | --- | ---: | ---: | ---: |
-| `enable` | 4,003,703 | 4,003,701 | 1.00 |
-| `pigpods` | 6,419,513 | 6,419,511 | 1.00 |
-| `twirl06` | 4,202,930 | 4,202,928 | 1.00 |
-| `wordnik` | 4,441,311 | 4,441,309 | 1.00 |
+| `enable` | 4,017,937 | 4,017,936 | 1.00 |
+| `wordnik` | 4,441,310 | 4,441,309 | 1.00 |
+| `atebits-letterpress` | 6,474,718 | 6,474,717 | 1.00 |
 
 This redundancy is the target of minimization (§8).
 
@@ -160,7 +167,7 @@ terminals map[NodeID]bool
 ```
 
 A map-of-maps carries enormous per-entry overhead: every node allocates an inner map with
-its own bucket array, header, and load-factor slack. With ~6.4M nodes each holding a tiny
+its own bucket array, header, and load-factor slack. With ~6.5M nodes each holding a tiny
 inner map, the overhead dwarfs the ~5 bytes of actual edge data per edge.
 
 ### 4.2 The CSR layout
@@ -184,14 +191,16 @@ of bounds during a traversal.
 
 ### 4.3 Results
 
-For `pigpods` (the largest):
+For `atebits-letterpress` (the largest). The nested-map figures are historical (that
+representation was replaced); the CSR `.gob` size is the structural estimate for the
+current list:
 
 | Metric | Nested maps | CSR |
 | --- | ---: | ---: |
 | Resident (1 copy, after GC) | 843 MB | **68 MB** |
 | Peak during decode (`HeapSys`) | 1231 MB | 315 MB |
 | Two copies resident (the crash) | 1875 MB heap / 2627 MB sys | ~136 MB |
-| On-disk `.gob` | 76.2 MB | 58.6 MB |
+| On-disk `.gob` | 76.2 MB | 59.1 MB |
 
 This ~12× resident reduction is a pure representation change; the automaton, the API, the
 AI, and word acceptance are all identical. It **independently eliminates the OOM**: even an
@@ -210,7 +219,8 @@ pointer is sound. This bounds resident memory to a single dictionary and removes
 decode entirely.
 
 CSR (§4) and caching (§5) together fully resolve the reported crash. Everything that
-follows targets the *remaining* cost: ~174 MB of embedded assets and ~68 MB resident.
+follows targets the *remaining* cost: ~136 MB of embedded assets (CSR trie) and ~68 MB
+resident.
 
 ---
 
@@ -218,44 +228,43 @@ follows targets the *remaining* cost: ~174 MB of embedded assets and ~68 MB resi
 
 ### 6.1 The overlap is large
 
-The four lists overlap heavily. Of a 273,534-word union, **167,938 words (61.4%) are
-common to all four**:
+The three lists overlap heavily. Of a 275,412-word union, **169,126 words (61.4%) are
+common to all three**:
 
 | Dictionary | Unique after extracting common-to-all |
 | --- | ---: |
-| `enable` | 613 |
-| `pigpods` | 99,814 |
-| `twirl06` | 10,753 |
-| `wordnik` | 26,214 |
+| `enable` | 140 |
+| `wordnik` | 25,026 |
+| `atebits-letterpress` | 101,526 |
 
 Pairwise containment (row ∩ col as a fraction of the row) shows `enable` is nearly a pure
-subset of the others, `pigpods` the outlier:
+subset of the others, `atebits-letterpress` the outlier:
 
-| ∩ / row | enable | pigpods | twirl06 | wordnik |
-| --- | ---: | ---: | ---: | ---: |
-| **enable** | 100.0 | 99.8 | 99.6 | 100.0 |
-| **pigpods** | 62.8 | 100.0 | 66.7 | 70.4 |
-| **twirl06** | 94.0 | 100.0 | 100.0 | 100.0 |
-| **wordnik** | 86.8 | 97.1 | 92.0 | 100.0 |
+| ∩ / row | enable | wordnik | atebits |
+| --- | ---: | ---: | ---: |
+| **enable** | 100.0 | 100.0 | 99.9 |
+| **wordnik** | 87.2 | 100.0 | 97.5 |
+| **atebits-letterpress** | 62.5 | 70.0 | 100.0 |
 
-Storing the common words once plus per-dictionary remainders stores 305,332 word-entries
-instead of 809,146 — a 62% reduction in stored words.
+Storing the common words once plus per-dictionary remainders stores 295,818 word-entries
+instead of 634,070 — a 53% reduction in stored words.
 
 ### 6.2 Disk shrinks, runtime does not
 
-We built a `common.gob` (167,938 words) and four `<dict>_unique.gob` files and measured:
+We partition each list into `common` (169,126 words) plus a `<dict>_unique` remainder and
+size the CSR-trie of each *(structural estimate)*:
 
-| | Embedded size |
+| | Embedded size (CSR trie) |
 | --- | ---: |
-| Monolithic ×4 (CSR) | 173.9 MB |
-| Split (common + 4 uniques) | **76.0 MB (−56%, −97.9 MB)** |
+| Monolithic ×3 | 136.3 MB |
+| Split (common + 3 uniques) | **72.6 MB (−47%, −63.7 MB)** |
 
-The 62% reduction in stored words more than offsets the prefix-sharing lost at the
+The 53% reduction in stored words more than offsets the prefix-sharing lost at the
 common/unique boundary, so the embedded assets shrink. **Runtime memory, however, is
-neutral** — loading `pigpods`
-means holding `common` + `pigpods_unique` (64 MB) versus the monolithic 68 MB. With the
-single-slot cache only one dictionary is ever resident, so the shared `common` is not
-amortized across simultaneously-loaded dictionaries.
+neutral** — loading `atebits-letterpress` means holding `common` + `atebits-letterpress_unique`
+(~66 MB) versus the monolithic ~59 MB, so the split is neutral-to-slightly-worse at
+runtime. With the single-slot cache only one dictionary is ever resident, so the shared
+`common` is not amortized across simultaneously-loaded dictionaries.
 
 ### 6.3 The structural catch
 
@@ -290,19 +299,20 @@ merge(c, u):
 ```
 
 GADDAG strings have length ≤ 16, so recursion is shallow; memoization on `(c, u)` dedups
-shared substructure. We verified correctness by replaying all 267,752 `pigpods` words and
-negative controls: **0 mismatches** against the monolithic automaton.
+shared substructure. We verified correctness by replaying all 270,652 `atebits-letterpress`
+words and negative controls: **0 mismatches** against the monolithic automaton.
 
 ### 7.2 The result: exact reproduction
 
 | | Nodes | Edges |
 | --- | ---: | ---: |
-| `common` | 3,985,040 | 3,985,038 |
-| `pigpods_unique` | 3,229,425 | 3,229,423 |
-| **Merged** | **6,419,513** | **6,419,511** |
-| Monolithic `pigpods` | 6,419,513 | 6,419,511 |
+| `common` | 4,014,173 | 4,014,172 |
+| `atebits-letterpress_unique` | 3,261,251 | 3,261,250 |
+| **Merged** | **6,474,718** | **6,474,717** |
+| Monolithic `atebits-letterpress` | 6,474,718 | 6,474,717 |
 
-The merged automaton is **node-for-node identical to the monolithic one**.
+The merged automaton is **node-for-node identical to the monolithic one** (the 7,275,424
+nodes of the two inputs dedup exactly to the monolithic 6,474,718).
 
 ### 7.3 Why: composition of tries yields the union trie
 
@@ -328,17 +338,17 @@ cost of rebuilding it at load.
 
 ### 7.4 Cost
 
-| Metric (merging `common` + `pigpods_unique`) | Value |
+| Metric (merging `common` + `atebits-letterpress_unique`) | Value |
 | --- | ---: |
 | Merge time (desktop) | ~3.4 s |
 | Transient resident around the merge (`HeapSys`) | ~0.96 GB |
-| Correctness (words checked / mismatches) | 267,752 / 0 |
+| Correctness (words checked / mismatches) | 270,652 / 0 |
 
-The ~0.96 GB transient (dominated by the memo and adjacency maps over 6.4M nodes)
+The ~0.96 GB transient (dominated by the memo and adjacency maps over 6.5M nodes)
 reintroduces the mobile memory pressure we removed in §4, and multi-second load latency
 would be worse on a phone. A map-free streaming merge could cut the transient to ~150 MB
 (no memoization is even needed — §7.3 shows each product state is reached once), but the
-CPU cost of materializing 6.4M nodes per load remains. The merge is correct, but it trades
+CPU cost of materializing 6.5M nodes per load remains. The merge is correct, but it trades
 embedded size for load latency and a load-time memory spike.
 
 ---
@@ -359,15 +369,14 @@ duplicated, so structurally identical sub-automata collapse to one.
 
 | Dictionary | Trie nodes | Trie ~MB* | Min nodes | Min edges | Min ~MB* | Node ratio |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `enable` | 4,003,703 | 34 | 401,729 | 836,835 | 5 | 10.0× |
-| `pigpods` | 6,419,513 | 55 | 587,940 | 1,266,975 | 8 | 10.9× |
-| `twirl06` | 4,202,930 | 36 | 413,548 | 873,040 | 5 | 10.2× |
-| `wordnik` | 4,441,311 | 38 | 435,389 | 932,089 | 6 | 10.2× |
+| `enable` | 4,017,937 | 37 | 402,979 | 839,880 | 6 | 10.0× |
+| `wordnik` | 4,441,310 | 40 | 435,389 | 932,089 | 6 | 10.2× |
+| `atebits-letterpress` | 6,474,718 | 59 | 591,712 | 1,277,150 | 9 | 10.9× |
 
 \* CSR structural estimate. The minimized edge/node ratio rises to ~2.1 (branching structure
 survives; the non-branching suffix chains collapse).
 
-Minimization yields a **~10× reduction in both nodes and edges** across all four
+Minimization yields a **~10× reduction in both nodes and edges** across all three
 dictionaries.
 
 ### 8.2 Implementation and post-build results
@@ -381,24 +390,24 @@ loop. Determinism is preserved: the BFS follows edges in ascending letter order,
 iteration order never reaches the output. The load path, the traversal API, `Validate`, and
 the AI are untouched — a minimized dictionary is simply a smaller CSR graph.
 
-Rebuilding the four embedded `.gob` assets with the minimizing `Build` gives the measured
-results below (versus the pre-minimization CSR trie):
+Rebuilding the three embedded `.gob` assets with the minimizing `Build` gives the measured
+results below (the trie-CSR column is a *structural estimate*, since the build now always
+minimizes; the minimized on-disk sizes are the actual embedded `.gob` bytes):
 
 | Dictionary | Words | On-disk (trie CSR) | On-disk (minimized) | Resident (minimized) |
 | --- | ---: | ---: | ---: | ---: |
-| `enable` | 168,551 | 36.5 MB | **5.52 MB** | — |
-| `pigpods` | 267,752 | 58.6 MB | **8.34 MB** | **8 MB** |
-| `twirl06` | 178,691 | 38.3 MB | **5.74 MB** | — |
+| `enable` | 169,266 | 36.7 MB | **5.54 MB** | — |
 | `wordnik` | 194,152 | 40.5 MB | **6.10 MB** | — |
-| **Total** | | **173.9 MB** | **25.7 MB (−85%)** | |
+| `atebits-letterpress` | 270,652 | 59.1 MB | **8.41 MB** | **8.4 MB** |
+| **Total** | | **136.3 MB** | **20.05 MB (−85%)** | |
 
-The largest dictionary is now **8 MB resident** (measured `HeapAlloc` after GC), down from
+The largest dictionary is now **8.4 MB resident** (measured `HeapAlloc` after GC), down from
 68 MB (CSR trie) and 843 MB (original nested maps). Correctness was re-verified after
-implementation: all 267,752 `pigpods` words are accepted (0 missing), negative controls are
-rejected, the full test suite passes — including the AI move-generation tests, which confirm
-the minimized DAWG is behaviourally identical for move generation — and a regression test
-(`TestBuild_Minimized`) asserts the accept sinks are merged so minimization cannot be
-silently disabled.
+implementation: all 270,652 `atebits-letterpress` words are accepted (0 missing), negative
+controls are rejected, the full test suite passes — including the AI move-generation tests,
+which confirm the minimized DAWG is behaviourally identical for move generation — and a
+regression test (`TestBuild_Minimized`) asserts the accept sinks are merged so minimization
+cannot be silently disabled.
 
 ### 8.3 Why it dominates: minimization subsumes deduplication
 
@@ -409,29 +418,30 @@ Cross-dictionary word overlap is therefore a **special case** of the redundancy
 minimization already removes, and it removes it *within* a dictionary as well as across the
 notional common/unique partition. Minimization is strictly more general.
 
-This is borne out by the numbers: dedup removes 62% of stored words; minimization removes
-~90% of nodes. And the two do not usefully stack — once `pigpods` is ~8 MB resident, a
-further common/unique split saves a few MB of disk at the cost of the two-graph complexity
-of §6.3–§7.
+This is borne out by the numbers: dedup removes 53% of stored words; minimization removes
+~90% of nodes. And the two do not usefully stack — once `atebits-letterpress` is ~8.4 MB
+resident, a further common/unique split saves a few MB of disk at the cost of the two-graph
+complexity of §6.3–§7.
 
 ---
 
 ## 9. Results: the full comparison
 
-| Strategy | Embedded (4 dicts) | Resident (active dict) | AI change | Load cost | Status |
+| Strategy | Embedded (3 dicts) | Resident (active dict) | AI change | Load cost | Status |
 | --- | ---: | ---: | --- | --- | --- |
-| Original (nested maps, trie) | 226 MB† | 843 MB | — | baseline | replaced |
-| **I. CSR** | 174 MB | **68 MB** | none | faster decode | **done** |
-| **II. Load cache** | 174 MB | 68 MB (bounded) | none | 0 on re-load | **done** |
-| III. Dedup split | 76 MB | ~same (64 MB) | rework or merge | — | rejected |
-| IV. Dedup + runtime merge | 76 MB | ~same | none | +3.4 s, +~0.96 GB | rejected |
-| **V. Minimization** | **25.7 MB** | **8 MB** | none | faster decode | **done** |
+| Original (nested maps, trie) | —† | 843 MB | — | baseline | replaced |
+| **I. CSR** | 136 MB | **68 MB** | none | faster decode | **done** |
+| **II. Load cache** | 136 MB | 68 MB (bounded) | none | 0 on re-load | **done** |
+| III. Dedup split | 72.6 MB | ~66 MB | rework or merge | — | rejected |
+| IV. Dedup + runtime merge | 72.6 MB | ~same | none | +3.4 s, +~0.96 GB | rejected |
+| **V. Minimization** | **20.05 MB** | **8.4 MB** | none | faster decode | **done** |
 
-† original nested-map `.gob` sizes summed.
+† The superseded nested-map `.gob` sizes were not re-measured for the current three-list
+set; CSR (Strategy I) is the first re-derivable embedded baseline.
 
-End-to-end, CSR + minimization takes the largest dictionary from **843 MB → 8 MB resident
-(~105×)** and the embedded assets from **226 MB → 25.7 MB (~9×)**, with no change to the
-traversal API or the AI. These are the final implemented figures.
+End-to-end, CSR + minimization takes the largest dictionary from **843 MB → 8.4 MB resident
+(~100×)** and the embedded assets from **136 MB (CSR trie) → 20.05 MB minimized (~7×)**, with
+no change to the traversal API or the AI. These are the final implemented figures.
 
 ---
 
@@ -468,7 +478,7 @@ directly.
 
 The recommendation was to implement **minimization inside `dictionary.Build`** (Revuz
 bottom-up hash-consing, using the existing child-id > parent-id ordering) and regenerate the
-four `.gob` assets, and **not** to pursue the cross-dictionary split (runtime-neutral,
+embedded `.gob` assets, and **not** to pursue the cross-dictionary split (runtime-neutral,
 complicates the AI) or the runtime merge (reintroduces a load-time memory spike), since
 minimization dominates both.
 
@@ -481,7 +491,8 @@ regenerated (§8.2). The change was contained and low-risk as predicted:
 - Correctness is confirmed by full-corpus acceptance parity, the property-based tests, the
   AI move-generation tests, and a minimization regression guard (§8.2).
 
-Result: embedded assets 174 MB → 25.7 MB, and the largest dictionary 68 MB → 8 MB resident.
+Result: embedded assets 136 MB (CSR trie) → 20.05 MB minimized, and the largest dictionary
+68 MB → 8.4 MB resident.
 
 ---
 
@@ -490,15 +501,17 @@ Result: embedded assets 174 MB → 25.7 MB, and the largest dictionary 68 MB →
 All measurements come from throwaway in-package Go tests (the `dictionary` package, so they
 can read the unexported CSR fields) plus a Python overlap script over `wordlists/*.txt`:
 
-- **Overlap (§6.1):** intersect the four word sets filtered to valid 2–15 A–Z words.
+- **Overlap (§6.1):** intersect the three word sets filtered to valid 2–15 A–Z words.
 - **Split sizes (§6.2):** emit `common.txt` and `<dict>_unique.txt`, compile each with
-  `tools/buildgaddag`, and sum file sizes.
-- **Resident memory (§4, §6.2):** `dictionary.Load`, force GC, read `HeapAlloc`.
+  `tools/buildgaddag`, and size each CSR trie via the §3 structural formula.
+- **Resident memory (§4, §8.2):** `dictionary.Load`, force GC, read `HeapAlloc` (also via
+  `tools/memcheck`).
 - **Merge (§7):** memoized product construction over two loaded graphs; replay all words
   for correctness; time the merge and read `HeapSys`.
 - **Minimization (§8):** now production code in `dictionary.Build` (`minimizeTrie`); the
-  node/edge counts came from a throwaway hash-cons over a loaded graph, and the on-disk and
-  resident figures from rebuilding the assets (`make gaddag`) and loading them.
+  node/edge counts came from a throwaway trie build plus `minimizeTrie` over a loaded list,
+  and the on-disk and resident figures from rebuilding the assets (`make gaddag`) and
+  loading them.
 
 Except for `minimizeTrie` (committed), these harnesses are not committed (they touch
 unexported internals and load multi-hundred-MB assets); they are described here so the
@@ -565,37 +578,36 @@ bound for KWG, since its tail-sharing reduces the cell count below the edge coun
 
 | Dict | Nodes | Edges | Strategy V (CSR, in-mem) | KWG (≤ 4 B/edge) | Ratio |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `enable` | 401,729 | 836,835 | 5.84 MB | 3.35 MB | 1.75× |
-| `pigpods` | 587,940 | 1,266,975 | 8.76 MB | 5.07 MB | 1.73× |
-| `twirl06` | 413,548 | 873,040 | 6.07 MB | 3.49 MB | 1.74× |
+| `enable` | 402,979 | 839,880 | 5.86 MB | 3.36 MB | 1.74× |
 | `wordnik` | 435,389 | 932,089 | 6.46 MB | 3.73 MB | 1.73× |
-| **Total** | | | **27.1 MB** | **≤ 15.6 MB** | **1.74×** |
+| `atebits-letterpress` | 591,712 | 1,277,150 | 8.83 MB | 5.11 MB | 1.73× |
+| **Total** | | | **21.1 MB** | **≤ 12.2 MB** | **1.73×** |
 
 A KWG of the same dictionaries is ~1.7× smaller than the CSR, both on disk and resident, and
 smaller still once tail-sharing and DAWG-node reuse are counted. The 22-bit-vs-32-bit
-pointer difference is not the driver — the largest graph, 1.27M edges, fits in 22 bits — the
+pointer difference is not the driver — the largest graph, 1.28M edges, fits in 22 bits — the
 driver is field fusion and tail-sharing.
 
 ### 13.4 Assessment
 
 - Strategy V accounts for the reduction from an un-minimized trie in hash maps (843 MB) to a
-  minimized automaton in flat arrays (8 MB), ~105×. KWG's denser layout yields a further
+  minimized automaton in flat arrays (8.4 MB), ~100×. KWG's denser layout yields a further
   ~1.7× (§13.3). That factor does not change the outcome for TileWords: the OOM is resolved
   under either encoding.
 - A KWG is a raw little-endian array and can be `mmap`-ed directly from an uncompressed
   asset: near-zero heap, no decode step, pages faulted in on demand. The gob format decodes
-  into ~8 MB of heap-allocated slices at load. On a memory-constrained device an mmap-ed KWG
-  uses less resident memory and loads without a decode pass — a larger difference than the
-  1.7× byte reduction.
+  into ~8.4 MB of heap-allocated slices at load. On a memory-constrained device an mmap-ed
+  KWG uses less resident memory and loads without a decode pass — a larger difference than
+  the 1.7× byte reduction.
 - KWG's tail-sharing is a stronger minimization: Strategy V merges whole equivalent nodes
   (Revuz), while KWG additionally shares suffixes of sibling edge-lists. Expressing it
   requires indexing children by edge position rather than by node id.
 
 Closing the gap would require switching to a packed 32-bit-per-edge cell array (letter +
 accepts + is_end + arc_index), indexing children by cell position, and `mmap`-ing it, which
-would take TileWords from ~8 MB heap to ~5 MB or less mapped with near-zero heap. The Gaddawg
-DAWG-union does not apply to TileWords, which never anagrams; only the KWG encoding, not its
-dual-graph role, would be relevant.
+would take TileWords from ~8.4 MB heap to ~5 MB or less mapped with near-zero heap. The
+Gaddawg DAWG-union does not apply to TileWords, which never anagrams; only the KWG encoding,
+not its dual-graph role, would be relevant.
 
 ### 13.5 When CSR is preferable
 
@@ -609,9 +621,9 @@ so there is no dense node-to-index mapping.
 
 - **Graphs larger than ~4.19M edges.** The documented 32-bit KWG cell is
   `tile:8 + accepts:1 + is_end:1 + arc_index:22`, so the whole graph must fit in 2²² =
-  4,194,304 cells. pigpods is 1.27M edges, but a larger or merged lexicon can exceed that, at
-  which point the standard KWG needs a wider cell variant. The CSR's 32-bit node ids and edge
-  offsets address ~4.29B nodes/edges without a format change.
+  4,194,304 cells. atebits-letterpress is 1.28M edges, but a larger or merged lexicon can
+  exceed that, at which point the standard KWG needs a wider cell variant. The CSR's 32-bit
+  node ids and edge offsets address ~4.29B nodes/edges without a format change.
 
 - **Dense per-node auxiliary data.** Decorating nodes — precomputed cross-set masks, subtree
   word counts, weights, probabilities, or a memoization table — maps directly onto the dense
@@ -640,9 +652,10 @@ so there is no dense node-to-index mapping.
   layout, with each cell holding a letter and its child pointer together, has better cache
   locality for the follow-edge step.
 
-- **This project.** Strategy V is implemented, tested, and brings pigpods to 8 MB, below any
-  relevant watermark. KWG's byte and mmap gains do not change that outcome, so for TileWords
-  the operative advantage is an existing, verified implementation with no migration.
+- **This project.** Strategy V is implemented, tested, and brings atebits-letterpress to
+  8.4 MB, below any relevant watermark. KWG's byte and mmap gains do not change that outcome,
+  so for TileWords the operative advantage is an existing, verified implementation with no
+  migration.
 
 Where KWG wins and the CSR cannot follow without becoming KWG: raw byte size (field fusion
 plus tail-sharing) and memory-mappability. Those matter most for move generation, which is
@@ -669,4 +682,4 @@ why KWG is the better format for that task in isolation.
 
 *This document records the state of the investigation. Strategies I, II, and V are
 implemented in the codebase; III and IV were investigated and rejected. The §8–§9 figures
-for V are measured after implementation.*
+for V are measured after implementation, refreshed for the current three shipped word lists.*

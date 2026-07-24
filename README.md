@@ -18,11 +18,13 @@ SCRABBLE® is a registered trademark. All intellectual property rights in and to
 
 - **Offline and private:** the game needs no network connection and requests no internet permission. Everything runs on your device.
 - **Free and libre word lists:** at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the [Lexicon](#lexicon).
+   - The word list artefacts created during the build process are in an optimized form to minimize disk and memory usage on mobile devices.
 - **Word definitions:** the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and public-domain glossaries. Words with no definition are noted rather than silently skipped.
 - **Two game modes:** Classic uses the standard 15x15 premium-square layout and tile economy, while Interesting uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
 - **Selectable AI difficulty:** choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard).
 - **Move history:** a running log of every turn - who played, the words formed, and the score - with an option to show it in standard Scrabble notation.
 - **Copy to clipboard:** the move-history and definitions panels are copyable. On desktop, select and copy; on a phone, long-press to copy the whole panel, while a finger-drag scrolls and a double or triple tap selects a word or line.
+   - For convenience and visibility, a dedicated "Copy" button is also provided in the game UI which will copy the contents of the active tab (Move history or Definitions) to the system clipboard.
 - **Undo:** take back the last full round - your move together with the computer's reply.
 - **Save and restore:** keep a single saved game and resume it later. The save captures the board, racks, scores, move history, and game mode.
 - **Remembered setup defaults:** optionally save your New Game choices - word list, game mode, difficulty, and notation - so that starting another game is a single tap.
