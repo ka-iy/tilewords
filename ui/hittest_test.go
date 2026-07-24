@@ -6,23 +6,26 @@ import (
 	"fyne.io/fyne/v2"
 )
 
-// TestCellAtRel maps board-relative positions to cells for a 480×480 board. With the
-// 0.6-cell label gutter the cells are 30px and the grid starts at (24,24), spanning
-// [24,474); the top and left gutters ([0,24)) belong to the labels, not any cell.
+// TestCellAtRel maps board-relative positions to cells for a 480×480 board. The label
+// gutter shifts the grid origin to (offX,offY); the top and left gutters belong to the
+// labels, not any cell. Coordinates are derived from the geometry so the test holds for
+// any gutter factor.
 func TestCellAtRel(t *testing.T) {
 	size := fyne.NewSize(480, 480)
+	cell, offX, offY := boardGeometry(size.Width, size.Height)
+	end := cell*boardDim - 1 // last pixel inside the grid
 	cases := []struct {
 		x, y   float32
 		wr, wc int
 		wok    bool
 	}{
-		{24, 24, 0, 0, true},     // first cell (grid origin, past the gutter)
-		{54, 24, 0, 1, true},     // second column
-		{24, 54, 1, 0, true},     // second row
-		{473, 473, 14, 14, true}, // last cell
-		{474, 474, 0, 0, false},  // just outside bottom-right
-		{23, 30, 0, 0, false},    // left gutter (row labels), left of the grid
-		{30, 23, 0, 0, false},    // top gutter (column labels), above the grid
+		{offX, offY, 0, 0, true},                                  // first cell (grid origin, past the gutter)
+		{offX + cell, offY, 0, 1, true},                           // second column
+		{offX, offY + cell, 1, 0, true},                           // second row
+		{offX + end, offY + end, 14, 14, true},                    // last cell
+		{offX + cell*boardDim, offY + cell*boardDim, 0, 0, false}, // just outside bottom-right
+		{offX - 1, offY + cell, 0, 0, false},                      // left gutter (row labels), left of the grid
+		{offX + cell, offY - 1, 0, 0, false},                      // top gutter (column labels), above the grid
 	}
 	for _, c := range cases {
 		r, col, ok := cellAtRel(fyne.NewPos(c.x, c.y), size)

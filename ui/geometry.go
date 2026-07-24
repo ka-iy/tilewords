@@ -30,9 +30,14 @@ const minCellPx = 24
 const minBoardPx = float32(minCellPx * (boardDim + labelGutterFactor))
 
 // boardLabelTextFactor is the row/column label glyph size, as a fraction of one cell.
-// It is small enough that a two-digit row number (e.g. "15") fits within the gutter
-// (labelGutterFactor cells) wide.
-const boardLabelTextFactor = 0.4
+// It is derived from labelGutterFactor, not tuned independently, so the two cannot drift
+// apart: the widest label — a two-digit row number like "15" — must fit within the gutter
+// (labelGutterFactor cells wide). A bold two-digit number renders about 1.2x as wide as
+// its text size, so sizing the glyph at two-thirds of the gutter leaves it occupying
+// roughly 80% of the gutter width — a comfortable margin that holds at every board size,
+// since the label width and the gutter both scale with the cell. Widening the gutter
+// therefore enlarges the glyph proportionally; there is no separate knob to set wrong.
+const boardLabelTextFactor = labelGutterFactor * 2 / 3
 
 // newBoardLabels builds the column labels (A–O, left to right) and row labels (1–15,
 // top to bottom) for the board, matching the Scrabble notation convention (columns are
@@ -156,6 +161,11 @@ func layoutBoardLabels(objects []fyne.CanvasObject, cell, offX, offY float32) {
 	gutter := cell * labelGutterFactor
 	textSize := cell * boardLabelTextFactor
 
+	// Each label's box is sized to its natural text height (not the cell/gutter height)
+	// so the text is not additionally vertically centred within an over-tall box; the
+	// centring offset below then places it at the exact middle of the cell/gutter. This
+	// mirrors how a cell's own premium label is centred (see layoutTileText).
+
 	// Column labels: one cell wide each, centred horizontally over the column and
 	// vertically within the top gutter.
 	for c := 0; c < boardDim; c++ {
@@ -168,13 +178,13 @@ func layoutBoardLabels(objects []fyne.CanvasObject, cell, offX, offY float32) {
 			continue
 		}
 		t.TextSize = textSize
-		t.Resize(fyne.NewSize(cell, gutter))
 		th := t.MinSize().Height
+		t.Resize(fyne.NewSize(cell, th))
 		t.Move(fyne.NewPos(offX+float32(c)*cell, offY-gutter+(gutter-th)/2))
 	}
 
 	// Row labels: one gutter wide each, centred horizontally within the left gutter
-	// and vertically beside the row.
+	// and vertically level with the middle of the row.
 	for r := 0; r < boardDim; r++ {
 		idx := nCells + boardDim + r
 		if idx >= len(objects) {
@@ -185,8 +195,8 @@ func layoutBoardLabels(objects []fyne.CanvasObject, cell, offX, offY float32) {
 			continue
 		}
 		t.TextSize = textSize
-		t.Resize(fyne.NewSize(gutter, cell))
 		th := t.MinSize().Height
+		t.Resize(fyne.NewSize(gutter, th))
 		t.Move(fyne.NewPos(offX-gutter, offY+float32(r)*cell+(cell-th)/2))
 	}
 }

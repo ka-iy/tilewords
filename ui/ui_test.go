@@ -11,33 +11,53 @@ import (
 	"tilewords/engine"
 )
 
+// approxEq reports whether two float32 geometry values are equal within a small
+// tolerance, tolerating the rounding of fractional gutter/offset arithmetic.
+func approxEq(a, b float32) bool {
+	d := a - b
+	return d < 1e-3 && d > -1e-3
+}
+
 // ---------- boardGeometry ----------
 
 func TestBoardGeometry_SquareReservesGutter(t *testing.T) {
-	// 480×480 with a 0.6-cell label gutter: cell = floor(480/15.6) = 30, gutter = 18,
-	// block = 18 + 30*15 = 468, so the grid starts at (480-468)/2 + 18 = 24 on both axes.
-	cell, offX, offY := boardGeometry(480, 480)
-	if cell != 30 {
-		t.Fatalf("cell: got %v want 30", cell)
+	// On a square area the cell is the largest that fits boardDim cells plus the label
+	// gutter, and the gutter-plus-grid block is centred with the grid past the gutter.
+	const side = 480
+	cell, offX, offY := boardGeometry(side, side)
+
+	// The cell is maximal: one pixel larger would overflow the area.
+	if (cell+1)*(boardDim+labelGutterFactor) <= side {
+		t.Fatalf("cell %v is not maximal for side %d", cell, side)
 	}
-	if offX != 24 || offY != 24 {
-		t.Fatalf("offsets: got (%v,%v) want (24,24)", offX, offY)
+	gutter := cell * labelGutterFactor
+	block := gutter + cell*boardDim
+	if block > side+1e-3 {
+		t.Fatalf("block %v does not fit in side %d", block, side)
+	}
+	// The grid sits one gutter past the left/top of a centred block.
+	wantOff := (side-block)/2 + gutter
+	if !approxEq(offX, wantOff) || !approxEq(offY, wantOff) {
+		t.Fatalf("offsets: got (%v,%v) want (%v,%v)", offX, offY, wantOff, wantOff)
 	}
 }
 
 func TestBoardGeometry_WideAreaCentres(t *testing.T) {
-	// 600 wide × 480 tall → square side 480, cell 30, gutter 18, block 468. The block is
-	// centred horizontally ((600-468)/2 = 66) with the grid past the gutter (66+18 = 84);
-	// vertically it fits exactly ((480-468)/2 + 18 = 24).
-	cell, offX, offY := boardGeometry(600, 480)
-	if cell != 30 {
-		t.Fatalf("cell: got %v want 30", cell)
+	// 600 wide × 480 tall → the square is bounded by the height (480); the block is
+	// centred within the full width while fitting exactly in the height.
+	const w, h = 600, 480
+	cell, offX, offY := boardGeometry(w, h)
+	gutter := cell * labelGutterFactor
+	block := gutter + cell*boardDim
+	if !approxEq(offX, (w-block)/2+gutter) {
+		t.Fatalf("offX: got %v want %v (centred in width)", offX, (w-block)/2+gutter)
 	}
-	if offX != 84 {
-		t.Fatalf("offX: got %v want 84", offX)
+	if !approxEq(offY, (h-block)/2+gutter) {
+		t.Fatalf("offY: got %v want %v (fits height)", offY, (h-block)/2+gutter)
 	}
-	if offY != 24 {
-		t.Fatalf("offY: got %v want 24", offY)
+	// The wider axis leaves a strictly larger margin than the tighter one.
+	if offX <= offY {
+		t.Fatalf("offX %v should exceed offY %v when the area is wider than tall", offX, offY)
 	}
 }
 
