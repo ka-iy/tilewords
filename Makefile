@@ -41,9 +41,24 @@ ANDROID_NDK_HOME ?= $(ANDROID_HOME)/ndk/$(shell ls $(ANDROID_HOME)/ndk 2>/dev/nu
 ANDROID_BUILD_TOOLS ?= $(ANDROID_HOME)/build-tools/$(shell ls $(ANDROID_HOME)/build-tools 2>/dev/null | sort -V | tail -1)
 APKSIGNER            = $(ANDROID_BUILD_TOOLS)/apksigner
 
+# JVM options for apksigner. JDK 24+ enforces JEP 472 (restricted native access), so
+# apksigner's Conscrypt provider calling System.loadLibrary prints a "restricted method"
+# warning unless native access is granted. The apksigner wrapper forwards a leading
+# -J<opt> to the JVM adding one dash, so -J-enable-native-access=ALL-UNNAMED reaches the
+# JVM as --enable-native-access=ALL-UNNAMED and silences the warning. It must precede the
+# apksigner subcommand. Override to empty on a JDK that does not recognise the flag.
+APKSIGNER_JVM_OPTS  ?= -J-enable-native-access=ALL-UNNAMED
+
 # bundletool — required by the android-release* (.aab) and android-release-apk* targets.
 # Expected on PATH (e.g. `brew install bundletool`); override if it lives elsewhere.
 BUNDLETOOL ?= bundletool
+
+# JVM options for bundletool. Like apksigner (see APKSIGNER_JVM_OPTS), its signing path
+# triggers the JDK 24+ JEP 472 native-access warning. bundletool is a bare `java -jar`
+# wrapper with no -J hook, so the flag is passed via JAVA_TOOL_OPTIONS (see the recipe);
+# the JVM prints one benign "Picked up JAVA_TOOL_OPTIONS: …" line in exchange. Override to
+# empty on a JDK that does not recognise the flag.
+BUNDLETOOL_JVM_OPTS ?= --enable-native-access=ALL-UNNAMED
 
 # Debug keystore for the android-* debug APKs. If $(DEBUG_KEYSTORE) exists, those targets
 # re-sign the APK with it; otherwise the APK keeps the fyne debug key/cert signature. It is
@@ -326,7 +341,7 @@ mv $(CMD)/$(APP_NAME).apk $(BINARY)-$(2).apk
 mv $(CMD)/$(APP_NAME).apk.idsig $(BINARY)-$(2).apk.idsig
 if [ -f "$(DEBUG_KEYSTORE)" ]; then \
 	echo ">> re-signing $(BINARY)-$(2).apk with $(DEBUG_KEYSTORE)"; \
-	"$(APKSIGNER)" sign --ks "$(DEBUG_KEYSTORE)" --ks-pass pass:$(DEBUG_KEYSTORE_PASS) \
+	"$(APKSIGNER)" $(APKSIGNER_JVM_OPTS) sign --ks "$(DEBUG_KEYSTORE)" --ks-pass pass:$(DEBUG_KEYSTORE_PASS) \
 		--ks-key-alias $(DEBUG_KEY_ALIAS) --key-pass pass:$(DEBUG_KEYSTORE_PASS) \
 		--v4-signing-enabled true "$(BINARY)-$(2).apk"; \
 else \
@@ -358,7 +373,7 @@ endef
 # bundle yields that single ABI and the universal bundle yields all of them. bundletool
 # writes an APK Set (.apks, a zip holding universal.apk); we extract it and drop the set.
 define bundletool-release-apk
-$(BUNDLETOOL) build-apks \
+JAVA_TOOL_OPTIONS='$(BUNDLETOOL_JVM_OPTS)' $(BUNDLETOOL) build-apks \
 	--bundle=$(BINARY)-release-$(1).aab \
 	--output=$(BINARY)-release-$(1).apks \
 	--mode=universal \

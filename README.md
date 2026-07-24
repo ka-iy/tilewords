@@ -155,14 +155,43 @@ make help     # list every target with a description
 
 ### Android builds (optional)
 
+Android builds need the Android SDK and NDK. Install the build CLIs and point the
+environment at your SDK/NDK:
+
 ```bash
 make install-mobile-tools     # install the fyne + gomobile CLIs
 # then set ANDROID_HOME and ANDROID_NDK_HOME to your SDK/NDK locations
+```
+
+**Debug APK** (self-signed with a throwaway debug key, for local testing):
+
+```bash
 make android                  # debug APK for arm64-v8a
 ```
 
-Signed release bundles/APKs require a keystore; see `make help` and the comments in
-the `Makefile` for the release targets.
+**Signed release build.** A release build must be signed, so it **requires a valid Java
+keystore and signing certificate** that you generate yourself and keep private (never
+commit it — `*.keystore` is git-ignored). Create one with the JDK's `keytool`:
+
+```bash
+keytool -genkey -v -keystore release.keystore \
+        -alias tilewords -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Then build, supplying the keystore path, its password, and the key alias (these default
+to `release.keystore` / `changeme` / `tilewords`, so override at least `KEYSTORE_PASS`):
+
+```bash
+# signed .aab for all ABIs
+make android-release \
+  KEYSTORE=release.keystore KEYSTORE_PASS=<your-password> KEY_ALIAS=tilewords
+
+# signed universal APK (needs bundletool on PATH: brew install bundletool)
+make android-release-apk \
+  KEYSTORE=release.keystore KEYSTORE_PASS=<your-password> KEY_ALIAS=tilewords
+```
+
+Run `make help` for the full list of per-ABI debug and release targets.
 
 ## Lexicon
 
