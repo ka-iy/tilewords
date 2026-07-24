@@ -251,7 +251,8 @@ defs-audit: ## Report per-list definition coverage and the deduplicated set of u
 	@test -f "$(DEFS_ASSET)" || { echo "make defs-audit: $(DEFS_ASSET) not found; run 'make defs' first."; exit 1; }
 	$(MISSAUDIT) -db $(DEFS_ASSET) $(WORDLIST_SRCS)
 
-# ── Desktop ───────────────────────────────────────────────────────────────────
+# ── Native desktop ────────────────────────────────────────────────────────────
+##@ Native desktop
 
 all: build ## Build the native desktop binary (default target)
 
@@ -280,6 +281,9 @@ install-desktop: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Install the
 	-cd $(CMD) && fyne install --release --icon $(ICON) --app-id $(APP_ID)
 	rm -f $(CMD)/FyneApp.toml
 
+# ── Development ───────────────────────────────────────────────────────────────
+##@ Development
+
 test: ## Run all tests with the race detector
 	go test -race ./...
 
@@ -295,6 +299,7 @@ clean: ## Remove build artefacts and generated GADDAG assets
 	rm -f $(ABOUT_ASSET)
 
 # ── Mobile tooling ────────────────────────────────────────────────────────────
+##@ Mobile tooling
 
 # NOTE: TileWords's Android build needs a PATCHED fyne CLI (targets SDK 36 and adds v2/v3/v4
 # signing + zipalign). Install it from the fork instead of the upstream line below, e.g.
