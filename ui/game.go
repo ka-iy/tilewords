@@ -282,10 +282,17 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 
 	// The score counters show as one centred row, wrapping to two rows (the two scores,
 	// then the bag/move/level counters) only when the width cannot fit the single row.
-	statusBar := container.NewVBox(
-		newStatusCounters(gs.youLabel, gs.aiLabel, gs.bagLabel, gs.moveLabel, gs.levelLabel),
-		gs.statusRT,
-	)
+	counters := newStatusCounters(gs.youLabel, gs.aiLabel, gs.bagLabel, gs.moveLabel, gs.levelLabel)
+	statusItems := make([]fyne.CanvasObject, 0, 3)
+	// The word list is fixed for the whole game; show it above the score counters.
+	if gs.dict != nil {
+		wordList := widget.NewLabelWithStyle("Word list: "+dictShortName(gs.dict.Name()),
+			fyne.TextAlignCenter, fyne.TextStyle{Italic: true})
+		wordList.Wrapping = fyne.TextWrapWord
+		statusItems = append(statusItems, wordList)
+	}
+	statusItems = append(statusItems, counters, gs.statusRT)
+	statusBar := container.NewVBox(statusItems...)
 
 	// Control buttons (shared across layouts; arranged differently per layout). Each
 	// flashes briefly when tapped (see newControlButton / flashPress).

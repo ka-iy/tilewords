@@ -2,6 +2,8 @@
 
 A Scrabble®-like offline crossword tile game, written in Go with [Fyne](https://fyne.io/).
 
+See the note at the very bottom for why I felt the need to make this.
+
 ## About
 
 TileWords is a Scrabble®-like offline crossword tile game in which you play against the computer, using individual letters to construct cromulent words on a game board to gain the endorphin hit from watching those sweet sweet points _racking_ (heh heh) up. Plus, since it shows the definitions for words whose definitions it knows, it's a learning tool too!
