@@ -41,24 +41,25 @@ ANDROID_NDK_HOME ?= $(ANDROID_HOME)/ndk/$(shell ls $(ANDROID_HOME)/ndk 2>/dev/nu
 ANDROID_BUILD_TOOLS ?= $(ANDROID_HOME)/build-tools/$(shell ls $(ANDROID_HOME)/build-tools 2>/dev/null | sort -V | tail -1)
 APKSIGNER            = $(ANDROID_BUILD_TOOLS)/apksigner
 
-# JVM options for apksigner. JDK 24+ enforces JEP 472 (restricted native access), so
-# apksigner's Conscrypt provider calling System.loadLibrary prints a "restricted method"
-# warning unless native access is granted. The apksigner wrapper forwards a leading
-# -J<opt> to the JVM adding one dash, so -J-enable-native-access=ALL-UNNAMED reaches the
-# JVM as --enable-native-access=ALL-UNNAMED and silences the warning. It must precede the
-# apksigner subcommand. Override to empty on a JDK that does not recognise the flag.
-APKSIGNER_JVM_OPTS  ?= -J-enable-native-access=ALL-UNNAMED
+# Silencing the JDK 24+ JEP 472 warning ("restricted method … System::loadLibrary … by
+# org.conscrypt … apksigner.jar"): apksigner's Conscrypt provider loads a native library the
+# JVM warns about unless native access is granted. This affects apksigner however it is
+# launched — the Makefile's own re-signing call below, and (the usual source of the warning)
+# the apksigner that `fyne package`/`fyne release` and `bundletool` spawn internally. The same
+# flag is applied in two forms:
+#   - APKSIGNER_JVM_OPTS: the apksigner wrapper forwards a leading -J<opt> to the JVM adding
+#     one dash, so -J-enable-native-access=ALL-UNNAMED reaches it as
+#     --enable-native-access=ALL-UNNAMED. It must precede the apksigner subcommand.
+#   - JVM_NATIVE_ACCESS: the plain flag, exported via JAVA_TOOL_OPTIONS to fyne and bundletool
+#     (bare `java -jar` wrappers with no -J hook) so the signer they spawn inherits it. The JVM
+#     prints one benign "Picked up JAVA_TOOL_OPTIONS: …" line per spawned tool in exchange.
+# Override either to empty on a JDK that does not recognise the flag.
+APKSIGNER_JVM_OPTS ?= -J-enable-native-access=ALL-UNNAMED
+JVM_NATIVE_ACCESS  ?= --enable-native-access=ALL-UNNAMED
 
 # bundletool — required by the android-release* (.aab) and android-release-apk* targets.
 # Expected on PATH (e.g. `brew install bundletool`); override if it lives elsewhere.
 BUNDLETOOL ?= bundletool
-
-# JVM options for bundletool. Like apksigner (see APKSIGNER_JVM_OPTS), its signing path
-# triggers the JDK 24+ JEP 472 native-access warning. bundletool is a bare `java -jar`
-# wrapper with no -J hook, so the flag is passed via JAVA_TOOL_OPTIONS (see the recipe);
-# the JVM prints one benign "Picked up JAVA_TOOL_OPTIONS: …" line in exchange. Override to
-# empty on a JDK that does not recognise the flag.
-BUNDLETOOL_JVM_OPTS ?= --enable-native-access=ALL-UNNAMED
 
 # Debug keystore for the android-* debug APKs. If $(DEBUG_KEYSTORE) exists, those targets
 # re-sign the APK with it; otherwise the APK keeps the fyne debug key/cert signature. It is
@@ -330,6 +331,7 @@ define fyne-package-apk
 cd $(CMD) && \
 ANDROID_HOME=$(ANDROID_HOME) \
 ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
+JAVA_TOOL_OPTIONS='$(JVM_NATIVE_ACCESS)' \
 fyne package \
 	-os $(1) \
 	--name $(APP_NAME) \
@@ -354,6 +356,7 @@ define fyne-release-aab
 cd $(CMD) && \
 ANDROID_HOME=$(ANDROID_HOME) \
 ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
+JAVA_TOOL_OPTIONS='$(JVM_NATIVE_ACCESS)' \
 fyne release \
 	-os $(1) \
 	--name $(APP_NAME) \
@@ -373,7 +376,7 @@ endef
 # bundle yields that single ABI and the universal bundle yields all of them. bundletool
 # writes an APK Set (.apks, a zip holding universal.apk); we extract it and drop the set.
 define bundletool-release-apk
-JAVA_TOOL_OPTIONS='$(BUNDLETOOL_JVM_OPTS)' $(BUNDLETOOL) build-apks \
+JAVA_TOOL_OPTIONS='$(JVM_NATIVE_ACCESS)' $(BUNDLETOOL) build-apks \
 	--bundle=$(BINARY)-release-$(1).aab \
 	--output=$(BINARY)-release-$(1).apks \
 	--mode=universal \
