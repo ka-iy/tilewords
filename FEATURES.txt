@@ -1,4 +1,4 @@
-• Offline and private: the game needs no network connection and requests no internet permission. Everything runs on your device.
+• Free, offline and private: the game is open-source, requires no payment, and will never track you or show you ads. It needs no network connection and requests no internet permission. Everything runs on your device.
 
 • Free and libre word lists: at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the Lexicon.
 

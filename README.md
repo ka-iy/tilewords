@@ -2,7 +2,7 @@
 
 A Scrabble®-like offline crossword tile game, written in Go with [Fyne](https://fyne.io/).
 
-See the note at the very bottom for why I felt the need to make this.
+See the note at the very bottom for why I felt the need to make this. And yes, this was built using AI. The note explains that too.
 
 ## About
 
@@ -18,7 +18,7 @@ SCRABBLE® is a registered trademark. All intellectual property rights in and to
 
 ## Features
 
-- **Offline and private:** the game needs no network connection and requests no internet permission. Everything runs on your device.
+- **Free, offline and private:** the game is open-source, requires no payment, and will never track you or show you ads. It needs no network connection and requests no internet permission. Everything runs on your device.
 - **Free and libre word lists:** at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the [Lexicon](#lexicon).
    - The word list artefacts created during the build process are in an optimized form to minimize disk and memory usage on mobile devices.
 - **Word definitions:** the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and public-domain glossaries. Words with no definition are noted rather than silently skipped.
