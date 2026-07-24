@@ -13,28 +13,31 @@ import (
 
 // ---------- boardGeometry ----------
 
-func TestBoardGeometry_ExactSquare(t *testing.T) {
-	// 480×480 → 32px cells, no offset.
+func TestBoardGeometry_SquareReservesGutter(t *testing.T) {
+	// 480×480 with a 0.6-cell label gutter: cell = floor(480/15.6) = 30, gutter = 18,
+	// block = 18 + 30*15 = 468, so the grid starts at (480-468)/2 + 18 = 24 on both axes.
 	cell, offX, offY := boardGeometry(480, 480)
-	if cell != 32 {
-		t.Fatalf("cell: got %v want 32", cell)
+	if cell != 30 {
+		t.Fatalf("cell: got %v want 30", cell)
 	}
-	if offX != 0 || offY != 0 {
-		t.Fatalf("offsets: got (%v,%v) want (0,0)", offX, offY)
+	if offX != 24 || offY != 24 {
+		t.Fatalf("offsets: got (%v,%v) want (24,24)", offX, offY)
 	}
 }
 
 func TestBoardGeometry_WideAreaCentres(t *testing.T) {
-	// 600 wide × 480 tall → square side 480, cell 32, centred horizontally.
+	// 600 wide × 480 tall → square side 480, cell 30, gutter 18, block 468. The block is
+	// centred horizontally ((600-468)/2 = 66) with the grid past the gutter (66+18 = 84);
+	// vertically it fits exactly ((480-468)/2 + 18 = 24).
 	cell, offX, offY := boardGeometry(600, 480)
-	if cell != 32 {
-		t.Fatalf("cell: got %v want 32", cell)
+	if cell != 30 {
+		t.Fatalf("cell: got %v want 30", cell)
 	}
-	if offX != 60 {
-		t.Fatalf("offX: got %v want 60", offX)
+	if offX != 84 {
+		t.Fatalf("offX: got %v want 84", offX)
 	}
-	if offY != 0 {
-		t.Fatalf("offY: got %v want 0", offY)
+	if offY != 24 {
+		t.Fatalf("offY: got %v want 24", offY)
 	}
 }
 

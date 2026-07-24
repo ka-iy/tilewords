@@ -44,14 +44,14 @@ func TestPhoneColumn_FitsSubMinimumViewport(t *testing.T) {
 	board := canvas.NewRectangle(color.Black)
 	board.SetMinSize(fyne.NewSize(minBoardPx, minBoardPx))
 	l := phoneColumnLayout{board: board, minBoard: minBoardPx}
-	const viewport = minBoardPx - 8 // 352 on the measured device
+	const viewport = minBoardPx - 8 // a viewport just under the board's preferred minimum
 
 	if w := l.MinSize([]fyne.CanvasObject{board}).Width; w > viewport {
-		t.Fatalf("MinSize width %.0f exceeds sub-minimum viewport %d; content would be forced past the screen", w, viewport)
+		t.Fatalf("MinSize width %.0f exceeds sub-minimum viewport %.0f; content would be forced past the screen", w, viewport)
 	}
 	l.Layout([]fyne.CanvasObject{board}, fyne.NewSize(viewport, 1000))
 	if bw := board.Size().Width; bw > viewport {
-		t.Errorf("board width %.0f exceeds viewport %d (right edge clipped)", bw, viewport)
+		t.Errorf("board width %.0f exceeds viewport %.0f (right edge clipped)", bw, viewport)
 	}
 }
 

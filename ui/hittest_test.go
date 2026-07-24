@@ -6,8 +6,9 @@ import (
 	"fyne.io/fyne/v2"
 )
 
-// TestCellAtRel maps board-relative positions to cells for a 480×480 board (32px
-// cells, no centring offset).
+// TestCellAtRel maps board-relative positions to cells for a 480×480 board. With the
+// 0.6-cell label gutter the cells are 30px and the grid starts at (24,24), spanning
+// [24,474); the top and left gutters ([0,24)) belong to the labels, not any cell.
 func TestCellAtRel(t *testing.T) {
 	size := fyne.NewSize(480, 480)
 	cases := []struct {
@@ -15,13 +16,13 @@ func TestCellAtRel(t *testing.T) {
 		wr, wc int
 		wok    bool
 	}{
-		{0, 0, 0, 0, true},
-		{33, 1, 0, 1, true},      // second column
-		{1, 33, 1, 0, true},      // second row
-		{479, 479, 14, 14, true}, // last cell
-		{480, 480, 0, 0, false},  // just outside bottom-right
-		{-1, 5, 0, 0, false},     // left of the grid
-		{5, -1, 0, 0, false},     // above the grid
+		{24, 24, 0, 0, true},     // first cell (grid origin, past the gutter)
+		{54, 24, 0, 1, true},     // second column
+		{24, 54, 1, 0, true},     // second row
+		{473, 473, 14, 14, true}, // last cell
+		{474, 474, 0, 0, false},  // just outside bottom-right
+		{23, 30, 0, 0, false},    // left gutter (row labels), left of the grid
+		{30, 23, 0, 0, false},    // top gutter (column labels), above the grid
 	}
 	for _, c := range cases {
 		r, col, ok := cellAtRel(fyne.NewPos(c.x, c.y), size)

@@ -248,6 +248,11 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 			boardObjs = append(boardObjs, c)
 		}
 	}
+	// Row/column labels follow the cells; boardLayout positions them in the gutters
+	// reserved along the top (A–O) and left (1–15) edges.
+	colLabels, rowLabels := newBoardLabels()
+	boardObjs = append(boardObjs, colLabels...)
+	boardObjs = append(boardObjs, rowLabels...)
 	board := container.New(boardLayout{}, boardObjs...)
 	gs.boardBox = board
 
