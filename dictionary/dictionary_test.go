@@ -2,7 +2,8 @@ package dictionary
 
 import (
 	"bytes"
-	"encoding/gob"
+	"encoding/binary"
+	"strings"
 	"testing"
 
 	"pgregory.net/rapid"
@@ -294,22 +295,101 @@ func TestBuild_Minimized(t *testing.T) {
 	}
 }
 
-// TestLoadGADDAG_RejectsInconsistentCSR verifies that a decodable gob whose CSR arrays are
-// inconsistent is rejected. Without this guard, an edgeOffsets array shorter than
-// NodeCount+1 would let Successor index out of range and panic during traversal.
-func TestLoadGADDAG_RejectsInconsistentCSR(t *testing.T) {
-	wd := gaddagData{
-		EdgeOffsets: []uint32{0, 0}, // NodeCount 3 requires length 4
-		Terminal:    []uint64{0},
-		Root:        RootNodeID,
-		NodeCount:   3,
+// rawAsset is a hand-built GADDAG asset stream, mirroring the layout writeGADDAG produces
+// so a test can corrupt one field at a time.
+type rawAsset struct {
+	magic      string
+	nodeCount  uint64
+	edgeCount  uint64
+	wordCount  uint64
+	root       uint64
+	edgeCounts []uint64
+	letters    string
+	targets    []uint64
+	termWords  int
+}
+
+// validAsset describes a two-node, one-edge graph that loadGADDAG must accept.
+func validAsset() rawAsset {
+	return rawAsset{
+		magic:      assetMagic,
+		nodeCount:  2,
+		edgeCount:  1,
+		wordCount:  1,
+		root:       uint64(RootNodeID),
+		edgeCounts: []uint64{0, 1},
+		letters:    "a",
+		targets:    []uint64{0},
+		termWords:  1,
 	}
-	var buf bytes.Buffer
-	if err := gob.NewEncoder(&buf).Encode(wd); err != nil {
-		t.Fatalf("encode: %v", err)
+}
+
+// encode serialises the asset exactly as writeGADDAG would, without validating anything.
+func (a rawAsset) encode() []byte {
+	var out []byte
+	out = append(out, a.magic...)
+	for _, v := range []uint64{a.nodeCount, a.edgeCount, a.wordCount, a.root} {
+		out = binary.AppendUvarint(out, v)
 	}
-	if _, err := loadGADDAG(buf.Bytes()); err == nil {
-		t.Fatal("loadGADDAG accepted a GADDAG whose edgeOffsets length is inconsistent with NodeCount")
+	for _, v := range a.edgeCounts {
+		out = binary.AppendUvarint(out, v)
+	}
+	out = append(out, a.letters...)
+	for _, v := range a.targets {
+		out = binary.AppendUvarint(out, v)
+	}
+	for i := 0; i < a.termWords; i++ {
+		out = binary.LittleEndian.AppendUint64(out, 0)
+	}
+	return out
+}
+
+// TestLoadGADDAG_AcceptsValidAsset checks the fixture the corruption cases below are derived
+// from is itself valid, so those cases fail for the reason intended.
+func TestLoadGADDAG_AcceptsValidAsset(t *testing.T) {
+	g, err := loadGADDAG(validAsset().encode())
+	if err != nil {
+		t.Fatalf("loadGADDAG rejected the valid fixture: %v", err)
+	}
+	if g.nodeCount != 2 || len(g.edgeLetters) != 1 {
+		t.Errorf("decoded %d nodes / %d edges, want 2 / 1", g.nodeCount, len(g.edgeLetters))
+	}
+	if target, ok := g.Successor(RootNodeID, 'a'); !ok || target != 0 {
+		t.Errorf("Successor(root,'a') = %d,%v; want 0,true", target, ok)
+	}
+}
+
+// TestLoadGADDAG_RejectsMalformedAsset verifies that a malformed asset is rejected at load.
+// Without these guards a bad edge count or target would let Successor index out of range and
+// panic during traversal, so each case corrupts one field of an otherwise valid stream.
+func TestLoadGADDAG_RejectsMalformedAsset(t *testing.T) {
+	cases := []struct {
+		name    string
+		corrupt func(*rawAsset)
+		want    string
+	}{
+		{"wrong magic", func(a *rawAsset) { a.magic = "TWGDDG\x00\n" }, "not a GADDAG asset"},
+		{"edge counts overrun", func(a *rawAsset) { a.edgeCounts = []uint64{0, 5} }, "overrun the edge total"},
+		{"edge counts short", func(a *rawAsset) { a.edgeCounts = []uint64{0, 0} }, "cover 0 of 1 edges"},
+		{"target out of range", func(a *rawAsset) { a.targets = []uint64{9} }, "targets node 9 of 2"},
+		{"bad root", func(a *rawAsset) { a.root = 0 }, "invalid root node"},
+		{"root beyond node count", func(a *rawAsset) { a.nodeCount = 1; a.edgeCounts = []uint64{1} }, "root node"},
+		{"node count beyond maximum", func(a *rawAsset) { a.nodeCount = maxAssetCount + 1 }, "beyond the"},
+		{"truncated bitset", func(a *rawAsset) { a.termWords = 0 }, "terminal bitset"},
+		{"truncated letters", func(a *rawAsset) { a.letters = ""; a.targets = nil; a.termWords = 0 }, "edge letters"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := validAsset()
+			tc.corrupt(&a)
+			_, err := loadGADDAG(a.encode())
+			if err == nil {
+				t.Fatal("loadGADDAG accepted a malformed asset")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error = %q, want it to mention %q", err, tc.want)
+			}
+		})
 	}
 }
 

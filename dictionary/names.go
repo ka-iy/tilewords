@@ -7,7 +7,7 @@ type DictName string
 const (
 	// DictAtebits selects the atebits word list (the public-domain list shipped with
 	// the Letterpress game). The value matches its wordlists/<name>.txt stem so the
-	// build compiles it to assets/dictionaries/atebits-letterpress.gob.
+	// build compiles it to assets/dictionaries/atebits-letterpress.bin.
 	DictAtebits DictName = "atebits-letterpress"
 
 	// DictENABLE selects the ENABLE2K word list (Enhanced North American Benchmark LExicon).

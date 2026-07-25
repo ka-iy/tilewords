@@ -10,7 +10,7 @@ import (
 //go:embed all:assets/dictionaries
 var embeddedAssets embed.FS
 
-// A loaded GADDAG's in-memory size is close to its on-disk .gob, since both are the
+// A loaded GADDAG's in-memory size is close to its on-disk asset, since both are the
 // same flat slice-of-integers representation (the largest shipped list is on the order
 // of ~10 MB resident). Decoding one still allocates and copies those slices, so Load
 // caches the most recently loaded dictionary: re-loading the same name (e.g. starting a
@@ -30,13 +30,13 @@ var (
 	cachedDict *Dictionary
 )
 
-// assetPath maps a DictName to its embedded .gob file path.
+// assetPath maps a DictName to its embedded asset file path.
 func assetPath(name DictName) string {
-	return "assets/dictionaries/" + string(name) + ".gob"
+	return "assets/dictionaries/" + string(name) + ".bin"
 }
 
 // Available reports whether the embedded GADDAG asset for name exists in the binary.
-// Returns false for any name whose .gob was not present when the binary was compiled.
+// Returns false for any name whose asset was not present when the binary was compiled.
 func Available(name DictName) bool {
 	f, err := embeddedAssets.Open(assetPath(name))
 	if err != nil {

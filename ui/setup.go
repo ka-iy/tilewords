@@ -17,7 +17,7 @@ import (
 
 // dictPlayableWords is the number of playable words (2–15 letters, A–Z only, after
 // dedup) in each dictionary's embedded GADDAG asset, shown in the setup menu. These are
-// fixed properties of the committed .gob assets; recompute for a rebuilt list with:
+// fixed properties of the generated GADDAG assets; recompute for a rebuilt list with:
 //
 //	tr a-z A-Z < wordlists/<name>.txt | grep -xE '[A-Z]{2,15}' | sort -u | wc -l
 var dictPlayableWords = map[dictionary.DictName]int{

@@ -1,6 +1,7 @@
 .aidlc
 
-# Dictionary gobs
+# Generated GADDAG dictionary assets
+*.bin
 *.gob
 
 # Claude's Test data

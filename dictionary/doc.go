@@ -15,7 +15,7 @@
 //
 // # Word List Assets
 //
-// Pre-built GADDAG assets (.gob files) are embedded in the binary via //go:embed and live
+// Pre-built GADDAG assets (.bin files) are embedded in the binary via //go:embed and live
 // in assets/dictionaries/. The raw word list .txt sources are NOT committed to the repository
 // (licensing); developers must supply them and run the build tool before compiling:
 //

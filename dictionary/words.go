@@ -7,7 +7,7 @@ import (
 )
 
 // NewFromWords builds a Dictionary directly from a word list without requiring
-// pre-built .gob assets. Words are normalised, sorted, and deduplicated before
+// pre-built .bin assets. Words are normalised, sorted, and deduplicated before
 // GADDAG construction. This is useful in tests and tooling where embedded assets
 // are not available.
 func NewFromWords(name DictName, words []string) (*Dictionary, error) {

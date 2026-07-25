@@ -198,7 +198,7 @@ release-all: build-prod windows-release android-release ## Build every release a
 # ── GADDAG assets ─────────────────────────────────────────────────────────────
 #
 # Every word list found at $(WORDLISTS_DIR)/<name>.txt is compiled to a matching
-# GADDAG asset at $(DICT_DIR)/<name>.gob by the single pattern rule below. To add a
+# GADDAG asset at $(DICT_DIR)/<name>.bin by the single pattern rule below. To add a
 # new dictionary, just drop its <name>.txt into wordlists/ — it is discovered and
 # built automatically, with no new Makefile rule required. (Also register <name> in
 # dictionary.AllDictNames so the game offers it in the setup menu.)
@@ -227,18 +227,18 @@ WL_ATEBITS     ?= $(WORDLISTS_DIR)/atebits-letterpress.txt
 WORDLIST_DOWNLOADS := $(WL_ENABLE) $(WL_WORDNIK) $(WL_ATEBITS)
 
 # Discover every word list currently present and map each to its GADDAG asset:
-#   wordlists/<name>.txt  →  dictionary/assets/dictionaries/<name>.gob
+#   wordlists/<name>.txt  →  dictionary/assets/dictionaries/<name>.bin
 WORDLIST_SRCS := $(wildcard $(WORDLISTS_DIR)/*.txt)
-GADDAG_ASSETS := $(patsubst $(WORDLISTS_DIR)/%.txt,$(DICT_DIR)/%.gob,$(WORDLIST_SRCS))
+GADDAG_ASSETS := $(patsubst $(WORDLISTS_DIR)/%.txt,$(DICT_DIR)/%.bin,$(WORDLIST_SRCS))
 
 # The three shipped lists' assets, named explicitly rather than left to $(GADDAG_ASSETS).
 # That wildcard is expanded when make parses this file, so it cannot see a list that is
 # still to be downloaded; naming these means one `make` on a checkout missing a list fetches
 # it, compiles its GADDAG and builds, instead of quietly producing a binary without it.
 # Anything else under wordlists/ is picked up by $(GADDAG_ASSETS) as before.
-GADDAG_ENABLE  := $(DICT_DIR)/enable.gob
-GADDAG_WORDNIK := $(DICT_DIR)/wordnik.gob
-GADDAG_ATEBITS := $(DICT_DIR)/atebits-letterpress.gob
+GADDAG_ENABLE  := $(DICT_DIR)/enable.bin
+GADDAG_WORDNIK := $(DICT_DIR)/wordnik.bin
+GADDAG_ATEBITS := $(DICT_DIR)/atebits-letterpress.bin
 
 GADDAG_SHIPPED := $(GADDAG_ENABLE) $(GADDAG_WORDNIK) $(GADDAG_ATEBITS)
 
@@ -275,7 +275,7 @@ $(WL_ATEBITS): | $(WORDLISTS_DIR)
 	mv $@.part $@
 
 # Compile any word list into its GADDAG asset. The stem ($*) is the dictionary name.
-$(DICT_DIR)/%.gob: $(WORDLISTS_DIR)/%.txt | $(DICT_DIR)
+$(DICT_DIR)/%.bin: $(WORDLISTS_DIR)/%.txt | $(DICT_DIR)
 	$(BUILDGADDAG) -input $< -output $@ -name $*
 
 # ── Definitions asset ─────────────────────────────────────────────────────────
@@ -569,7 +569,7 @@ clean: ## Remove built binaries and packages (cheap to rebuild)
 # several GB and reprocesses it. Use plain 'clean' unless the assets themselves are what you
 # need to rebuild.
 clean-all-the-things: clean clean-defs-sources ## Remove the above PLUS every generated asset and downloaded source
-	rm -f $(DICT_DIR)/*.gob $(DICT_DIR)/*.gob.tmp
+	rm -f $(DICT_DIR)/*.bin $(DICT_DIR)/*.bin.tmp
 # The asset, plus the staging file and the temporaries the tools write beside it.
 	rm -f $(DEFS_ASSET) $(DEFS_ASSET).tmp $(DEFS_STAGE) $(DEFS_STAGE).tmp
 # Partial downloads beside a source kept elsewhere: clean-defs-sources handles the default

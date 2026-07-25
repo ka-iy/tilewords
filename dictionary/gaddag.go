@@ -2,8 +2,9 @@
 package dictionary
 
 import (
+	"bufio"
 	"bytes"
-	"encoding/gob"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"sort"
@@ -27,41 +28,52 @@ const MaxWordLen = 15
 // NodeID identifies a node in the GADDAG graph.
 type NodeID uint32
 
-// gaddagData is the gob-compatible wire format for GADDAG serialisation. It stores the
-// graph in a compressed-sparse-row (CSR) layout of flat slices rather than nested maps,
-// which decodes into a far smaller heap footprint and hands its slices straight into the
-// in-memory GADDAG with no post-decode copy. All fields are exported for encoding/gob.
-type gaddagData struct {
-	// EdgeOffsets has length NodeCount+1. Node id's outgoing edges occupy the index range
-	// [EdgeOffsets[id], EdgeOffsets[id+1]) in EdgeLetters/EdgeTargets.
-	EdgeOffsets []uint32
-	// EdgeLetters is every edge's label byte, grouped by source node and ascending within
-	// a node so a node's edges can be binary-searched by letter.
-	EdgeLetters []byte
-	// EdgeTargets is the destination node for the edge at the same index in EdgeLetters.
-	EdgeTargets []NodeID
-	// Terminal is a bitset over node ids: node id is terminal iff bit (id & 63) of
-	// Terminal[id>>6] is set.
-	Terminal []uint64
-	// Root is the root node id (always RootNodeID).
-	Root NodeID
-	// NodeCount is one past the highest node id; valid ids are [0, NodeCount).
-	NodeCount uint32
-	// WordCount is the number of distinct words stored in the graph.
-	WordCount uint32
-}
+// The on-disk asset is a byte stream, written and read field by field in the order below.
+// The graph is a compressed-sparse-row (CSR) layout of flat slices, so the stream is those
+// slices with two encodings chosen to shrink the asset:
+//
+//	magic       assetMagic
+//	counts      node count, edge count, word count, root id
+//	edgeCounts  one varint per node: how many out-edges it has
+//	letters     one byte per edge, the edge labels
+//	targets     one varint per edge, the destination node id
+//	terminal    the terminal bitset, fixed-width little-endian uint64 words
+//
+// A node's edge *count* is stored rather than the absolute offset the GADDAG uses at
+// runtime: counts are at most 27 and so cost one varint byte each, where offsets run to the
+// edge total and cost four or five. Offsets are rebuilt by prefix sum while reading, so they
+// cannot drift from the arrays they index. Targets are varints because low node ids are
+// common; the bitset stays fixed-width, its words being dense rather than small.
+//
+// Reading is streamed straight into exactly-sized slices, which the GADDAG then holds
+// without a post-decode copy: peak memory during load is the graph itself.
+const (
+	// assetMagic identifies the asset and its layout. Change it whenever the layout
+	// changes, so a stale asset is refused with a clear message instead of being
+	// misparsed into a nonsensical graph.
+	assetMagic = "TWGDDG\x01\n"
+
+	// maxAssetCount bounds a declared node or edge count. A corrupt count must not be
+	// handed straight to make(), which would abort the process on an absurd allocation;
+	// no legitimate asset comes close to this.
+	maxAssetCount = 1 << 31
+)
 
 // GADDAG is the directed acyclic word graph described in Appel & Jacobson (1998), stored
-// in a compressed-sparse-row layout (see gaddagData). It is read-only after Load or Build
+// in a compressed-sparse-row layout (see the asset layout above). It is read-only after Load
+// or Build
 // returns; all methods are safe for concurrent use.
 type GADDAG struct {
-	// edgeOffsets delimits each node's edge range; see gaddagData.EdgeOffsets.
+	// edgeOffsets has length nodeCount+1. Node id's outgoing edges occupy the index range
+	// [edgeOffsets[id], edgeOffsets[id+1]) in edgeLetters/edgeTargets.
 	edgeOffsets []uint32
-	// edgeLetters holds every edge label, sorted within each node; see gaddagData.EdgeLetters.
+	// edgeLetters is every edge's label byte, grouped by source node and ascending within a
+	// node so a node's edges can be binary-searched by letter.
 	edgeLetters []byte
-	// edgeTargets holds each edge's destination node; see gaddagData.EdgeTargets.
+	// edgeTargets is the destination node for the edge at the same index in edgeLetters.
 	edgeTargets []NodeID
-	// terminal is the terminal-node bitset; see gaddagData.Terminal.
+	// terminal is a bitset over node ids: node id is terminal iff bit (id & 63) of
+	// terminal[id>>6] is set.
 	terminal []uint64
 	// root is the root node id.
 	root NodeID
@@ -71,45 +83,160 @@ type GADDAG struct {
 	wordCount uint32
 }
 
-// loadGADDAG deserialises a GADDAG from gob-encoded bytes produced by tools/buildgaddag or Build.
-// Returns a descriptive error if the data is malformed or the root node is invalid.
-func loadGADDAG(data []byte) (*GADDAG, error) {
-	var wd gaddagData
-	dec := gob.NewDecoder(bytes.NewReader(data))
-	if err := dec.Decode(&wd); err != nil {
-		return nil, fmt.Errorf("dictionary.Load: gob decode failed: %w", err)
+// termWords is the number of bitset words needed to hold one terminal bit per node.
+func termWords(nodeCount uint32) int { return int((nodeCount + 63) / 64) }
+
+// writeGADDAG serialises a minimized graph in the layout documented above.
+func writeGADDAG(w io.Writer, mg minimizedGraph, root NodeID, wordCount uint32) error {
+	bw := bufio.NewWriterSize(w, 1<<16)
+	scratch := make([]byte, binary.MaxVarintLen64)
+	put := func(v uint64) error {
+		n := binary.PutUvarint(scratch, v)
+		_, err := bw.Write(scratch[:n])
+		return err
 	}
-	if wd.Root != RootNodeID {
-		return nil, fmt.Errorf("dictionary.Load: invalid root node %d (want %d)", wd.Root, RootNodeID)
-	}
-	// Validate the CSR arrays so Successor can index them without bounds checks or panics
-	// on a malformed asset: offsets must have one entry per node plus a sentinel, the two
-	// parallel edge arrays must match, and offsets must be monotonic and within bounds.
-	if int(wd.NodeCount)+1 != len(wd.EdgeOffsets) {
-		return nil, fmt.Errorf("dictionary.Load: corrupt GADDAG: edgeOffsets length %d, want NodeCount+1 = %d",
-			len(wd.EdgeOffsets), int(wd.NodeCount)+1)
-	}
-	if len(wd.EdgeLetters) != len(wd.EdgeTargets) {
-		return nil, fmt.Errorf("dictionary.Load: corrupt GADDAG: edgeLetters/edgeTargets length mismatch (%d vs %d)",
-			len(wd.EdgeLetters), len(wd.EdgeTargets))
-	}
-	maxEdge := uint32(len(wd.EdgeLetters))
-	prev := uint32(0)
-	for i, off := range wd.EdgeOffsets {
-		if off < prev || off > maxEdge {
-			return nil, fmt.Errorf("dictionary.Load: corrupt GADDAG: edgeOffsets[%d]=%d out of order or out of range [0,%d]",
-				i, off, maxEdge)
+
+	err := func() error {
+		if _, err := bw.WriteString(assetMagic); err != nil {
+			return err
 		}
-		prev = off
+		for _, v := range []uint64{
+			uint64(mg.nodeCount), uint64(len(mg.edgeLetters)), uint64(wordCount), uint64(root),
+		} {
+			if err := put(v); err != nil {
+				return err
+			}
+		}
+		for i := 0; i+1 < len(mg.edgeOffsets); i++ {
+			if err := put(uint64(mg.edgeOffsets[i+1] - mg.edgeOffsets[i])); err != nil {
+				return err
+			}
+		}
+		if _, err := bw.Write(mg.edgeLetters); err != nil {
+			return err
+		}
+		for _, t := range mg.edgeTargets {
+			if err := put(uint64(t)); err != nil {
+				return err
+			}
+		}
+		for _, word := range mg.terminal {
+			binary.LittleEndian.PutUint64(scratch[:8], word)
+			if _, err := bw.Write(scratch[:8]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}()
+	if err != nil {
+		return err
 	}
+	return bw.Flush()
+}
+
+// loadGADDAG deserialises a GADDAG from bytes produced by tools/buildgaddag or Build. Every
+// count, edge count and target is validated as it is read, so a corrupt or truncated asset
+// is reported as an error here rather than indexing out of bounds during a traversal, and
+// nothing larger than the graph itself is allocated on the way.
+func loadGADDAG(data []byte) (*GADDAG, error) {
+	br := bufio.NewReaderSize(bytes.NewReader(data), 1<<16)
+
+	magic := make([]byte, len(assetMagic))
+	if _, err := io.ReadFull(br, magic); err != nil {
+		return nil, fmt.Errorf("dictionary.Load: read header: %w", err)
+	}
+	if string(magic) != assetMagic {
+		return nil, fmt.Errorf("dictionary.Load: not a GADDAG asset of this version; rebuild it with 'make gaddag'")
+	}
+
+	readCount := func(what string) (uint64, error) {
+		v, err := binary.ReadUvarint(br)
+		if err != nil {
+			return 0, fmt.Errorf("read %s: %w", what, err)
+		}
+		if v > maxAssetCount {
+			return 0, fmt.Errorf("%s is %d, beyond the %d maximum", what, v, maxAssetCount)
+		}
+		return v, nil
+	}
+
+	nodeCount, err := readCount("node count")
+	if err != nil {
+		return nil, fmt.Errorf("dictionary.Load: %w", err)
+	}
+	edgeCount, err := readCount("edge count")
+	if err != nil {
+		return nil, fmt.Errorf("dictionary.Load: %w", err)
+	}
+	wordCount, err := readCount("word count")
+	if err != nil {
+		return nil, fmt.Errorf("dictionary.Load: %w", err)
+	}
+	root, err := readCount("root id")
+	if err != nil {
+		return nil, fmt.Errorf("dictionary.Load: %w", err)
+	}
+	if NodeID(root) != RootNodeID {
+		return nil, fmt.Errorf("dictionary.Load: invalid root node %d (want %d)", root, RootNodeID)
+	}
+	if root >= nodeCount {
+		return nil, fmt.Errorf("dictionary.Load: root node %d addresses node %d of %d", root, root, nodeCount)
+	}
+
+	// Rebuild the offsets from the per-node edge counts. The counts must account for
+	// exactly the declared edge total, which is what stops a malformed asset from
+	// producing an offset past the end of the edge arrays.
+	edgeOffsets := make([]uint32, nodeCount+1)
+	var sum uint64
+	for i := uint64(0); i < nodeCount; i++ {
+		n, err := binary.ReadUvarint(br)
+		if err != nil {
+			return nil, fmt.Errorf("dictionary.Load: read edge count for node %d: %w", i, err)
+		}
+		sum += n
+		if sum > edgeCount {
+			return nil, fmt.Errorf("dictionary.Load: edge counts overrun the edge total at node %d", i)
+		}
+		edgeOffsets[i+1] = uint32(sum)
+	}
+	if sum != edgeCount {
+		return nil, fmt.Errorf("dictionary.Load: edge counts cover %d of %d edges", sum, edgeCount)
+	}
+
+	edgeLetters := make([]byte, edgeCount)
+	if _, err := io.ReadFull(br, edgeLetters); err != nil {
+		return nil, fmt.Errorf("dictionary.Load: read edge letters: %w", err)
+	}
+
+	edgeTargets := make([]NodeID, edgeCount)
+	for i := range edgeTargets {
+		t, err := binary.ReadUvarint(br)
+		if err != nil {
+			return nil, fmt.Errorf("dictionary.Load: read target for edge %d: %w", i, err)
+		}
+		if t >= nodeCount {
+			return nil, fmt.Errorf("dictionary.Load: edge %d targets node %d of %d", i, t, nodeCount)
+		}
+		edgeTargets[i] = NodeID(t)
+	}
+
+	terminal := make([]uint64, termWords(uint32(nodeCount)))
+	buf := make([]byte, 8)
+	for i := range terminal {
+		if _, err := io.ReadFull(br, buf); err != nil {
+			return nil, fmt.Errorf("dictionary.Load: read terminal bitset word %d: %w", i, err)
+		}
+		terminal[i] = binary.LittleEndian.Uint64(buf)
+	}
+
 	return &GADDAG{
-		edgeOffsets: wd.EdgeOffsets,
-		edgeLetters: wd.EdgeLetters,
-		edgeTargets: wd.EdgeTargets,
-		terminal:    wd.Terminal,
-		root:        wd.Root,
-		nodeCount:   wd.NodeCount,
-		wordCount:   wd.WordCount,
+		edgeOffsets: edgeOffsets,
+		edgeLetters: edgeLetters,
+		edgeTargets: edgeTargets,
+		terminal:    terminal,
+		root:        NodeID(root),
+		nodeCount:   uint32(nodeCount),
+		wordCount:   uint32(wordCount),
 	}, nil
 }
 
@@ -127,7 +254,7 @@ func (g *GADDAG) Successor(node NodeID, letter byte) (NodeID, bool) {
 	if uint32(node) >= g.nodeCount {
 		return 0, false
 	}
-	// Binary-search the node's edge range, whose labels are ascending (see gaddagData).
+	// Binary-search the node's edge range, whose labels are ascending (see edgeLetters).
 	// loadGADDAG has validated that these offsets are in range, so the slice indexing is
 	// always in bounds.
 	lo, hi := g.edgeOffsets[node], g.edgeOffsets[node+1]
@@ -255,27 +382,18 @@ func Build(words []string, w io.Writer) error {
 	// The graph built above is a prefix trie: it shares common prefixes but never shares
 	// suffixes, so it is far larger than necessary. minimizeTrie collapses all equivalent
 	// sub-automata into the minimal acyclic automaton accepting the same language and emits
-	// it in the compressed-sparse-row layout that GADDAG stores and gaddagData serialises.
+	// it in the compressed-sparse-row layout that GADDAG stores and writeGADDAG serialises.
 	mg := minimizeTrie(edges, terminals, nextID)
 
-	wd := gaddagData{
-		EdgeOffsets: mg.edgeOffsets,
-		EdgeLetters: mg.edgeLetters,
-		EdgeTargets: mg.edgeTargets,
-		Terminal:    mg.terminal,
-		Root:        root,
-		NodeCount:   mg.nodeCount,
-		WordCount:   uint32(len(words)), // words is already sorted+deduped at this point
-	}
-	enc := gob.NewEncoder(w)
-	if err := enc.Encode(wd); err != nil {
-		return fmt.Errorf("dictionary.Build: gob encode failed: %w", err)
+	// words is already sorted+deduped at this point.
+	if err := writeGADDAG(w, mg, root, uint32(len(words))); err != nil {
+		return fmt.Errorf("dictionary.Build: encode failed: %w", err)
 	}
 	return nil
 }
 
 // minimizedGraph is the compressed-sparse-row form of a minimal acyclic automaton,
-// matching the fields GADDAG holds (see gaddagData for the layout).
+// matching the fields GADDAG holds (see the asset layout documented above).
 type minimizedGraph struct {
 	edgeOffsets []uint32
 	edgeLetters []byte

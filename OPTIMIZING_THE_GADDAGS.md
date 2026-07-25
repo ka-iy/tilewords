@@ -1,6 +1,6 @@
 # Optimizing GADDAG Dictionaries for Memory-Constrained Devices
 
-*A measurement-driven study of five strategies for shrinking a Scrabble move-generation
+*A measurement-driven study of six strategies for shrinking a Scrabble move-generation
 automaton, and why automaton minimization subsumes cross-dictionary deduplication.*
 
 **Project:** TileWords (Go + Fyne Scrabble)
@@ -15,10 +15,11 @@ three. Figures from superseded representations (the nested-map layout of §4 and
 un-minimized CSR trie of §6–§7) are retained as historical baselines, since that code no
 longer exists to re-measure; they are for the largest list and are within the "indicative"
 tolerance.
-**Implementation status:** Strategies I (CSR), II (load cache), and **V (minimization)**
-are implemented in the codebase; III (deduplication) and IV (runtime merge) were
-investigated and rejected. The figures for V in §8–§9 are the measured results *after*
-implementation, not projections. **Appendix A** carries the same representation change over
+**Implementation status:** Strategies I (CSR), II (load cache), **V (minimization)** and
+**VI (streamed varint serialization)** are implemented in the codebase; III (deduplication)
+and IV (runtime merge) were investigated and rejected, as were two encodings within VI (raw
+fixed-width binary, and gzip). The figures for V and VI in §8–§10 are the measured results
+*after* implementation, not projections. **Appendix A** carries the same representation change over
 to the *definitions* asset — the heap's largest consumer once the dictionaries were
 minimized — and is measured on the Android emulator rather than on the desktop.
 
@@ -33,7 +34,8 @@ trace the failure to two independent causes — a memory-heavy in-memory represe
 (nested hash maps) and the absence of a load cache — and then investigate three further
 strategies to reduce dictionary footprint: cross-dictionary word-set deduplication,
 runtime composition of a shared "common" automaton with per-dictionary "unique"
-automata, and classical acyclic-automaton minimization.
+automata, and classical acyclic-automaton minimization. A sixth strategy addresses the
+serialization of the minimized graph rather than the graph itself.
 
 Our central findings are:
 
@@ -52,12 +54,17 @@ Our central findings are:
    shrinks each dictionary ~10× in nodes and edges — ~7× on disk and ~8× resident, the
    difference being that minimized graphs carry more edges per node — requires no change to
    the traversal API or the AI, and adds no load-time cost.
+5. Once the graph is minimal, the remaining cost is its *encoding*. Storing per-node edge
+   counts instead of absolute offsets shrinks the assets a further 33.6% (20.05 MB →
+   13.31 MB) and streaming the read instead of buffering a `gob` message removes a ~2×
+   allocation churn per load, cutting process peak 55.7 MB → 39.6 MB. Resident memory is
+   unchanged, because the decoded slices were already the live structure.
 
 **Automaton minimization strictly dominates
 cross-dictionary deduplication** for this workload: set-level word overlap is a special
 case of the sub-automaton redundancy that minimization eliminates globally. Combined with
 CSR, minimization takes the largest dictionary from 843 MB to ~8.4 MB resident — a ~100×
-reduction end-to-end.
+reduction end-to-end — and re-encoding takes the embedded assets to 13.31 MB.
 
 ---
 
@@ -75,7 +82,7 @@ Lexicon):
 | `wordnik` | 194,152 | crowd-sourced |
 | `atebits-letterpress` | 270,652 | largest; the outlier in overlap |
 
-Each is compiled offline into a `.gob`-serialized GADDAG and embedded in the binary via
+Each is compiled offline into a serialized GADDAG (§9) and embedded in the binary via
 `//go:embed`. The AI move generator (`ai/generate.go`, `ai/traverse.go`) consumes a
 dictionary only through three methods:
 
@@ -187,26 +194,26 @@ terminal    []uint64  // bitset: node id terminal iff bit (id&63) of terminal[id
 ```
 
 `Successor` becomes a binary search over a node's sorted edge range (≤ 27 entries);
-`IsTerminal` becomes a bitset probe. The gob wire format stores these flat slices directly,
-so decoding hands its slices straight into the live structure with no post-decode copy. Peak
-during load is nonetheless several times the resident structure (§4.3), because gob buffers
-a whole message before decoding it; Appendix A.4 measures that cost on the definitions asset
-and removes it there by streaming. The graph is validated on load (offsets monotonic and
+`IsTerminal` becomes a bitset probe. The wire format stores these flat slices directly, so
+decoding hands them straight into the live structure with no post-decode copy. This layout
+was first serialized with `encoding/gob`; peak during load was then several times the
+resident structure (§4.3), because gob buffers a whole message before decoding it. §9
+replaces the encoding and removes that cost. The graph is validated on load (offsets monotonic and
 in range, parallel arrays equal length) so a corrupt asset errors rather than indexing out
 of bounds during a traversal.
 
 ### 4.3 Results
 
 For `atebits-letterpress` (the largest). The nested-map figures are historical (that
-representation was replaced); the CSR `.gob` size is the structural estimate for the
-current list:
+representation was replaced); the CSR on-disk size is the structural estimate for the
+current list, as serialized by gob, the encoding of the time (§9):
 
 | Metric | Nested maps | CSR |
 | --- | ---: | ---: |
 | Resident (1 copy, after GC) | 843 MB | **68 MB** |
 | Peak during decode (`HeapSys`) | 1231 MB | 315 MB |
 | Two copies resident (the crash) | 1875 MB heap / 2627 MB sys | ~136 MB |
-| On-disk `.gob` | 76.2 MB | 59.1 MB |
+| On-disk asset (gob) | 76.2 MB | 59.1 MB |
 
 This ~12× resident reduction is a pure representation change; the automaton, the API, the
 AI, and word acceptance are all identical. It **independently eliminates the OOM**: even an
@@ -396,9 +403,10 @@ loop. Determinism is preserved: the BFS follows edges in ascending letter order,
 iteration order never reaches the output. The load path, the traversal API, `Validate`, and
 the AI are untouched — a minimized dictionary is simply a smaller CSR graph.
 
-Rebuilding the three embedded `.gob` assets with the minimizing `Build` gives the measured
+Rebuilding the three embedded assets with the minimizing `Build` gives the measured
 results below (the trie-CSR column is a *structural estimate*, since the build now always
-minimizes; the minimized on-disk sizes are the actual embedded `.gob` bytes):
+minimizes; the minimized on-disk sizes are the actual embedded bytes, as serialized by gob,
+the encoding of the time — §9 shrinks them by a further third):
 
 | Dictionary | Words | On-disk (trie CSR) | On-disk (minimized) | Resident (minimized) |
 | --- | ---: | ---: | ---: | ---: |
@@ -431,7 +439,92 @@ complexity of §6.3–§7.
 
 ---
 
-## 9. Results: the full comparison
+## 9. Optimization VI — serialization: gob → streamed varint *(implemented)*
+
+Minimization (§8) leaves the graph as small as the automaton can be. What remained was the
+*encoding* of that graph on disk: 20.05 MB of embedded assets for a set of graphs whose
+in-memory form is ~21 MB. This strategy changes only the encoding, not the graph.
+
+### 9.1 What gob was costing
+
+The CSR arrays were serialized with `encoding/gob`. Two costs, measured on the real assets:
+
+- **Absolute offsets are expensive to store.** `EdgeOffsets` holds one running total per
+  node, reaching the edge count; gob spends four to five bytes on each. For
+  `atebits-letterpress` that is **2,366,856 B** of the 8.41 MB asset.
+- **Decoding allocates the graph twice.** gob buffers a whole message before decoding it, so
+  a load allocates the encoded bytes as well as the structure. Measured `TotalAlloc` around
+  a single `loadGADDAG`, against a structure of known size:
+
+| Dictionary | Structure | Allocated during load | Ratio |
+| --- | ---: | ---: | ---: |
+| `enable` | 5.86 MB | 11.44 MB | 1.95× |
+| `wordnik` | 6.46 MB | 12.58 MB | 1.95× |
+| `atebits-letterpress` | 8.83 MB | 17.26 MB | 1.96× |
+
+gob was not, however, wasteful about integers: it varint-encodes them, so the gob asset
+(8.41 MB) is *smaller* than the same arrays written as fixed-width little-endian binary
+(8.83 MB). Replacing gob with a raw fixed-width array — the obvious "drop the reflection"
+move — is a 5% regression on disk, which is why it was rejected.
+
+### 9.2 Candidates
+
+Five encodings of the same three minimized graphs, measured by serializing the real assets:
+
+| Encoding | Total, 3 dicts | vs. gob |
+| --- | ---: | ---: |
+| gob, uncompressed *(superseded baseline)* | 20.05 MB | — |
+| Raw fixed-width binary | 21.14 MB | **+5.5%** |
+| gob + gzip | 12.63 MB | −37.0% |
+| **Varint edge counts + varint targets** | **13.31 MB** | **−33.6%** |
+| Varint counts + varint targets + gzip | 8.87 MB | −55.7% |
+| Varint counts + zigzag delta targets + gzip | 8.63 MB | −57.0% |
+
+The decisive change is storing each node's **edge count** instead of its absolute offset.
+Counts are at most 27 — the alphabet plus the arc separator — so each costs one varint byte,
+against four or five for an offset. For `atebits-letterpress`, 2,366,856 B of offsets becomes
+591,713 B of counts. Offsets are rebuilt by prefix sum while reading, so they cannot drift
+from the arrays they index.
+
+Delta-encoding targets against their source node is *worse* uncompressed (+114 KB on the
+largest graph, since minimization makes many edges point backwards to shared suffixes, and
+zigzag doubles small negative deltas) and better only once gzipped.
+
+### 9.3 Why not gzip
+
+gzip is the larger reduction on disk, and it was rejected. It buys ~22 further points at the
+cost of decompressing on every load — CPU plus a transient buffer, which pushes in exactly
+the wrong direction for the constraint of §1.1 — and a compressed asset cannot be `mmap`-ed,
+foreclosing the option §14.5 identifies as KWG's structural advantage. The uncompressed
+varint form keeps the asset a flat array of the graph, so that option stays open.
+
+### 9.4 Results
+
+Assets rebuilt with the new writer, and the heap measured on the Android emulator:
+
+| Metric | gob | Streamed varint | Change |
+| --- | ---: | ---: | ---: |
+| Embedded assets, 3 dicts | 20.05 MB | **13.31 MB** | **−33.6%** |
+| `enable` | 5.54 MB | 3.68 MB | −33.6% |
+| `wordnik` | 6.10 MB | 4.05 MB | −33.6% |
+| `atebits-letterpress` | 8.41 MB | 5.58 MB | −33.6% |
+| Resident, active dictionary | 8.4 MB | **8.4 MB** | none |
+| Process peak (`HeapSys`, defs + 1 dict) | 55.7 MB | **39.6 MB** | **−29%** |
+| Total from OS (`Sys`) | 59.4 MB | **43.1 MB** | −27% |
+
+**Resident memory is unchanged, and that is expected.** gob already handed its decoded
+slices straight into the `GADDAG` with no post-decode copy (§4.2), so the steady-state
+footprint was already just the CSR arrays; there was no intermediate representation to
+remove. The gain is on disk and in the load spike, where the ~2× churn of §9.1 disappears.
+
+The reader validates as it goes — edge counts must sum to the declared edge total, and every
+target must address a node that exists — so a corrupt asset is rejected at load rather than
+indexing out of range mid-traversal. That is strictly more checking than the gob path
+performed: it validated offsets and array lengths, but never the edge targets.
+
+---
+
+## 10. Results: the full comparison
 
 | Strategy | Embedded (3 dicts) | Resident (active dict) | AI change | Load cost | Status |
 | --- | ---: | ---: | --- | --- | --- |
@@ -441,17 +534,24 @@ complexity of §6.3–§7.
 | III. Dedup split | 72.6 MB | ~66 MB | rework or merge | — | rejected |
 | IV. Dedup + runtime merge | 72.6 MB | ~same | none | +3.4 s, +~0.96 GB | rejected |
 | **V. Minimization** | **20.05 MB** | **8.4 MB** | none | faster decode | **done** |
+| VI. Raw fixed-width binary | 21.14 MB | 8.4 MB | none | no buffering | rejected |
+| VI. gzip | 8.87 MB‡ | 8.4 MB | none | +decompress, no mmap | rejected |
+| **VI. Streamed varint** | **13.31 MB** | **8.4 MB** | none | no buffering | **done** |
 
-† The superseded nested-map `.gob` sizes were not re-measured for the current three-list
+† The superseded nested-map asset sizes were not re-measured for the current three-list
 set; CSR (Strategy I) is the first re-derivable embedded baseline.
 
+‡ gzip over the chosen varint layout; gzip over the gob layout was 12.63 MB.
+
 End-to-end, CSR + minimization takes the largest dictionary from **843 MB → 8.4 MB resident
-(~100×)** and the embedded assets from **136 MB (CSR trie) → 20.05 MB minimized (~7×)**, with
-no change to the traversal API or the AI. These are the final implemented figures.
+(~100×)**, and the embedded assets from **136 MB (CSR trie) → 20.05 MB minimized → 13.31 MB
+streamed (~10× overall)**, with no change to the traversal API or the AI. Process peak on the
+emulator, with the definitions asset also resident, is **43.1 MB** (§9.4, Appendix A.5).
+These are the final implemented figures.
 
 ---
 
-## 10. Discussion
+## 11. Discussion
 
 Three ideas organize the investigation:
 
@@ -471,6 +571,12 @@ Three ideas organize the investigation:
   completely. The product-construction result of §7 is the formal reason the manual scheme
   cannot beat it: composing the pieces reconstructs the full redundant trie.
 
+- **Structure first, then encoding.** §4–§8 change what is stored; §9 changes only how it is
+  written down, and only after the structure was minimal. Taken in the other order the
+  encoding work would have been spent compressing redundancy that minimization then deleted:
+  a third off 136 MB of trie is worth less than a third off 20 MB of minimized graph, and the
+  offsets that §9 shrinks are proportional to node count, which §8 had already cut ~10×.
+
 Stated generally: *for a family of dictionaries compiled to acyclic word automata,
 cross-dictionary word-set deduplication is dominated by per-dictionary automaton
 minimization, because inter-dictionary word overlap is a strict subset of the intra- and
@@ -480,11 +586,11 @@ directly.
 
 ---
 
-## 11. Recommendation and outcome
+## 12. Recommendation and outcome
 
 The recommendation was to implement **minimization inside `dictionary.Build`** (Revuz
 bottom-up hash-consing, using the existing child-id > parent-id ordering) and regenerate the
-embedded `.gob` assets, and **not** to pursue the cross-dictionary split (runtime-neutral,
+embedded assets, and **not** to pursue the cross-dictionary split (runtime-neutral,
 complicates the AI) or the runtime merge (reintroduces a load-time memory spike), since
 minimization dominates both.
 
@@ -497,12 +603,19 @@ regenerated (§8.2). The change was contained:
 - Correctness is confirmed by full-corpus acceptance parity, the property-based tests, the
   AI move-generation tests, and a minimization regression guard (§8.2).
 
-Result: embedded assets 136 MB (CSR trie) → 20.05 MB minimized, and the largest dictionary
-68 MB → 8.4 MB resident.
+Serialization (§9) was then changed for the same reasons in a narrower place: the encoding,
+not the graph. Storing per-node edge counts rather than absolute offsets, and streaming the
+read instead of buffering a gob message, took the assets down a further third and removed the
+~2× allocation churn per load. Two candidate encodings were rejected on measurement — raw
+fixed-width binary, 5.5% *larger* than the gob it would have replaced, and gzip, which is
+smaller still but adds decompression to every load and forecloses `mmap`.
+
+Result: embedded assets 136 MB (CSR trie) → 20.05 MB minimized → 13.31 MB streamed, the
+largest dictionary 68 MB → 8.4 MB resident, and process peak 55.7 MB → 39.6 MB.
 
 ---
 
-## 12. Reproducibility
+## 13. Reproducibility
 
 All measurements come from throwaway in-package Go tests (the `dictionary` package, so they
 can read the unexported CSR fields) plus a Python overlap script over `wordlists/*.txt`:
@@ -518,6 +631,11 @@ can read the unexported CSR fields) plus a Python overlap script over `wordlists
   node/edge counts came from a throwaway trie build plus `minimizeTrie` over a loaded list,
   and the on-disk and resident figures from rebuilding the assets (`make gaddag`) and
   loading them.
+- **Serialization candidates (§9.2):** a throwaway in-package test re-serialized each loaded
+  graph in every candidate encoding and gzipped it, so the comparison is over the real assets.
+  The load churn of §9.1 is a `TotalAlloc` delta across one `loadGADDAG` call, against the
+  structure size from the §3 formula. The final figures come from rebuilding with
+  `make gaddag` and re-running `tools/memcheck` on the emulator.
 
 `minimizeTrie` is production code; the harnesses are not retained (they touch unexported
 internals and load multi-hundred-MB assets), and are described here so the numbers can be
@@ -525,13 +643,13 @@ regenerated on demand.
 
 ---
 
-## 13. Related work: the Kurnia Word Graph (KWG)
+## 14. Related work: the Kurnia Word Graph (KWG)
 
 The Kurnia Word Graph (KWG), used by Andy Kurnia's *wolges* engine (and by MAGPIE and the
 Woogles stack), is a minimized acyclic GADDAG stored in a flat array — the same structure as
 Strategy V, with a denser encoding.
 
-### 13.1 What KWG is
+### 14.1 What KWG is
 
 Per the wolges `details.txt` [wolges], a KWG is "a flat array of nodes `(tile, accepts,
 is_end, arc_index)`. Each entry is 32-bit. tile is 8 bits (subject to change). accepts and
@@ -554,7 +672,7 @@ Two further properties are relevant here:
   additional root node." KWG stores both in one graph and is "about 33% smaller than typical
   GADDAG files."
 
-### 13.2 Mapping onto Strategy V
+### 14.2 Mapping onto Strategy V
 
 The two share the same structure — a minimized, acyclic, sorted-edge GADDAG in flat arrays —
 and differ in encoding:
@@ -568,7 +686,7 @@ and differ in encoding:
 | Terminal flag | separate `terminal` bitset | `accepts` bit in the cell |
 | Minimization | whole-node (Revuz hash-consing) | whole-node plus edge-list tail-sharing |
 | Also stores DAWG | no (GADDAG-only; validation walks the full-reverse path) | yes, at ~1 extra node |
-| Serialization | gob of flat slices; heap-decoded | raw little-endian array; memory-mappable |
+| Serialization | streamed varints of flat slices; heap-decoded | raw little-endian array; memory-mappable |
 | Pointer width | 32-bit node id (≤ ~4.29 B nodes) | 22-bit arc_index (≤ ~4.19 M cells) |
 
 KWG fuses the node and edge into a single 32-bit word and folds the terminal flag into it,
@@ -577,7 +695,7 @@ where the CSR keeps three parallel arrays, an offsets table, and a bitset. The C
 plus the bitset — about 6.9 bytes per transition. KWG spends 4 bytes per transition and
 nothing else.
 
-### 13.3 Quantitative comparison
+### 14.3 Quantitative comparison
 
 Applying KWG's 4-bytes-per-transition encoding to the measured minimized graphs (an upper
 bound for KWG, since its tail-sharing reduces the cell count below the edge count):
@@ -594,15 +712,15 @@ smaller still once tail-sharing and DAWG-node reuse are counted. The 22-bit-vs-3
 pointer difference is not the driver — the largest graph, 1.28M edges, fits in 22 bits — the
 driver is field fusion and tail-sharing.
 
-### 13.4 Assessment
+### 14.4 Assessment
 
 - Strategy V accounts for the reduction from an un-minimized trie in hash maps (843 MB) to a
   minimized automaton in flat arrays (8.4 MB), ~100×. KWG's denser layout yields a further
-  ~1.7× (§13.3). That factor does not change the outcome for TileWords: the OOM is resolved
+  ~1.7× (§14.3). That factor does not change the outcome for TileWords: the OOM is resolved
   under either encoding.
 - A KWG is a raw little-endian array and can be `mmap`-ed directly from an uncompressed
-  asset: near-zero heap, no decode step, pages faulted in on demand. The gob format decodes
-  into ~8.4 MB of heap-allocated slices at load. On a memory-constrained device an mmap-ed
+  asset: near-zero heap, no decode step, pages faulted in on demand. The varint format of §9
+  decodes into ~8.4 MB of heap-allocated slices at load. On a memory-constrained device an mmap-ed
   KWG uses less resident memory and loads without a decode pass — a larger difference than
   the 1.7× byte reduction.
 - KWG's tail-sharing is a stronger minimization: Strategy V merges whole equivalent nodes
@@ -615,7 +733,7 @@ would take TileWords from ~8.4 MB heap to ~5 MB or less mapped with near-zero he
 Gaddawg DAWG-union does not apply to TileWords, which never anagrams; only the KWG encoding,
 not its dual-graph role, would be relevant.
 
-### 13.5 When CSR is preferable
+### 14.5 When CSR is preferable
 
 For move generation in isolation, KWG is smaller, memory-mappable, and no worse on the
 traversal hot path, so the CSR layout's advantages are conditional on requirements the KWG
@@ -646,11 +764,12 @@ so there is no dense node-to-index mapping.
   simple to test. KWG's tail-sharing is a stronger but more intricate construction, so the
   simpler build is easier to verify.
 
-- **Format evolution.** gob is self-describing (field names and types), so adding a field to
-  `gaddagData` is backward- and forward-tolerant. A raw little-endian array has no such
-  tolerance — any layout change is a hard version break, and the format is endianness- and
-  alignment-dependent. (The reverse also holds: gob is Go-only, while a raw KWG array is
-  readable from any language.)
+- **Format evolution.** This advantage was gob's, and §9 gave it up: gob was self-describing
+  (field names and types), so adding a field was backward- and forward-tolerant. The varint
+  stream instead carries a magic-and-version header, so a stale asset is refused with a clear
+  message and rebuilt — cheap here, since assets are build products, but it is a version break
+  rather than a tolerated one. KWG's raw array has the same property, and unlike either Go
+  encoding it is readable from any language.
 
 - **Bulk field sweeps.** The SoA layout keeps all targets (or all letters, or the terminal
   bitset) contiguous, which suits a vectorized scan over one field — analytics or a bulk
@@ -694,7 +813,7 @@ a dictionary at all — it was the *definitions* database, at 51.9 MB. The same 
 follows: the representation change of §4 in a setting that is not a graph, plus a load-path
 change with no counterpart in the main body.
 
-The figures in §4–§9 were taken on `linux/amd64`. The figures here were taken **on-device**,
+The figures in §4–§10 were taken on `linux/amd64`. The figures here were taken **on-device**,
 on the Android x86_64 emulator, by cross-compiling `tools/memcheck` for `android/amd64` and
 running it under `adb`, mobile being the binding constraint.
 
@@ -848,7 +967,7 @@ Peak is still 55.7 MB against 25.3 MB live. The remainder is Go heap arena growt
 GC not returning pages to the OS promptly, not an identifiable buffer, so it is not
 addressable by another encoding change. Reducing it further would mean mapping the blobs
 from a file instead of embedding and decompressing them (`mmap`), which is the same
-memory-mappability argument §13.5 makes for KWG — and it would give up the single
+memory-mappability argument §14.5 makes for KWG — and it would give up the single
 self-contained binary. Not pursued.
 
 ### A.8 Reproducibility
@@ -872,7 +991,7 @@ self-contained binary. Not pursued.
 ---
 
 *This document records the state of the investigation. Strategies I, II, and V are
-implemented in the codebase; III and IV were investigated and rejected. The §8–§9 figures
+implemented in the codebase; III and IV were investigated and rejected. The §8–§10 figures
 for V are measured after implementation, refreshed for the current three shipped word lists.
 Appendix A applies the same representation change to the definitions asset, measured on the
 Android emulator.*
