@@ -12,7 +12,7 @@
 # First-time mobile setup:
 #   make install-mobile-tools     # then set ANDROID_HOME and ANDROID_NDK_HOME
 
-.PHONY: all build run test vet clean gaddag gaddag-free download-wordlists defs help \
+.PHONY: all build build-prod run test vet clean gaddag gaddag-free download-wordlists defs help \
         android android-arm64-v8a android-x86_64 android-armeabi-v7a android-universal \
         android-release android-release-arm64-v8a android-release-x86_64 \
         android-release-armeabi-v7a android-release-universal \
@@ -21,6 +21,63 @@
         install-mobile-tools install-desktop
 
 .DEFAULT_GOAL := all
+
+# ── Infra ─────────────────────────────────────────────────────────────────────
+
+# Get the module name and directory. Note that CURDIR is NOT defined here: it is a make
+# built-in holding the absolute working directory, which is what the $(CURDIR) uses below
+# need (ICON and the keystore paths are handed to tools that run from another directory, so
+# they must be absolute). Assigning it would shadow the built-in and break them.
+MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+MODNAME := $(shell grep ^module $(MAKEFILE_DIR)go.mod | awk '{print $$2}')
+
+# ----- Build info to embed into the built binary -----
+# NOTE: BUILD_TIMESTAMP specifically uses a Unix-style date command formatted
+# using standard strftime format specifiers. Building using shell systems
+# without support for this (e.g. Windows cmd/powershell) will result in
+# undefined behavior. MSYS2 on Windows supports the GNU coreutils date command.
+BUILD_TIMESTAMP := $(shell date -u +"%Y-%m-%d_%H:%M:%S_%Z")
+BUILD_VERSION := $(shell git describe --tags --long --dirty --always)
+
+# Linker ldflags directives for build info.
+# The bits after -X to the left of the "=" refer to variables defined in the 
+# Go code. Gomobile does support the standard Go build ldflags directive.
+#
+# Note that if setting variables NOT in the "main" package, the -X flag
+# requires that the package in which the variable lives must be fully
+# qualified starting from the main module name. See:
+#   https://stackoverflow.com/questions/47509272
+#
+# The "-w" and "-s" ldflags directives in BUILD_INFO_LDFLAGS_PROD are:
+#     -s : omit symbol table
+#     -w : omit DWARF debugging info
+BUILD_INFO_LDFLAGS_COMMON := -X '$(MODNAME)/buildinfo.buildVersion=$(BUILD_VERSION)' -X '$(MODNAME)/buildinfo.buildTimestamp=$(BUILD_TIMESTAMP)'
+BUILD_INFO_LDFLAGS_PROD_DESKTOP := $(BUILD_INFO_LDFLAGS_COMMON) -X '$(MODNAME)/buildinfo.buildType=production' -w -s
+BUILD_INFO_LDFLAGS_PROD_MOBILE := $(BUILD_INFO_LDFLAGS_COMMON) -X '$(MODNAME)/buildinfo.buildType=production'
+BUILD_INFO_LDFLAGS_DEBUG := $(BUILD_INFO_LDFLAGS_COMMON) -X '$(MODNAME)/buildinfo.buildType=debug'
+
+# GOFLAGS forms of the same directives, for the builds fyne drives: install-desktop and
+# every Android target. The BUILD_INFO_LDFLAGS_* forms above go straight to `go build`,
+# but the fyne CLI has no --ldflags option — it reads the linker flags out of GOFLAGS and
+# forwards them to the build it runs, the Android/gomobile build included.
+#
+# GOFLAGS holds a list of entries, and a quoted run counts as a single entry. The whole
+# space-separated '-ldflags=<value>' therefore has to be wrapped in one quoted run, or only
+# its first word would be taken as the -ldflags value and the remaining -X directives would
+# be parsed as separate (invalid) flags. The wrapping quotes are escaped for the shell, so
+# these variables MUST be expanded inside a double-quoted recipe word:
+#   GOFLAGS="$(BUILD_INFO_GOFLAGS_DEBUG)"
+# The -X values are single words, so the inner quoting of the BUILD_INFO_LDFLAGS_* forms
+# survives the round trip: the go command splits an -ldflags value on quotes of its own.
+#
+# Both forms are built on the variants that carry neither -s nor -w, because fyne supplies
+# those itself where they apply:
+#   - it appends '-s -w' to a --release desktop build, and '-w' to an Android release;
+#   - an Android build cannot use -s at all (its packaging step reads the symbol table, so
+#     fyne appends '-s=false' to undo one).
+BUILD_INFO_GOFLAGS_DEBUG := \"-ldflags=$(BUILD_INFO_LDFLAGS_DEBUG)\"
+BUILD_INFO_GOFLAGS_PROD  := \"-ldflags=$(BUILD_INFO_LDFLAGS_PROD_MOBILE)\"
+
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -263,7 +320,18 @@ all: build ## Build the native desktop binary (default target)
 # not embed it). The Android build gets the same tag automatically because `fyne release`
 # translates FyneApp.toml's [Migrations] fyneDo=true into this tag.
 build: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary
-	go build -tags migrated_fynedo -o $(BINARY) $(CMD)
+	go build -tags migrated_fynedo -ldflags "$(BUILD_INFO_LDFLAGS_DEBUG)" -o $(BINARY) $(CMD)
+
+# build-prod differs from build only in the linker flags: it stamps the binary as a
+# production build and drops the symbol table and DWARF data (see
+# BUILD_INFO_LDFLAGS_PROD_DESKTOP). It writes the same $(BINARY) path, so the two targets
+# overwrite each other — which build you are holding is not guesswork, since the binary
+# reports its own type (buildinfo.BuildType, shown in the startup log and the About box).
+#
+# Code that branches on buildinfo.IsProductionBuild() only takes its production path in a
+# binary built this way, so this is the target to use when testing that behavior.
+build-prod: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary as a production build (stripped)
+	go build -tags migrated_fynedo -ldflags "$(BUILD_INFO_LDFLAGS_PROD_DESKTOP)" -o $(BINARY) $(CMD)
 
 run: build ## Build and launch the desktop app
 	./$(BINARY)
@@ -278,7 +346,7 @@ run: build ## Build and launch the desktop app
 # than in $(CMD), so we stage a copy there for the build (removed afterwards even on failure).
 install-desktop: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Install the desktop app + .desktop entry (taskbar icon)
 	cp FyneApp.toml $(CMD)/FyneApp.toml
-	-cd $(CMD) && fyne install --release --icon $(ICON) --app-id $(APP_ID)
+	-cd $(CMD) && GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne install --release --icon $(ICON) --app-id $(APP_ID)
 	rm -f $(CMD)/FyneApp.toml
 
 # ── Development ───────────────────────────────────────────────────────────────
@@ -301,8 +369,10 @@ clean: ## Remove build artefacts and generated GADDAG assets
 # ── Mobile tooling ────────────────────────────────────────────────────────────
 ##@ Mobile tooling
 
-# NOTE: TileWords's Android build needs a PATCHED fyne CLI (targets SDK 36 and adds v2/v3/v4
-# signing + zipalign). Install it from the fork instead of the upstream line below, e.g.
+# NOTE: TileWords's Android build needs a PATCHED fyne CLI (targets SDK 36, adds v2/v3/v4
+# signing + zipalign, and forwards the GOFLAGS linker flags to the gomobile build so the
+# build-info metadata is embedded). Install it from the fork instead of the upstream line
+# below, e.g.
 #   (cd ~/FYNE-SOURCE/tools && go install ./cmd/fyne)
 install-mobile-tools: ## Install the fyne + gomobile CLIs for mobile builds
 	go install fyne.io/tools/cmd/fyne@latest
@@ -316,16 +386,36 @@ install-mobile-tools: ## Install the fyne + gomobile CLIs for mobile builds
 #   • The (patched) fyne CLI and gomobile in PATH (see install-mobile-tools).
 #
 # `fyne package` has no -o flag, so each build runs from $(CMD) and writes $(APP_NAME).apk
-# there; we move it (and the v4 .idsig sidecar) into place, labelled by ABI. App metadata is
-# passed explicitly because FyneApp.toml is not in that directory.
+# there; we move it into place, labelled by ABI. App metadata is passed explicitly because
+# FyneApp.toml is not in that directory.
 #
 # `fyne -os android/<goarch>` restricts a build to one ABI; `-os android` bundles all ABIs
 # into one (universal) artifact (~4x the size). The patched fyne signs debug APKs (v1/v2/v3,
 # required for targetSdk>=30) and emits an <apk>.idsig (v4); keeping that sidecar next to the
 # APK makes `adb install` use the incremental path, which installs cleanly across images.
+# Only a fyne carrying that work emits one, so the sidecar is treated as optional: it is
+# moved alongside the APK when present, and a stale one is removed when it is not (an .idsig
+# that does not match the APK next to it would fail the install it is meant to speed up).
 #
 # Manifest: cmd/tilewords/AndroidManifest.xml is picked up automatically by fyne. It grants
 # only local-storage permission for save files and omits INTERNET — TileWords is offline.
+#
+# Build info: the Android builds embed the same metadata as the desktop build, passed in
+# GOFLAGS (see BUILD_INFO_GOFLAGS_DEBUG / _PROD) because the fyne CLI takes linker flags
+# only from there. This does not depend on a patched CLI, which is why GOFLAGS is set
+# unconditionally: the whole -ldflags value is one quoted GOFLAGS entry, so a fyne that
+# forwards it hands it to the build, and a fyne that ignores GOFLAGS still leaves it in the
+# environment for the `go build` that gomobile runs, where the go command applies it itself.
+#
+# A fyne that consumes GOFLAGS without forwarding it does lose the metadata, and only for
+# the release artifact: measured against an upstream CLI, the debug APKs came out with the
+# values embedded but the .aab did not, whereas the patched CLI embeds them in both. Losing
+# them never fails the build — the app just omits the About dialog's build section, having
+# no version to report.
+#
+# To check an artifact, look for the injected values themselves (e.g. the version string) in
+# its lib/*/*.so, NOT for an -ldflags entry in `go version -m` output: the release build
+# passes -trimpath, which suppresses that entry whether or not linker flags were applied.
 
 # fyne-package-apk: build a debug APK. $(1)=fyne -os value, $(2)=ABI label for the output.
 # The patched fyne signs the APK with its debug key/cert and emits a v4 .idsig. If a local
@@ -337,6 +427,7 @@ cd $(CMD) && \
 ANDROID_HOME=$(ANDROID_HOME) \
 ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
 JAVA_TOOL_OPTIONS='$(JVM_NATIVE_ACCESS)' \
+GOFLAGS="$(BUILD_INFO_GOFLAGS_DEBUG)" \
 fyne package \
 	-os $(1) \
 	--name $(APP_NAME) \
@@ -345,7 +436,12 @@ fyne package \
 	--app-build $(APP_BUILD) \
 	--icon $(ICON)
 mv $(CMD)/$(APP_NAME).apk $(BINARY)-$(2).apk
-mv $(CMD)/$(APP_NAME).apk.idsig $(BINARY)-$(2).apk.idsig
+if [ -f "$(CMD)/$(APP_NAME).apk.idsig" ]; then \
+	mv $(CMD)/$(APP_NAME).apk.idsig $(BINARY)-$(2).apk.idsig; \
+else \
+	echo ">> no v4 signature sidecar emitted — 'adb install' will use its normal path"; \
+	rm -f $(BINARY)-$(2).apk.idsig; \
+fi
 if [ -f "$(DEBUG_KEYSTORE)" ]; then \
 	echo ">> re-signing $(BINARY)-$(2).apk with $(DEBUG_KEYSTORE)"; \
 	"$(APKSIGNER)" $(APKSIGNER_JVM_OPTS) sign --ks "$(DEBUG_KEYSTORE)" --ks-pass pass:$(DEBUG_KEYSTORE_PASS) \
@@ -362,6 +458,7 @@ cd $(CMD) && \
 ANDROID_HOME=$(ANDROID_HOME) \
 ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
 JAVA_TOOL_OPTIONS='$(JVM_NATIVE_ACCESS)' \
+GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" \
 fyne release \
 	-os $(1) \
 	--name $(APP_NAME) \

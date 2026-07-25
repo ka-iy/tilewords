@@ -4,12 +4,14 @@ package ui
 import (
 	"log"
 	"math/rand"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 
+	"tilewords/buildinfo"
 	"tilewords/dictionary"
 	"tilewords/engine"
 )
@@ -39,6 +41,12 @@ type App struct {
 // Run constructs the application, shows the main menu and runs the Fyne event
 // loop. It blocks until the window is closed and returns any setup error.
 func Run() error {
+	// Log the build metadata (git version, build type, timestamp) at startup so a
+	// user-reported log pins down exactly which build produced it. The values are injected
+	// at link time (see the Makefile); a build without injection logs buildinfo's defaults.
+	log.Printf("%s starting; build info:\n%s", windowTitle,
+		strings.Join(buildinfo.BuildInfoAsStringSlice(), "\n"))
+
 	// NewWithID (rather than New) sets the app's unique ID in code, so the Preferences and
 	// storage APIs have a stable ID regardless of build mode or whether FyneApp.toml is
 	// present on disk at runtime (a plain `go build`/`go run` binary reads that file from
