@@ -11,9 +11,21 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
+	"tilewords/ai"
 	"tilewords/dictionary"
 	"tilewords/engine"
 )
+
+// difficultyLabelText renders the difficulty slider's caption. The top level is called out by
+// name rather than by number: it is the one setting that changes the AI's character rather
+// than its strength, playing the single best move every turn instead of one of the near-best.
+func difficultyLabelText(level int) string {
+	if level >= ai.GodModeLevel {
+		return fmt.Sprintf("Difficulty: %d = GOD MODE", ai.GodModeLevel)
+	}
+	return fmt.Sprintf("Difficulty: %d  (%d = easy, %d = hard, %d = GOD MODE)",
+		level, ai.MinLevel, ai.NearBestLevel, ai.GodModeLevel)
+}
 
 // dictPlayableWords is the number of playable words (2–15 letters, A–Z only, after
 // dedup) in each dictionary's embedded GADDAG asset, shown in the setup menu. These are
@@ -109,6 +121,8 @@ func (a *App) buildSetup() fyne.CanvasObject {
 	status := widget.NewLabel("")
 	status.Alignment = fyne.TextAlignCenter
 	status.Wrapping = fyne.TextWrapWord
+	// A message left by an asynchronous load whose own widget tree has since been rebuilt.
+	status.SetText(a.takeScreenMsg())
 
 	avail := availableDicts()
 
@@ -170,15 +184,15 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		container.NewHBox(modeRadio.buttons[1], interestingInfo),
 	)
 
-	// Difficulty 1–10 via a slider with a live value label.
+	// Difficulty across the AI's full level range, via a slider with a live value label.
 	level := gs.Difficulty
-	levelLabel := widget.NewLabelWithStyle(fmt.Sprintf("Difficulty: %d  (1 = easy, 10 = hard)", level), fyne.TextAlignCenter, fyne.TextStyle{})
-	levelSlider := widget.NewSlider(1, 10)
+	levelLabel := widget.NewLabelWithStyle(difficultyLabelText(level), fyne.TextAlignCenter, fyne.TextStyle{})
+	levelSlider := widget.NewSlider(ai.MinLevel, ai.MaxLevel)
 	levelSlider.Step = 1
 	levelSlider.SetValue(float64(level))
 	levelSlider.OnChanged = func(v float64) {
 		level = int(v)
-		levelLabel.SetText(fmt.Sprintf("Difficulty: %d  (1 = easy, 10 = hard)", level))
+		levelLabel.SetText(difficultyLabelText(level))
 	}
 
 	// Move-history format: plain word list by default, Scrabble coordinate notation when
@@ -209,10 +223,17 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		startBtn.Disable()
 		backBtn.Disable()
 		status.SetText("Loading dictionary…")
+		// The load reports back through the App, so a failure is still shown if this widget
+		// tree has been rebuilt in the meantime (a theme variant settling does that). The
+		// rebuilt screen reopens on the saved defaults, which the Start tap has just written
+		// when "Save these as my defaults" is checked.
+		gen := a.uiGen
 		a.startNewGame(selectedDict, level, selectedMode, notationCheck.Checked, func(msg string) {
-			status.SetText(msg)
-			startBtn.Enable()
-			backBtn.Enable()
+			a.reportOnCurrentScreen(gen, msg, func() {
+				status.SetText(msg)
+				startBtn.Enable()
+				backBtn.Enable()
+			})
 		})
 	})
 	startBtn.Importance = widget.HighImportance

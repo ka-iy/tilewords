@@ -39,8 +39,17 @@ func newRackSlotWidget(idx int, onTap func(int)) *rackSlotWidget {
 	return s
 }
 
-// setContent updates the slot's display and refreshes it.
+// setContent updates the slot's display and refreshes it. A slot whose contents are
+// unchanged is left untouched, for the same reason as cellWidget.setContent: every refresh
+// calls this for all slots, and a Refresh discards and re-uploads the slot's textures. tile
+// is compared by value because callers pass the address of a fresh copy each time.
 func (s *rackSlotWidget) setContent(tile *engine.Tile, faceDown, selected, exchangeSel bool) {
+	unchanged := faceDown == s.faceDown && selected == s.selected && exchangeSel == s.exchangeSel &&
+		(tile == nil) == (s.tile == nil) &&
+		(tile == nil || *tile == *s.tile)
+	if unchanged {
+		return
+	}
 	s.tile = tile
 	s.faceDown = faceDown
 	s.selected = selected
@@ -70,6 +79,13 @@ func (s *rackSlotWidget) Dragged(e *fyne.DragEvent) {
 // DragEnd reports the gesture's final pointer position to the controller, which
 // decides whether it lands on a board cell (place), another rack slot (reorder), or
 // nowhere meaningful (treated as a tap).
+// cancelDrag discards the widget's in-progress drag tracking; see cellWidget.cancelDrag for
+// why the controller must reset this alongside its own drag source.
+func (s *rackSlotWidget) cancelDrag() {
+	s.dragging = false
+	s.dragAbs = fyne.Position{}
+}
+
 func (s *rackSlotWidget) DragEnd() {
 	if s.dragging && s.onDragEnd != nil {
 		s.onDragEnd(s.idx, s.dragAbs)

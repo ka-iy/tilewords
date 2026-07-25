@@ -12,7 +12,7 @@
 # First-time mobile setup:
 #   make install-mobile-tools     # then set ANDROID_HOME and ANDROID_NDK_HOME
 
-.PHONY: all build build-prod test vet clean clean-all-the-things clean-defs-sources \
+.PHONY: all build build-prod test vet vet32 clean clean-all-the-things clean-defs-sources \
         gaddag gaddag-free download-wordlists defs help \
         debug-all release-all \
         windows-debug windows-release \
@@ -136,12 +136,19 @@ DEBUG_KEYSTORE      ?= debug.keystore
 DEBUG_KEYSTORE_PASS ?= android
 DEBUG_KEY_ALIAS     ?= androiddebugkey
 
-# Release signing (android-release*). Override on the command line. Generate the keystore:
+# Release signing (android-release*). Generate the keystore:
 #   keytool -genkey -v -keystore release.keystore \
 #           -alias tilewords -keyalg RSA -keysize 2048 -validity 10000
-KEYSTORE      ?= release.keystore
-KEYSTORE_PASS ?= changeme
-KEY_ALIAS     ?= tilewords
+#
+# Prefer KEYSTORE_PASS_FILE over KEYSTORE_PASS: a password given on the make command line is
+# visible in the process list and is kept in shell history, whereas a mode-0600 file is not.
+#   make android-release KEYSTORE_PASS_FILE=~/.tilewords-keystore-pass
+# When only KEYSTORE_PASS is set, the signing recipes copy it into a temporary 0600 file and
+# delete that on exit, so the password still never reaches a tool's argument vector.
+KEYSTORE           ?= release.keystore
+KEYSTORE_PASS      ?= changeme
+KEYSTORE_PASS_FILE ?=
+KEY_ALIAS          ?= tilewords
 
 # Mobile app metadata. fyne normally reads these from FyneApp.toml, but Android builds
 # must run from the main-package directory (cmd/tilewords), where that file is not
@@ -357,10 +364,25 @@ $(WEBSTER_JSON): | $(WORDLISTS_DIR)
 	curl -fsSL -o $@.part $(WEBSTER_URL) && mv $@.part $@
 
 # The archive holds a top-level dict/ directory, so it is extracted into the parent of
-# $(WORDNET_DICT).
+# $(WORDNET_DICT) and then moved into place.
+#
+# Downloading to a temporary file and extracting into a staging directory is what makes this
+# rule honour the all-or-nothing promise above. Piping curl straight into tar reports only
+# the exit status of the last command in the pipeline, so a truncated transfer looks like a
+# successful extraction; and because the target is a directory, an interrupted run leaves a
+# partially populated dict/ that make then considers up to date — a later build would fold an
+# incomplete WordNet into the shipped asset with no warning. --no-same-owner and
+# --no-same-permissions keep the archive's own uid/gid and modes from being applied when the
+# build happens to run as root.
 $(WORDNET_DICT):
 	mkdir -p $(dir $@)
-	curl -fsSL $(WORDNET_URL) | tar -xz -C $(dir $@)
+	curl -fsSL -o $(dir $@)wn.tar.gz.part $(WORDNET_URL)
+	rm -rf $(dir $@)stage
+	mkdir -p $(dir $@)stage
+	tar -xzf $(dir $@)wn.tar.gz.part --no-same-owner --no-same-permissions -C $(dir $@)stage
+	test -d $(dir $@)stage/dict
+	mv $(dir $@)stage/dict $@
+	rm -rf $(dir $@)stage $(dir $@)wn.tar.gz.part
 
 defs: $(DEFS_ASSET) ## Build the complete definitions asset, fetching each source if absent
 
@@ -553,6 +575,15 @@ test: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Run all tests with th
 vet: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Run go vet
 	go vet ./...
 
+# The 32-bit ABIs (armeabi-v7a, and any 386 Windows build) have a 32-bit int, so a constant
+# or size computation that only fits a 64-bit int is a compile error there and nowhere else.
+# An amd64 host never sees it, and the Android targets that would are the slowest to build,
+# so type-check the pure-Go packages for a 32-bit arch here instead. The UI packages are
+# excluded because they need cgo and an NDK toolchain to build at all.
+vet32: ## Type-check the portable packages for 32-bit targets (catches 64-bit-only constants)
+	GOOS=android GOARCH=arm go build ./dictionary ./defs ./engine ./ai ./buildinfo
+	GOOS=windows GOARCH=386 go build ./dictionary ./defs ./engine ./ai ./buildinfo
+
 # clean removes only what a build produces from source that is already on disk, so
 # everything it deletes can be rebuilt with no downloads. The generated assets are left
 # alone — see clean-all-the-things for those.
@@ -675,8 +706,30 @@ else \
 fi
 endef
 
+# keystore-pass-file emits shell that leaves the release keystore password in a mode-0600
+# file named by $$KSPASS. When KEYSTORE_PASS_FILE is set that file is used directly;
+# otherwise KEYSTORE_PASS is written to a temporary file which is removed when the shell
+# exits, however it exits. Either way the password is never a command-line argument, where
+# any other process on the machine could read it from the process list.
+define keystore-pass-file
+KSPASS='$(KEYSTORE_PASS_FILE)'; \
+if [ -z "$$KSPASS" ]; then \
+	KSPASS=$$(mktemp) && chmod 600 "$$KSPASS" && \
+	trap 'rm -f "$$KSPASS"' EXIT HUP INT TERM && \
+	printf '%s' '$(KEYSTORE_PASS)' > "$$KSPASS"; \
+elif [ ! -r "$$KSPASS" ]; then \
+	echo "KEYSTORE_PASS_FILE=$$KSPASS is not readable" >&2; exit 1; \
+fi
+endef
+
 # fyne-release-aab: build a signed release App Bundle. $(1)=fyne -os value, $(2)=ABI label.
+#
+# The recipe is prefixed with @ so make does not echo it: the command line is where the
+# password used to end up in terminal scrollback and CI logs. fyne reads -keyStorePass from
+# its argument vector only, and documents that it takes the password from stdin when the flag
+# is omitted, so the password is piped in rather than passed.
 define fyne-release-aab
+@$(keystore-pass-file); \
 cd $(CMD) && \
 ANDROID_HOME=$(ANDROID_HOME) \
 ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
@@ -690,8 +743,8 @@ fyne release \
 	--app-build $(APP_BUILD) \
 	--icon $(ICON) \
 	-keyStore $(CURDIR)/$(KEYSTORE) \
-	-keyStorePass $(KEYSTORE_PASS) \
-	-keyName $(KEY_ALIAS)
+	-keyName $(KEY_ALIAS) \
+	< "$$KSPASS"
 mv $(CMD)/$(APP_NAME).aab $(BINARY)-release-$(2).aab
 endef
 
@@ -700,16 +753,20 @@ endef
 # --mode=universal emits one APK carrying every ABI present in the bundle, so a per-ABI
 # bundle yields that single ABI and the universal bundle yields all of them. bundletool
 # writes an APK Set (.apks, a zip holding universal.apk); we extract it and drop the set.
+# The recipe is prefixed with @ so make does not echo the signing command. bundletool accepts
+# a password as pass:<literal> or file:<path>; file: is used because a literal would be
+# readable in the process list for as long as signing takes.
 define bundletool-release-apk
+@$(keystore-pass-file); \
 JAVA_TOOL_OPTIONS='$(JVM_NATIVE_ACCESS)' $(BUNDLETOOL) build-apks \
 	--bundle=$(BINARY)-release-$(1).aab \
 	--output=$(BINARY)-release-$(1).apks \
 	--mode=universal \
 	--overwrite \
 	--ks=$(CURDIR)/$(KEYSTORE) \
-	--ks-pass=pass:$(KEYSTORE_PASS) \
+	--ks-pass=file:"$$KSPASS" \
 	--ks-key-alias=$(KEY_ALIAS) \
-	--key-pass=pass:$(KEYSTORE_PASS)
+	--key-pass=file:"$$KSPASS"
 unzip -p $(BINARY)-release-$(1).apks universal.apk > $(BINARY)-release-$(1).apk
 rm -f $(BINARY)-release-$(1).apks
 endef
@@ -722,10 +779,15 @@ android-arm64-v8a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug AP
 android-x86_64: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for x86_64 (emulators / x86 devices)
 	$(call fyne-package-apk,android/amd64,x86_64)
 
-android-armeabi-v7a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for armeabi-v7a (old 32-bit devices)
+# vet32 runs first on every target that includes the 32-bit ABI: a constant or size
+# computation that only fits a 64-bit int fails to compile for android/arm and nowhere else,
+# and catching that in a two-second type-check beats discovering it part-way through an APK
+# build that needs the NDK.
+android-armeabi-v7a: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for armeabi-v7a (old 32-bit devices)
 	$(call fyne-package-apk,android/arm,armeabi-v7a)
 
-android-universal: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for all ABIs (universal, ~4x size)
+# Universal bundles include android/arm, so they need the 32-bit check too.
+android-universal: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for all ABIs (universal, ~4x size)
 	$(call fyne-package-apk,android,universal)
 
 android: android-arm64-v8a ## Debug APK for arm64-v8a (alias for android-arm64-v8a)
@@ -738,10 +800,10 @@ android-release-arm64-v8a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## 
 android-release-x86_64: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for x86_64
 	$(call fyne-release-aab,android/amd64,x86_64)
 
-android-release-armeabi-v7a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for armeabi-v7a
+android-release-armeabi-v7a: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for armeabi-v7a
 	$(call fyne-release-aab,android/arm,armeabi-v7a)
 
-android-release-universal: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for all ABIs (universal)
+android-release-universal: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for all ABIs (universal)
 	$(call fyne-release-aab,android,universal)
 
 android-release: android-release-universal ## Signed release .aab for all ABIs (alias for android-release-universal)

@@ -3,10 +3,13 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"tilewords/engine"
 )
@@ -115,11 +118,56 @@ func TestSanitiseError_Nil(t *testing.T) {
 	}
 }
 
-func TestSanitiseError_StripPrefix(t *testing.T) {
-	err := errors.New("ui.SaveManager.Load: open: no such file")
-	got := sanitiseError(err)
-	if got != "no such file" {
-		t.Fatalf("strip prefix: got %q want %q", got, "no such file")
+// TestSanitiseError_StripsOnlySymbolPrefixes verifies that wrapping prefixes which name a Go
+// symbol are removed while the rest of the chain survives. Stripping to the innermost
+// segment instead would throw away the part written to be read, and would collapse
+// unrelated failures onto the same words.
+func TestSanitiseError_StripsOnlySymbolPrefixes(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		// Symbol-shaped prefixes are dropped, one per wrap.
+		{"ui.SaveManager.Load: open: no such file", "open: no such file"},
+		{"dictionary.Load: read header: unexpected EOF", "read header: unexpected EOF"},
+		{"engine.ValidateDecodedState: bag holds an unplayable tile", "bag holds an unplayable tile"},
+		// Prose is kept whole, even where it contains a colon.
+		{"the word list is damaged: rebuild it with 'make gaddag'", "the word list is damaged: rebuild it with 'make gaddag'"},
+		{"disk full", "disk full"},
+	}
+	for _, tc := range cases {
+		if got := sanitiseError(errors.New(tc.in)); got != tc.want {
+			t.Errorf("sanitiseError(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// TestSanitiseError_ScrubsFilesystemPaths verifies the path a filesystem error names is
+// removed, since it must never reach the UI (SECURITY-UI-2), while any explanation wrapped
+// around it survives — that explanation is the only actionable part of the message.
+func TestSanitiseError_ScrubsFilesystemPaths(t *testing.T) {
+	_, err := os.Open(filepath.Join(t.TempDir(), "no-such-dir", "savegame.gob"))
+	if err == nil {
+		t.Fatal("expected opening a missing file to fail")
+	}
+	got := sanitiseError(fmt.Errorf("dictionary.Load: word list missing, run 'make gaddag': %w", err))
+	if strings.Contains(got, string(os.PathSeparator)) {
+		t.Errorf("sanitiseError leaked a path: %q", got)
+	}
+	if !strings.Contains(got, "make gaddag") {
+		t.Errorf("sanitiseError = %q, want it to keep the actionable hint", got)
+	}
+}
+
+// TestSanitiseError_TruncatesOnRuneBoundary verifies truncation never splits a multi-byte
+// character, which would render as a replacement glyph.
+func TestSanitiseError_TruncatesOnRuneBoundary(t *testing.T) {
+	got := sanitiseError(errors.New(strings.Repeat("é", 200)))
+	if !utf8.ValidString(got) {
+		t.Errorf("sanitiseError produced invalid UTF-8: %q", got)
+	}
+	if n := utf8.RuneCountInString(strings.TrimSuffix(got, "…")); n > 120 {
+		t.Errorf("sanitiseError kept %d runes, want at most 120", n)
 	}
 }
 
@@ -210,28 +258,36 @@ func TestSaveManager_RoundTrip(t *testing.T) {
 	}
 }
 
-// TestSaveManager_RoundTrip_WithCommands verifies Save succeeds even when
-// LastHumanCommand and LastAICommand are non-nil (mid-game state).
-func TestSaveManager_RoundTrip_WithCommands(t *testing.T) {
+// TestSaveManager_RoundTripMidGame verifies a state carrying a move log round-trips. The log
+// is rendered display data rather than executable commands, which is what makes a saved game
+// resumable without also making its past moves undoable — see TestSaveManager_PersistsMoveHistory
+// for the undo half of that property.
+func TestSaveManager_RoundTripMidGame(t *testing.T) {
 	dir := t.TempDir()
 	sm, _ := NewSaveManager(dir)
 
 	state := engine.New("csw", 5, rand.New(rand.NewSource(42)))
-	state.LastHumanCommand = &engine.PassCommand{}
-	state.LastAICommand = &engine.PassCommand{}
+	state.History = []engine.MoveRecord{
+		{Player: "You", Line: "8H CAT +10", Points: 10, Cells: [][2]int{{7, 7}}, Words: []string{"CAT"}},
+		{Player: "AI", Line: "AI: passed"},
+	}
+	state.MoveNumber = 2
 
 	if err := sm.Save(state); err != nil {
-		t.Fatalf("Save with non-nil commands: %v", err)
+		t.Fatalf("Save mid-game: %v", err)
 	}
 	loaded, err := sm.Load()
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if loaded.LastHumanCommand != nil || loaded.LastAICommand != nil {
-		t.Fatal("loaded state should have nil command fields")
-	}
 	if loaded.AILevel != state.AILevel {
 		t.Fatalf("AILevel: got %d want %d", loaded.AILevel, state.AILevel)
+	}
+	if len(loaded.History) != 2 || loaded.History[0].Line != "8H CAT +10" {
+		t.Fatalf("History did not round-trip: %+v", loaded.History)
+	}
+	if loaded.MoveNumber != 2 {
+		t.Fatalf("MoveNumber: got %d want 2", loaded.MoveNumber)
 	}
 }
 

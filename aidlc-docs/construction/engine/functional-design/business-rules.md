@@ -87,6 +87,17 @@ The game ends when the bag is empty (`state.Bag.Count() == 0`) AND at least one 
 empty (`state.HumanRack.Count() == 0 || state.AIRack.Count() == 0`). This is checked after
 rack replenishment inside `PlayCommand.Execute`.
 
+**Precedence over BR-E10.** Both conditions can become true on the same turn: a zero-scoring
+play (e.g. an all-blank word on plain squares) that empties the last rack is itself a
+scoreless turn, so it can take `ConsecutivePasses` to 6 while also playing the player out.
+`IsGameOver` reports `RackExhausted` in that case, not `SixConsecutivePasses`:
+
+- Going out is the stronger claim — the player used their last letter, which is what earns
+  the going-out bonus under BR-E12.
+- The scoreless-turn rule exists for a game in which nobody can play at all.
+- Reporting the six-pass ending instead would deduct both racks and deny the bonus to a
+  player who had in fact gone out.
+
 ---
 
 ## BR-E12: End-Game Score Adjustment

@@ -12,16 +12,9 @@
 //	SelectMove    — choose one candidate from the sorted result according to difficulty level.
 //	ChooseMove    — orchestrate one full AI turn (generate → select → exchange/pass fallback).
 //
-// For integration with a polling UI loop, use AIWorker so that move generation
-// runs on a dedicated goroutine and the UI goroutine never blocks:
-//
-//	worker := ai.NewAIWorker(ai.ChooseMove)
-//
-//	// On the AI's turn (Request clones state internally):
-//	worker.Request(state, dict, level)
-//
-//	// Each Update() frame:
-//	if move, ok := worker.Poll(); ok {
-//	    // Apply move to game state.
-//	}
+// All three are synchronous and hold no state of their own, so a caller that must not block
+// runs ChooseMove on its own goroutine and marshals the result back. This package
+// deliberately provides no worker or scheduling type: the caller already owns the turn
+// lifecycle — when a turn is abandoned, how long to wait, which thread applies the move — and
+// a helper here could only duplicate that with less context.
 package ai

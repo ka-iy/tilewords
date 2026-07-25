@@ -27,6 +27,7 @@ blastie	A shrivelled dwarf; a term of contempt,
 blaud	A large piece of any thing, a considerable portion
 blaw	A blow, a stroke.
 blellum	An idle talking fellow
+blume	To blossom; also, to shine or gleam
 bonnock	A cake, baked of dough in a pretty wet state, and toasted on a girdle
 bountree	Common elder, a tree; Sambucus nigra
 bowat	A hand-lanthern.
@@ -39,12 +40,15 @@ brugh	An encampment of a circular form
 buik	The trunk of the body, as distinguished from the head or extremity
 buke	Baked.
 callan	A stripling, a lad; "a young calland," a boy
+cangle	To quarrel, to be in a state of altercation
 cannie	Cautious, prudent
 capernoited	Crabbed, irritable, peevish
 cauld	Cold
 claucht	Snatched, laid hold of eagerly and suddenly.
 cleik	Lively, agile, fleet
+clow	To beat down
 contrair	Contrary
+cowk	To retch ineffectually, in consequence of nausea
 cranreuch	Hoar frost
 crummie	A name for a cow that has crooked horns
 cuddie	An ass, often cuddie-ass
@@ -59,7 +63,9 @@ doilt	Stupid, confused
 doitit	Stupid, confused.
 donsie	Affectedly neat and trim, implying the idea of self-importance
 dool	The goal in a game.
+douk	To duck
 droich	A dwarf, droch
+drouk	To drench
 dule	The goal in a game.
 dyvour	A bankrupt.
 eastlin	Easterly
@@ -73,8 +79,12 @@ farle	Properly, the fourth part of a thin cake, whether of flour or oatmeal; but
 farren	Belonging to the fir.
 ferlie	A wonder
 fernitickles	Freckles
+flamm	To baste meat while roasting
 flaught	A handful
+flichter	To pinion
 fodgel	Squat and plump
+forfair	To waste
+forfault	To attaint
 fowth	Abundance
 fuddy	A designation given to the wind
 gaid	Went
@@ -88,6 +98,7 @@ glit	Tough phlegm
 gool	Yellow.
 gosse	Abbrev. of gossip.
 goustrous	Dark, wet, stormy
+grein	To long
 griece	Gray griece, a fur worn by the Lords of
 groser	A gooseberry
 grosert	A gooseberry
@@ -108,6 +119,8 @@ histie	Dry, chaft
 hoddin	Expressive of the jogging motion of one who rides a horse that moves stiffly
 houff	A hall.
 ingan	Onion
+jauk	To trifle
+kae	A jackdaw
 keavie	A species of crab.
 keltie	A large glass or bumper, imposed under the notion of punishment on those who, as it is expressed, do not drink fair
 kelties	Children
@@ -180,6 +193,7 @@ raun	Roe of fish
 rauns	The beard of barley
 rawn	Roe of fish
 reik	A blow
+releve	To raise, to exalt
 renk	A course, a race; also reik
 richt	In health
 richts	, straight.
@@ -203,13 +217,17 @@ scarth	The corvorant
 scoup	Abundance of room
 scouth	Liberty to range
 scouther	A flying shower
+scowder	To scorch
 scowp	Abundance of room
 scowth	Liberty to range
+screigh	To shriek
+seil	To strain
 seir	Several.
 shauling	The act of killing salmon by means of a leister
 sheuch	A furrow
 shilpit	Insipid, applied to fermented liquors
 shottle	Short and thick
+showd	To waddle in going
 sibb	Related by blood
 sinsyne	Since
 skarth	Puny creature
@@ -218,6 +236,7 @@ skelf	A shelf
 skellie	A squint look
 skyre	A schirrus.
 slaid	A hollow, a den
+slairg	To bedaub
 sleepery	V.
 smaik	A mean fellow
 smytrie	A numerous collection of small individuals
@@ -225,9 +244,11 @@ snab	The projecting part of a rock or hill
 sneeshin	Snuff
 sonce	Prosperity.
 sourock	Sorrel
+sourse	To rise
 spail	V.
 spait	A flood
 spaul	A limb.
+speil	To climb
 spek	Speech.
 sperthe	A battle-axe.
 splore	A frolic
@@ -244,14 +265,18 @@ stown	Stolen.
 strack	Strict
 strae	Straw.
 strak	Straight.
+stramp	To trample
 straucht	Stretched.
 stroup	The spout of a pump, tea-kettle, &c.
 stunkard	V.
 sture	The agitation of any body, the parts of which are easily separable.
 sugh	Whistling sound.
+swayl	To swaddle
+sweel	To drink copiously
 swey	A long crow for raising stones
 synd	Appearance, aspect.
 syver	A covered drain
+taigle	To detain
 taivers	Tatters; as, boiled to taivers
 tappit	HEN, s. 1. A crested hen
 tapsalteerie	Topsyturvy
@@ -259,6 +284,7 @@ tawted	Matted.
 thegither	Corr. of together
 thraward	Froward, perverse.
 thrawart	Froward, perverse.
+tirr	To tear, to strip off; also, to snarl
 tirrivee	A fit of passion
 touk	A hasty pull, a tug
 towmon	A year; corr. of twelve-month, used in the same sense
@@ -280,14 +306,17 @@ wate	Wet, moist
 weid	A kind of fever to which women in child-bed, or nurses, are subject
 westlin	Western
 westlins	Westwards
+whaisle	To wheeze in breathing
 wheeps	An instrument for raising the brig-heads of a mill
 widdie	A rope made of twigs of willow; used to denote a halter
 wiel	A small whirlpool.
 windock	A window
 winnock	A window
+wizzen	To become dry
 worset	Corr. of
+wyle	To select
 ybet	Supplied.
-#
+yirr	To snarl, to growl as a dog
 # --- spenser-fq ---
 # Glossary to Spenser, The Faerie Queene, Book I (PD); Wikisource.
 agraste	favor, show grace
@@ -315,3 +344,1489 @@ talaunts	talons
 teene	grief, trouble, hurt
 unlich	unlike
 welke	fade, grow dim
+
+# --- webster-1922 ---
+# Webster's New Modern English Dictionary, Consolidated Book Publishers, 1922 (PD; all
+# copyright dates 1908-1922, so US public domain). OCR text from the Internet Archive item
+# webstersnewmoder00web. Each gloss below was read back against the source page text, since
+# OCR output cannot be trusted unchecked; bracketed language notes and cross-references
+# ("[French.]", "Fem. siffleuse") are dropped.
+befana	A fairy supposed to reward children with presents of sweetmeats on Epiphany Eve
+eboulement	The crumbling of a wall or fortification; a landslip or avalanche
+maximite	A powerful explosive invented by Sir Hiram Maxim
+megafog	A fog-signalling device
+mondaine	A woman of fashion
+siffleur	A professional whistler
+stegomyia	The genus of mosquitoes which transmit the germs of yellow fever
+trevis	A beam or crossbar; a partition
+
+# --- opted-wb1913 ---
+# The Online Plain Text English Dictionary (OPTED) v0.03, Ralph S. Sutherland, derived from
+# the Project Gutenberg etext of Webster's Unabridged Dictionary (1913) — public domain.
+# https://www.mso.anu.edu.au/~ralph/OPTED/
+#
+# OPTED records these as irregular Latin plurals ('animi, of Animus'), which no de-inflection
+# rule derives. Each gloss below names the singular and then gives that singular's OPTED
+# definition, so the entry reads as a definition rather than as a bare cross-reference.
+animi	Plural of animus: animating spirit; intention; temper
+haggadoth	Plural of haggada: a story, anecdote, or legend in the Talmud explaining the text of the Old Testament
+lapides	Plural of lapis: a stone
+pignora	Plural of pignus: a pledge or pawn
+semina	Plural of semen: the seed of plants
+ulnaria	Plural of ulnare: a bone or cartilage of the carpus, which articulates with the ulna
+vertigines	Plural of vertigo: dizziness or swimming of the head
+
+# --- petree-owl21 ---
+# Definitions by Joseph Petree, from his Extended Free Zyzzyva Dictionary (OWL 2.1, 2016),
+# via the WOW24 Zyzzyva import compiled by Mitch Bayersdorfer and released under
+# CC BY-SA 4.0. https://pdxscrabble.neocities.org/word-lists/WOW24-Dictionary-Import
+#
+# Joseph Petree's permission requires that his name appear in the definitions file and that
+# the text not be severely altered, so the wording below is his verbatim. Only Zyzzyva's
+# formatting notation is removed: the "< BASE," cross-reference prefix, the "[n. -S]"
+# inflection table, the "~" non-tournament-word flag, the provenance markers, and trailing
+# variant lists. Nested glosses in "« »" become parentheses.
+#
+# This is the only source found that defines this vocabulary, which comes from the Scrabble
+# tournament lexicons and is absent from Wiktionary, Webster 1913, Webster 1922, WordNet,
+# GCIDE and OPTED.
+acta	recorded proceedings
+adsuki	adzuki (the edible seed of an Asian plant)
+adsukis	adzuki (the edible seed of an Asian plant)
+aerosat	a satellite for use in air-traffic control
+aerosats	a satellite for use in air-traffic control
+aetatis	of the age of
+agatoid	a variety of quartz
+aggada	haggadah (a biblical narrative)
+aggadas	haggadah (a biblical narrative)
+agria	severe pustular eruption
+agrias	severe pustular eruption
+ailanthic	(botany) of or relating to the ailanthus tree
+ainsell	own self
+ainsells	own self
+airshot	an aircheck
+airshots	an aircheck
+airvac	evacuation by air ambulance
+airvacs	evacuation by air ambulance
+aivers	a draft horse
+alencon	a needlepoint lace
+alencons	a needlepoint lace
+alphyl	a univalent radical
+alphyls	a univalent radical
+alumins	alumina (an oxide of aluminum)
+amarna	pertaining to a certain historical period of ancient Egypt
+amie	a female friend
+aminities	the state of being an amine
+aminity	the state of being an amine
+analcimic	(mineralogy) characterized by the presence of analcite
+anga	any of the eight practices of yoga
+animati	a musical passage played in a lively manner
+animis	anime (a resin obtained from a tropical tree)
+antherid	a male reproductive organ of certain plants
+antherids	a male reproductive organ of certain plants
+anthraces	an infectious disease
+apatetic	having coloration serving as natural camouflage
+apholate	a chemical used to control houseflies
+apholates	a chemical used to control houseflies
+argentum	silver (to cover with silver (a metallic element))
+argentums	silver (to cover with silver (a metallic element))
+argle	to argue (to present reasons for or against)
+argled	to argue (to present reasons for or against)
+argles	to argue (to present reasons for or against)
+argling	to argue (to present reasons for or against)
+arriba	used to express pleasure
+arseno	containing a certain bivalent chemical radical
+arsino	containing a certain univalent chemical radical
+aspirata	a type of plosive
+atalaya	a watchtower
+atalayas	a watchtower
+aures	the ear
+auris	the ear
+autecism	the development of the entire life cycle of a parasitic fungus on a single host
+autecisms	the development of the entire life cycle of a parasitic fungus on a single host
+aviatrice	a variant form of aviatrix
+avion	an airplane
+avions	an airplane
+awee	awhile (for a short time)
+awmous	alms (money or goods given to the poor)
+backdropt	to provide with a scenic background
+ballasters	someone who supplies ballast for a ship; someone who ballasts
+ballonne	a ballet jump
+ballonnes	a ballet jump
+bankit	a raised sidewalk
+bankits	a raised sidewalk
+bannet	a bonnet
+bannets	a bonnet
+barbot	barbotte (a large catfish (a scaleless, large-headed fish))
+barbots	barbotte (a large catfish (a scaleless, large-headed fish))
+barca	a double-ended boat
+barcas	a double-ended boat
+barefit	barefoot (being without shoes)
+barleduc	a fruit jam
+barleducs	a fruit jam
+barmie	barmy (full of barm; frothy)
+batonnier	a Bar Association president
+batonniers	a Bar Association president
+baynoddies	a bayman (a person who fishes on a bay)
+baynoddy	a bayman (a person who fishes on a bay)
+bazz	to throw (as a stone)
+bazzes	to throw (as a stone)
+becoward	to accuse of cowardice
+becowarded	to accuse of cowardice
+becowarding	to accuse of cowardice
+becowards	to accuse of cowardice
+becrime	to make guilty of a crime
+becrimed	to make guilty of a crime
+becrimes	to make guilty of a crime
+becriming	to make guilty of a crime
+becrust	to cover with a crust
+becrusting	to cover with a crust
+becrusts	to cover with a crust
+beglad	to gladden (to make glad)
+begladded	to gladden (to make glad)
+begladding	to gladden (to make glad)
+beglads	to gladden (to make glad)
+begrimmed	to begrime (to dirty)
+begrimming	to begrime (to dirty)
+begrims	to begrime (to dirty)
+begulf	to engulf (to surround completely)
+begulfed	to engulf (to surround completely)
+begulfing	to engulf (to surround completely)
+begulfs	to engulf (to surround completely)
+beigne	beignet (a type of fritter or doughnut)
+beignes	beignet (a type of fritter or doughnut)
+beknot	to tie in knots
+beknots	to tie in knots
+beknotting	to tie in knots
+belgas	a former Belgian monetary unit
+beliquor	to soak with liquor
+beliquoring	to soak with liquor
+beliquors	to soak with liquor
+belon	a flat oyster
+belons	a flat oyster
+bepimple	to cover with pimples
+bepimples	to cover with pimples
+bepimpling	to cover with pimples
+berake	to rake all over
+beraked	to rake all over
+berakes	to rake all over
+beraking	to rake all over
+bergere	an upholstered armchair
+bergeres	an upholstered armchair
+bescour	to scour thoroughly
+bescoured	to scour thoroughly
+bescouring	to scour thoroughly
+bescours	to scour thoroughly
+betatter	to tatter (to become torn and worn)
+betattering	to tatter (to become torn and worn)
+betatters	to tatter (to become torn and worn)
+bethorn	to fill with thorns
+bethorning	to fill with thorns
+bethorns	to fill with thorns
+beuncled	having many uncles
+bewearied	to make weary
+bewearies	to make weary
+beweary	to make weary
+bewearying	to make weary
+beworm	to infest with worms
+beworming	to infest with worms
+beworms	to infest with worms
+biali	bialy (an onion roll)
+bialis	bialy (an onion roll)
+biflex	bent in two places
+bigstick	threatening military force
+bilboa	bilbo (a finely tempered sword)
+bilboas	bilbo (a finely tempered sword)
+birrotch	a monetary unit of Ethiopia
+bizone	two combined zones
+bizones	two combined zones
+blawn	to blow (to damn)
+blindgut	a cecum
+blindguts	a cecum
+blowinesses	(not standard) the quality or extent of being blowy
+boatport	an enclosure for boats
+boatports	an enclosure for boats
+boite	a nightclub
+boites	a nightclub
+bonita	bonito (a marine food fish)
+bonitas	bonito (a marine food fish)
+borty	a low-quality diamond
+boursin	a mild, smooth, creamy cheese without rind -- a trademark
+boursins	a mild, smooth, creamy cheese without rind -- a trademark
+bousoukia	bouzouki (a stringed musical instrument)
+boyarism	the rule of boyars
+boyarisms	the rule of boyars
+brawlie	splendidly (in a splendid manner; magnificently)
+brecham	a collar for a horse
+brechams	a collar for a horse
+brechan	brecham (a collar for a horse)
+brechans	brecham (a collar for a horse)
+bregmate	a junction point of the skull
+bubalis	bubal (a large antelope)
+bubalises	bubal (a large antelope)
+bulley	a two-masted fishing boat
+bulleys	a two-masted fishing boat
+burdie	burd (a maiden)
+burdies	burd (a maiden)
+buzukia	bouzouki (a stringed musical instrument)
+buzzwig	a large, thick wig
+buzzwigs	a large, thick wig
+cabresta	cabestro (a lasso)
+cabrestas	cabestro (a lasso)
+calabogus	a beverage made from spruce beer, rum and molasses
+calaboguses	a beverage made from spruce beer, rum and molasses
+calo	a Spanish argot used by Chicano youths
+calos	a Spanish argot used by Chicano youths
+calycate	calycine (pertaining to a calyx)
+cambogia	a gum resin
+cambogias	a gum resin
+cammie	camouflage
+campshirt	a loose, short-sleeved shirt or blouse with an open collar
+campshirts	a loose, short-sleeved shirt or blouse with an open collar
+caritas	love for all people
+caritases	love for all people
+cassene	cassina (an evergreen tree)
+cassenes	cassina (an evergreen tree)
+cassina	an evergreen tree
+cassinas	an evergreen tree
+cassine	cassina (an evergreen tree)
+cassines	cassina (an evergreen tree)
+catheptic	(biochemistry) of or relating to enzymes that catalyze autolysis in death or pathological conditions
+catrigged	Derivative of cat rig (the rig of a catboat)
+celibatic	of or relating to celibacy
+centai	a monetary unit of Lithuania
+centauric	(spiritualism) characterized by an integration of mind and body for consciousness above the ego-self
+centu	a monetary unit of Lithuania
+cerveza	beer (an alcoholic beverage)
+cervezas	beer (an alcoholic beverage)
+cestoi	cestus (a hand covering for ancient Roman boxers)
+challie	challis (a light fabric)
+challies	challis (a light fabric)
+chao	a monetary unit of Vietnam
+chaqueta	a jacket worn by cowboys
+chaquetas	a jacket worn by cowboys
+charquid	a type of meat
+chaufers	chauffer (a small furnace)
+cheshire	a hard English cheese
+cheshires	a hard English cheese
+chevret	chevre (a cheese made from goat's milk)
+chevrets	chevre (a cheese made from goat's milk)
+chiliadic	Derivative of chiliad (a group of one thousand)
+chimar	chimere (a bishop's robe)
+chimars	chimere (a bishop's robe)
+cicoree	a perennial herb
+cicorees	a perennial herb
+cipaille	a pie with layers of meat and pastry
+cipailles	a pie with layers of meat and pastry
+clach	clachan (a hamlet)
+clachs	clachan (a hamlet)
+classico	made from grapes grown in a certain part of Italy
+classon	a subatomic particle
+classons	a subatomic particle
+claught	to clutch (to grasp and hold tightly)
+claughted	to clutch (to grasp and hold tightly)
+claughting	to clutch (to grasp and hold tightly)
+claughts	to clutch (to grasp and hold tightly)
+coadmire	to admire together
+coadmired	to admire together
+coadmires	to admire together
+coadmiring	to admire together
+coderive	to derive jointly
+coderived	to derive jointly
+coderives	to derive jointly
+coderiving	to derive jointly
+coembodied	to embody jointly
+coembodies	to embody jointly
+coembody	to embody jointly
+coembodying	to embody jointly
+coemploy	to employ together
+coemployed	to employ together
+coemploying	to employ together
+coemploys	to employ together
+coempt	to buy up the entire supply of a product
+coempted	to buy up the entire supply of a product
+coempting	to buy up the entire supply of a product
+coempts	to buy up the entire supply of a product
+coenamor	to inflame with mutual love
+coenamored	to inflame with mutual love
+coenamoring	to inflame with mutual love
+coenamors	to inflame with mutual love
+coerect	to erect together
+coerected	to erect together
+coerecting	to erect together
+coerects	to erect together
+coinfer	to infer jointly
+coinferred	to infer jointly
+coinferring	to infer jointly
+coinfers	to infer jointly
+collembolous	of or relating to colembolans
+collotypies	the process of collotype
+collotypy	the process of collotype
+comade	to serve as comaker for another's loan
+comake	to serve as comaker for another's loan
+comakes	to serve as comaker for another's loan
+comaking	to serve as comaker for another's loan
+conelrad	a system of defense in the event of air attack
+conelrads	a system of defense in the event of air attack
+conferval	Derivative of conferva (any of various threadlike green algae, esp any of the genus Tribonema, typically occurring in fresh water)
+conins	coniine (a poisonous alkaloid)
+connor	a saltwater fish
+corelate	to place into mutual or reciprocal relation
+corelated	to place into mutual or reciprocal relation
+corelates	to place into mutual or reciprocal relation
+corelating	to place into mutual or reciprocal relation
+cornbraid	to braid (hair) in close parallel rows, creating a hairstyle known as a corn row
+cornbraided	to braid (hair) in close parallel rows, creating a hairstyle known as a corn row
+cornbraiding	to braid (hair) in close parallel rows, creating a hairstyle known as a corn row
+cornbraids	to braid (hair) in close parallel rows, creating a hairstyle known as a corn row
+cortication	formation of bark
+cortications	formation of bark
+counterstricken	a retaliatory strike
+coyau	a steep roof design
+coyaus	a steep roof design
+cozzes	a cousin
+creosotic	Derivative of creosote (a colourless or pale yellow liquid mixture with a burning taste and penetrating odour distilled from wood tar, esp from beechwood, contains creosol and other phenols, and is used as an antiseptic)
+crimmers	krimmer (a kind of fur)
+crostino	a small piece of toast topped with a spread
+crozers	a croze (a tool used in barrel-making)
+cuif	coof (a dolt)
+cuifs	coof (a dolt)
+cuisinart	® a brand of food processor
+cuisinarts	® a brand of food processor
+cuittle	to coax
+cuittled	to coax
+cuittles	to coax
+cuittling	to coax
+cullay	quillai (an evergreen tree)
+cullays	quillai (an evergreen tree)
+culti	a cult (a religious society)
+cupelers	cupeller (one that cupels)
+cursillo	a type of spiritual retreat (seclusion with a group)
+cursillos	a type of spiritual retreat (seclusion with a group)
+curtalax	a cutlass (a short sword)
+curtalaxes	a cutlass (a short sword)
+cymbalers	one that plays the cymbals
+cysteinic	Derivative of cysteine (a sulphur-containing amino acid, present in proteins, that oxidizes on exposure to air to form cystine. Formula: HSCH2CH(NH2)COOH)
+dackered	to waver (to move back and forth)
+dackering	to waver (to move back and forth)
+dackers	to waver (to move back and forth)
+daturic	a flowering plant
+daut	to fondle
+dauted	to fondle
+dautie	a small pet
+dauties	a small pet
+dauting	to fondle
+dauts	to fondle
+dawen	to dawn (to begin to grow light in the morning)
+dawtie	dautie (a small pet)
+dawties	dautie (a small pet)
+deathcup	a poisonous mushroom
+deathcups	a poisonous mushroom
+deepfroze	a type of refrigerator in which food, etc, is stored for long periods at temperatures below freezing
+deepfrozen	a type of refrigerator in which food, etc, is stored for long periods at temperatures below freezing
+dementi	an official denial of a published statement
+dementis	an official denial of a published statement
+detentist	Derivative of détentist (a supporter of détente; someone who tries to ease political tensions)
+detentists	Derivative of détentist (a supporter of détente; someone who tries to ease political tensions)
+detickers	one that deticks (to remove ticks from)
+dicoumarin	dicoumarol
+dicoumarins	dicoumarol
+dikey	resembling a lesbian in nature or appearance -- an offensive term
+dilatably	(rare) in a dilatable manner
+diploses	a method of chromosome formation
+diplosis	a method of chromosome formation
+dipsades	a fabled serpent
+diptyca	diptych (an ancient writing tablet)
+diptycas	diptych (an ancient writing tablet)
+dixit	a statement
+dixits	a statement
+dizenments	Derivative of dizen (an archaic word for bedizen)
+dolci	a soft-toned organ stop
+donnerd	donnered (dazed)
+donnert	donnered (dazed)
+donsy	donsie (unlucky)
+dopeynesses	another spelling of dopiness
+dore	a large freshwater fish
+dowsabel	a sweetheart
+dowsabels	a sweetheart
+dracena	dracaena (a tropical plant)
+dracenas	dracaena (a tropical plant)
+drinkably	from the point of view of how drinkable something is
+duddie	ragged (tattered)
+duecento	the thirteenth century
+duecentos	the thirteenth century
+dukka	an Egyptian spice blend
+dukkas	an Egyptian spice blend
+duro	a Spanish silver dollar
+duros	a Spanish silver dollar
+dynel	a synthetic fiber
+dynels	a synthetic fiber
+eaux	water (to sprinkle with water (a transparent, odorless, tasteless liquid))
+echappe	moving from a closed to an open position of the feet in ballet
+emeroid	emerod (a tumor)
+endamebic	Derivative of endamoebic (relating to endamebae)
+endorsive	pertaining to endorsement
+epater	to shock complacent people
+epatered	to shock complacent people
+epatering	to shock complacent people
+epaters	to shock complacent people
+epicentra	the focus of an earthquake
+epicentrum	the focus of an earthquake
+epimerism	the state of being or having epimers
+epimerisms	the state of being or having epimers
+epirogenies	a variant spelling of epeirogeny
+epirogeny	a variant spelling of epeirogeny
+erugo	aerugo (a green film that forms on copper)
+erugos	aerugo (a green film that forms on copper)
+espanol	a native of Spain
+espanoles	a native of Spain
+espiegle	playful (frolicsome)
+espoir	a category of wrestlers
+espoirs	a category of wrestlers
+euroland	the eurozone (the area formed by the countries using the euro)
+eurolands	the eurozone (the area formed by the countries using the euro)
+eurozone	the area formed by the countries using the euro
+eurozones	the area formed by the countries using the euro
+fabrique	a parish group that deals with church property
+fabriques	a parish group that deals with church property
+fadein	a gradual increase in the brightness of an image
+fadeins	a gradual increase in the brightness of an image
+falconoid	an antioxidant compound found in tea and thought to resist cancer
+farcers	farceur (a joker)
+farci	stuffed with finely chopped meat
+farcie	farci (stuffed with finely chopped meat)
+farfal	farfel (noodles in the form of small pellets or granules)
+farfals	farfel (noodles in the form of small pellets or granules)
+fashious	annoying (to be troublesome to)
+fatbird	a wading bird
+fatbirds	a wading bird
+feminie	women collectively
+feuillete	a type of pastry
+feuilletes	a type of pastry
+fezzy	a brimless cap worn by men in the Near East
+fidelismo	Fidelism
+fidelismos	Fidelism
+fireflood	a method of extracting oil from a well by burning some of the oil to increase the rate of flow
+firefloods	a method of extracting oil from a well by burning some of the oil to increase the rate of flow
+firereel	a fire engine
+firereels	a fire engine
+fissate	deeply split
+fixit	a person known for fixing things
+fixits	a person known for fixing things
+flatwash	flatwork (laundry that can be ironed mechanically)
+flatwashes	flatwork (laundry that can be ironed mechanically)
+fledgier	covered with feathers
+fledgiest	covered with feathers
+fledgy	covered with feathers
+flextimers	a person who works flexitime
+footstock	tailstock
+footstocks	tailstock
+forbidals	the act of forbidding (to command not to do something)
+formably	to produce
+fouette	a movement in ballet
+fouettes	a movement in ballet
+fracturers	a person who, or thing which, fractures (something)
+frae	from (starting at)
+francising	to francize (to force to adopt French customs and language)
+franglais	informal French containing a high proportion of words of English origin
+frankum	the hardened resin of a spruce tree
+frankums	the hardened resin of a spruce tree
+fucous	of or pertaining to fucoids
+fullface	a heavy-faced type
+fullfaces	a heavy-faced type
+fullmouthed	Derivative of full-mouthed ((of livestock) having a full adult set of teeth)
+futharc	futhark (an ancient alphabet)
+futharcs	futhark (an ancient alphabet)
+fyce	feist (a small dog of mixed breed)
+fyces	feist (a small dog of mixed breed)
+gach	to gatch (to behave boastfully)
+gached	to gatch (to behave boastfully)
+gacher	gatcher (one that gatches (to behave boastfully))
+gachers	gatcher (one that gatches (to behave boastfully))
+gaches	to gatch (to behave boastfully)
+gaching	to gatch (to behave boastfully)
+gaen	to go
+gaposis	a gap in a row of buttons or snaps
+gaposises	a gap in a row of buttons or snaps
+garni	garnished (to decorate)
+gasking	a gasket (packing for making something fluid-tight)
+gaskings	a gasket (packing for making something fluid-tight)
+gastritic	Derivative of gastritis (inflammation of the lining of the stomach)
+gatchers	one that gatches (to behave boastfully)
+gaun	to go
+gawmoge	a clownish person
+gawmoges	a clownish person
+gewurztraminer	a variety of Traminer grape grown esp in the Rhine valley, Alsace, and Austria; the mildly spicy white wine made from this grape
+gewurztraminers	a variety of Traminer grape grown esp in the Rhine valley, Alsace, and Austria; the mildly spicy white wine made from this grape
+gien	to give (to transfer freely to another's possession)
+giga	a gigue (a lively dance)
+gigas	pertaining to variations in plant development
+gighe	a gigue (a lively dance)
+gingeley	gingelly (the sesame seed or its oil)
+gingeleys	gingelly (the sesame seed or its oil)
+gipon	jupon (a tunic)
+gipons	jupon (a tunic)
+glaiket	glaikit (foolish)
+gonium	an immature reproductive cell
+gor	used as a mild oath
+graffiting	to draw graffiti on
+gristers	one that grinds grain
+guaiocum	guaiacum (a medicinal resin)
+guaiocums	guaiacum (a medicinal resin)
+guarddog	a dog trained to guard persons or property
+guarddogs	a dog trained to guard persons or property
+gunnen	to begin
+habdalah	a Jewish ceremony
+habdalahs	a Jewish ceremony
+haen	to have (to be in possession of)
+haeredes	heres (an heir)
+haeres	heres (an heir)
+haftoros	haphtara (a biblical selection)
+haggadot	a biblical narrative
+hagriders	one that hagrides (to harass)
+haika	an outer garment worn by Arabs
+halachist	a person who contributed to the creation of the Halacha
+halachists	a person who contributed to the creation of the Halacha
+halakhah	halacha (the legal part of the Talmud)
+halakhahs	halacha (the legal part of the Talmud)
+haplite	aplite (a fine-grained rock)
+haplites	aplite (a fine-grained rock)
+hardedge	a geometric painting
+hardedges	a geometric painting
+havdalah	habdalah (a Jewish ceremony)
+havdalahs	habdalah (a Jewish ceremony)
+heartfree	(obsolete) not in love
+heathbird	the black grouse
+heathbirds	the black grouse
+hegumenies	the office of a hegumen
+hegumeny	the office of a hegumen
+hemiolia	hemiola (a rhythmic alteration in music)
+hemiolias	hemiola (a rhythmic alteration in music)
+heredes	an heir
+hoblike	suggestive of an elf
+hokypokies	trickery (deception)
+hokypoky	trickery (deception)
+homines	a member of the genus that includes modern man
+honan	a fine silk
+honans	a fine silk
+hryvna	hryvnia (a monetary unit of Ukraine)
+hryvnas	hryvnia (a monetary unit of Ukraine)
+huic	used to encourage hunting hounds
+hyperpituitary	Derivative of hyperpituitarism ((pathology) overactivity of the pituitary gland, sometimes resulting in acromegaly or gigantism)
+illuminato	member of the Illuminati
+inconscient	(formal) unconscious; without conscious thought
+interage	including persons of various ages
+introfied	to increase the wetting properties of
+introfies	to increase the wetting properties of
+introfy	to increase the wetting properties of
+introfying	to increase the wetting properties of
+iseikonia	(medicine) a condition in which a person sees the same image in both eyes
+iseikonias	(medicine) a condition in which a person sees the same image in both eyes
+isochime	isocheim (a type of isotherm)
+isochimes	isocheim (a type of isotherm)
+isogonies	an equivalent relative growth of parts
+isogony	an equivalent relative growth of parts
+isostacies	isostasy (the state of balance in the earth's crust)
+isostacy	isostasy (the state of balance in the earth's crust)
+iterum	again; once more
+jagdwurst	a cured German sausage
+jagdwursts	a cured German sausage
+jeu	a game
+jeux	a game
+jimmie	a tiny bit of candy for decorating ice cream
+jubhah	jubbah (a loose outer garment)
+jubhahs	jubbah (a loose outer garment)
+junglegym	climbing frame for children
+junglegyms	climbing frame for children
+kabalism	cabalism (adherence to a cabala)
+kabalisms	cabalism (adherence to a cabala)
+kabiki	a tropical tree
+kabikis	a tropical tree
+kalewife	a female vegetable vendor
+kalewives	a female vegetable vendor
+kebar	caber (a heavy pole thrown as a trial of strength)
+kebars	caber (a heavy pole thrown as a trial of strength)
+keppen	to catch
+ketaine	being in poor taste
+khazen	hazzan (hazan)
+khazenim	hazzan (hazan)
+khazens	hazzan (hazan)
+kiaugh	trouble; worry
+kiaughs	trouble; worry
+killie	a freshwater fish
+komondorock	a large, shaggy-coated dog
+kryolith	cryolite (a mineral)
+kryoliths	cryolite (a mineral)
+laich	laigh (a lowland)
+laichs	laigh (a lowland)
+lallan	a lowland
+lalland	a lowland (an area of land lying lower than the adjacent country)
+lallands	a lowland (an area of land lying lower than the adjacent country)
+landslidden	to win an election by an overwhelming majority
+larkishnesses	playful quality
+laserdisk	Derivative of laserdisc (a disk similar in size to a long-playing record, on which data is stored in pits in a similar way to data storage on a compact disc, used esp for storing high-quality video)
+laserdisks	Derivative of laserdisc (a disk similar in size to a long-playing record, on which data is stored in pits in a similar way to data storage on a compact disc, used esp for storing high-quality video)
+latilla	a peeled limb used in ceilings
+latillas	a peeled limb used in ceilings
+lattin	latten (a brass-like alloy)
+lattins	latten (a brass-like alloy)
+latu	a monetary unit of Latvia
+leukon	a bodily organ consisting of the white blood cells
+leukons	a bodily organ consisting of the white blood cells
+liblab	a person supporting a coalition of liberal and labor groups
+liblabs	a person supporting a coalition of liberal and labor groups
+licente	a monetary unit of Lesotho
+licht	to light (to illuminate)
+lichted	to light (to illuminate)
+lichting	to light (to illuminate)
+lichts	to light (to illuminate)
+lictorian	of or relating to a lictor
+linguisa	linguica (a spicy Portuguese sausage)
+linguisas	linguica (a spicy Portuguese sausage)
+lippered	to ripple (to form ripples (small waves))
+lippering	to ripple (to form ripples (small waves))
+lippers	to ripple (to form ripples (small waves))
+liri	a monetary unit of Italy
+litu	a former monetary unit of Lithuania
+lordoma	lordosis (a curvature of the spinal column)
+lordomas	lordosis (a curvature of the spinal column)
+lotters	one who assembles merchandise into salable lots
+loupen	to leap (to spring off the ground)
+lovevine	a twining herb
+lovevines	a twining herb
+lyard	streaked with gray
+macaber	macabre (gruesome)
+macromole	macromolecule
+macromoles	macromolecule
+madre	mother (to give birth to)
+madres	mother (to give birth to)
+maiasaura	a species of large, herbivorous, duck-billed dinosaur
+maiasauras	a species of large, herbivorous, duck-billed dinosaur
+maills	a payment
+malaroma	a malodor (an offensive odor)
+malaromas	a malodor (an offensive odor)
+maline	a delicate net used for veils
+malvasian	Derivative of malvasia (another word for malmsey)
+manatoid	an aquatic mammal
+marcellers	Derivative of marcel (Also called: marcel wave. a hairstyle characterized by repeated regular waves, popular in the 1920s)
+marchen	a folktale
+maryjane	marijuana
+maryjanes	marijuana
+mastix	mastic (an aromatic resin)
+mastixes	mastic (an aromatic resin)
+mattin	matin (a morning song, as of birds)
+mausier	mauzy (foggy, misty)
+mausiest	mauzy (foggy, misty)
+mausy	mauzy (foggy, misty)
+maut	malt (to treat or combine with malt (germinated grain))
+mauts	malt (to treat or combine with malt (germinated grain))
+mavie	mavis (a songbird)
+mavies	mavis (a songbird)
+medigap	a supplemental health insurance
+medigaps	a supplemental health insurance
+melodias	a type of organ stop
+meno	less -- used as a musical direction
+menshen	mensch (an admirable person)
+mercado	a market
+mercados	a market
+mercuration	Derivative of mercurate (to treat or mix with mercury)
+mercurations	Derivative of mercurate (to treat or mix with mercury)
+messman	a serviceman who works in a dining facility
+messmen	a serviceman who works in a dining facility
+meuniere	cooked in browned butter
+micra	a unit of length
+micrified	to make small
+micrifies	to make small
+micrify	to make small
+micrifying	to make small
+microluces	a unit of illumination
+microtechnic	microtechnique
+microtechnics	microtechnique
+migg	mig (a type of playing marble)
+miggle	a mig (a type of playing marble)
+miggles	a mig (a type of playing marble)
+miggs	mig (a type of playing marble)
+mignonne	daintily small
+mikra	micron (a unit of length)
+mikron	micron (a unit of length)
+mikrons	micron (a unit of length)
+miladi	milady (an English gentlewoman)
+miladis	milady (an English gentlewoman)
+milesimo	a former monetary unit of Chile
+milesimos	a former monetary unit of Chile
+milings	the activity of running in a one-mile race
+milliluces	a unit of illumination
+minaudiere	(fashion) a small, handleless bag usually carried by a woman as an accessory for formal wear
+minaudieres	(fashion) a small, handleless bag usually carried by a woman as an accessory for formal wear
+misagent	a bad agent
+misagents	a bad agent
+misatone	to atone wrongly
+misatoned	to atone wrongly
+misatones	to atone wrongly
+misatoning	to atone wrongly
+misaver	to speak erroneously
+misaverred	to speak erroneously
+misaverring	to speak erroneously
+misavers	to speak erroneously
+misbegan	to begin wrongly
+misbegin	to begin wrongly
+misbeginning	to begin wrongly
+misbegins	to begin wrongly
+misbias	to bias wrongly
+misbiased	to bias wrongly
+misbiases	to bias wrongly
+misbiasing	to bias wrongly
+misbiassed	to bias wrongly
+misbiasses	to bias wrongly
+misbiassing	to bias wrongly
+miscoin	to coin improperly
+miscoining	to coin improperly
+miscoins	to coin improperly
+misenroll	to enroll improperly
+misenrolls	to enroll improperly
+misinter	to inter improperly
+misinterred	to inter improperly
+misinterring	to inter improperly
+misinters	to inter improperly
+mislabor	to labor badly
+mislabored	to labor badly
+mislaboring	to labor badly
+mislabors	to labor badly
+misleared	(Scottish & Northern England & Northern Ireland) ill-mannered or rude
+mispoise	to poise incorrectly
+mispoised	to poise incorrectly
+mispoises	to poise incorrectly
+mispoising	to poise incorrectly
+misprizers	a despiser or scorner
+misteuk	to interpret wrongly
+momi	a carping person
+mongst	amongst (among)
+monties	the full amount expected or possible
+monty	the full amount expected or possible
+mourvedre	a variety of winemaking grape
+mourvedres	a variety of winemaking grape
+moutonnee	pertaining to a rock formation that has been rounded by the action of glacier
+munster	muenster (a mild cheese)
+munsters	muenster (a mild cheese)
+muspike	a freshwater fish
+muspikes	a freshwater fish
+myc	a gene that transforms a normal cell into a cancerous cell
+mycs	a gene that transforms a normal cell into a cancerous cell
+naething	nothing (the absence of all quantity or magnitude)
+naethings	nothing (the absence of all quantity or magnitude)
+nandins	an evergreen shrub
+naphthous	of, relating to or derived from naphtha
+nema	a nematode
+nemas	a nematode
+newwaver	a member of a new-wave movement
+newwavers	a member of a new-wave movement
+nicoise	served with black olives, tomatoes, olive oil, and often anchovies
+nogg	a strong ale
+noggs	a strong ale
+nona	a virus disease
+nonas	a virus disease
+nortena	a style of folk music of northern Mexico and Texas
+nortenas	a style of folk music of northern Mexico and Texas
+nouvelle	a style of French cooking
+nucleinic	Derivative of nucleinic acid (another name for nucleic acid)
+nymphetic	relating to a nymphet
+ocheroid	ocherous (containing or resembling ocher)
+oilcamp	a living area for workers at an oil well
+oilcamps	a living area for workers at an oil well
+oilhole	a hole through which lubricating oil is injected
+oilholes	a hole through which lubricating oil is injected
+olicook	a doughnut
+olicooks	a doughnut
+omnimode	of all modes
+opercele	opercule (an anatomical part that serves as a lid or cover)
+operceles	opercule (an anatomical part that serves as a lid or cover)
+oppilant	to obstruct
+orphism	a style of art
+orphisms	a style of art
+outcavil	to surpass in caviling (to carp)
+outcaviled	to surpass in caviling (to carp)
+outcaviling	to surpass in caviling (to carp)
+outcavilled	to surpass in caviling (to carp)
+outcavilling	to surpass in caviling (to carp)
+outcavils	to surpass in caviling (to carp)
+outchid	to surpass in chiding (to scold)
+outchidden	to surpass in chiding (to scold)
+outchide	to surpass in chiding (to scold)
+outchided	to surpass in chiding (to scold)
+outchides	to surpass in chiding (to scold)
+outchiding	to surpass in chiding (to scold)
+outcities	a city on the outskirts of a larger city
+outcity	a city on the outskirts of a larger city
+outclomb	to surpass in climbing (to ascend)
+outgnawn	to surpass in gnawing
+outjinx	to surpass in jinxing (to bring bad luck to)
+outjinxed	to surpass in jinxing (to bring bad luck to)
+outjinxes	to surpass in jinxing (to bring bad luck to)
+outjinxing	to surpass in jinxing (to bring bad luck to)
+outoffice	an outbuilding
+outoffices	an outbuilding
+outpeople	to rid (a country) of its people
+outpeopled	to rid (a country) of its people
+outpeoples	to rid (a country) of its people
+outpeopling	to rid (a country) of its people
+outpitied	to surpass in pitying (to feel pity (sorrow aroused by another's misfortune))
+outpities	to surpass in pitying (to feel pity (sorrow aroused by another's misfortune))
+outpity	to surpass in pitying (to feel pity (sorrow aroused by another's misfortune))
+outpitying	to surpass in pitying (to feel pity (sorrow aroused by another's misfortune))
+outporters	one who lives in an outport
+outpupil	a pupil who lives off campus
+outpupils	a pupil who lives off campus
+outpursue	to pursue farther than
+outpursued	to pursue farther than
+outpursues	to pursue farther than
+outpursuing	to pursue farther than
+outsaid	to surpass in saying
+outsavor	to surpass in a distinctive taste or smell
+outsavored	to surpass in a distinctive taste or smell
+outsavoring	to surpass in a distinctive taste or smell
+outsavors	to surpass in a distinctive taste or smell
+outsay	to surpass in saying
+outsaying	to surpass in saying
+outsays	to surpass in saying
+outstrive	(rare, archaic) to strive harder than
+outstriven	(rare, archaic) to strive harder than
+outstrives	(rare, archaic) to strive harder than
+outstriving	(rare, archaic) to strive harder than
+outstrove	(rare, archaic) to strive harder than
+outsware	to surpass in swearing (to utter a solemn oath)
+outthieve	to surpass in stealing
+outthieved	to surpass in stealing
+outthieves	to surpass in stealing
+outthieving	to surpass in stealing
+ovaritides	inflammation of an ovary
+overacute	excessively acute
+overdyers	one that overdyes (to dye with too much color)
+overgoad	to goad too much
+overgoading	to goad too much
+overgoads	to goad too much
+overlet	to let to excess
+overlets	to let to excess
+overletting	to let to excess
+overthick	too thick
+overtimid	extremely timid
+oxyphils	oxyphile (an organism that thrives in a relatively acid environment)
+ozalid	a process of printing positive images from film -- a trademark
+ozalids	a process of printing positive images from film -- a trademark
+pachadom	pashadom (the rank of a pasha)
+pachadoms	pashadom (the rank of a pasha)
+packnesses	intimacy (the state of being closely associated)
+padrona	a female boss or employer
+padronas	a female boss or employer
+padronism	(US) a system of exploitative work controlled by a padrone
+padronisms	(US) a system of exploitative work controlled by a padrone
+palais	a palace (a royal residence)
+palikar	a Greek soldier
+palikars	a Greek soldier
+papayan	a melon-like fruit
+parapente	a parachute used in gliding from high ground
+parapentes	a parachute used in gliding from high ground
+pardee	pardi (used as a mild oath)
+parecism	the state of having the male and female sexual organs beside or near each other
+parecisms	the state of having the male and female sexual organs beside or near each other
+parridge	porridge (a soft food)
+parridges	porridge (a soft food)
+parura	parure (a set of matched jewelry)
+paruras	parure (a set of matched jewelry)
+pashka	paskha (a Russian dessert eaten at Easter)
+pashkas	paskha (a Russian dessert eaten at Easter)
+passalong	(not standard) (of plants, seeds, or cuttings) given to others
+passalongs	(not standard) (of plants, seeds, or cuttings) given to others
+pastitso	a Greek dish of ground meat, pasta, white sauce, and cheese
+pastitsos	a Greek dish of ground meat, pasta, white sauce, and cheese
+paty	formee (having the arms narrow at the center and expanding toward the ends -- used of a heraldic cross)
+paughty	arrogant (overly convinced of one's own worth or importance)
+pavisse	pavis (a large medieval shield)
+peartnesses	Derivative of peart ((dialect) lively; spirited; brisk)
+peebeen	a large hardwood evergreen tree
+peebeens	a large hardwood evergreen tree
+pelon	hairless (having no hair)
+peltation	Derivative of peltate ((of leaves) having the stalk attached to the centre of the lower surface)
+peltations	Derivative of peltate ((of leaves) having the stalk attached to the centre of the lower surface)
+pemphix	a skin disease
+pemphixes	a skin disease
+pensee	a thought
+pensees	a thought
+peperoni	a highly seasoned sausage
+peperonis	a highly seasoned sausage
+pepsinate	to treat (a patient) with pepsin
+pepsinates	to treat (a patient) with pepsin
+pepsinating	to treat (a patient) with pepsin
+peptalk	to inspire enthusiasm in by an intense, emotional talk
+peptalked	to inspire enthusiasm in by an intense, emotional talk
+peptalking	to inspire enthusiasm in by an intense, emotional talk
+peptalks	to inspire enthusiasm in by an intense, emotional talk
+perorator	(rhetoric) a person who gives a peroration
+perorators	(rhetoric) a person who gives a peroration
+petnapers	one who steals a pet
+petrale	a food fish
+petrales	a food fish
+phenazins	a chemical compound
+phonathon	a telephone-based fund-raising campaign
+phonathons	a telephone-based fund-raising campaign
+photoscan	a photographic scan, produced by medical technology that uses injections of radioactive substances, which shows variations in body tissues
+photoscanned	a photographic scan, produced by medical technology that uses injections of radioactive substances, which shows variations in body tissues
+photoscanning	a photographic scan, produced by medical technology that uses injections of radioactive substances, which shows variations in body tissues
+photoscans	a photographic scan, produced by medical technology that uses injections of radioactive substances, which shows variations in body tissues
+phytin	a calcium-magnesium salt
+phytins	a calcium-magnesium salt
+piani	music passages to be played softly
+pianic	a tropical disease
+picacho	an isolated peak of a hill
+picachos	an isolated peak of a hill
+picante	prepared with a spicy sauce
+picholine	a variety of mild green olive from France which is cured in salt brine
+picholines	a variety of mild green olive from France which is cured in salt brine
+pickwick	a device for raising wicks in oil lamps
+pickwicks	a device for raising wicks in oil lamps
+picowave	to irradiate (food) with gamma rays
+picowaved	to irradiate (food) with gamma rays
+picowaves	to irradiate (food) with gamma rays
+picowaving	to irradiate (food) with gamma rays
+pinchbug	a large beetle
+pinchbugs	a large beetle
+pinwork	a type of embroidery
+pinwrench	wrench with a projection to fit a hole
+pinwrenches	wrench with a projection to fit a hole
+pistolero	a member of a gang of armed bandits
+pistoleros	a member of a gang of armed bandits
+plasmagel	ectoplasm
+plasmagels	ectoplasm
+plasmasol	endoplasm
+plasmasols	endoplasm
+pleonic	the abdomen of a crustacean
+pliofilm	a transparent sheet of chlorinated rubber used in packaging
+pliofilms	a transparent sheet of chlorinated rubber used in packaging
+plussage	an amount over and above another
+plussages	an amount over and above another
+poditic	a limb segment of an arthropod
+podophylli	a genus of herbs of the Barberry family, having large palmately lobed peltate leaves and solitary flower. There are two species, the American Podohyllum peltatum, or May apple, the Himalayan P. Emodi
+podsolising	to podzolize
+podzolising	to podzolize
+poechore	a semiarid region
+poechores	a semiarid region
+polybrid	a type of hybrid plant
+polybrids	a type of hybrid plant
+potatobug	Colorado beetle
+potatobugs	Colorado beetle
+poussie	pussy (a cat)
+poussies	pussy (a cat)
+preaccuse	to accuse (someone of something) prior to the specified wrongdoing being committed or prior to having evidence of wrongdoing
+preaccused	to accuse (someone of something) prior to the specified wrongdoing being committed or prior to having evidence of wrongdoing
+preaccuses	to accuse (someone of something) prior to the specified wrongdoing being committed or prior to having evidence of wrongdoing
+preaccusing	to accuse (someone of something) prior to the specified wrongdoing being committed or prior to having evidence of wrongdoing
+preassure	to assure beforehand
+preassured	to assure beforehand
+preassures	to assure beforehand
+preassuring	to assure beforehand
+preattune	to attune in advance or beforehand
+preattuned	to attune in advance or beforehand
+preattunes	to attune in advance or beforehand
+preattuning	to attune in advance or beforehand
+preaver	to aver or assert beforehand
+preaverred	to aver or assert beforehand
+preaverring	to aver or assert beforehand
+preavers	to aver or assert beforehand
+prebade	to bid beforehand
+prebidden	to bid beforehand
+precieux	excessively refined
+precookers	a device for cooking or partially cooking food in advance of final preparations
+preexempt	Derivative of pre-exempt (exempt beforehand)
+preexempted	Derivative of pre-exempt (exempt beforehand)
+preexempting	Derivative of pre-exempt (exempt beforehand)
+preexempts	Derivative of pre-exempt (exempt beforehand)
+prefrank	to frank beforehand
+prefranking	to frank beforehand
+prefranks	to frank beforehand
+prefund	to fund beforehand
+prefunding	to fund beforehand
+prefunds	to fund beforehand
+preguide	to guide beforehand
+preguided	to guide beforehand
+preguides	to guide beforehand
+preguiding	to guide beforehand
+prehandle	to handle beforehand
+prehandled	to handle beforehand
+prehandles	to handle beforehand
+prehandling	to handle beforehand
+preinvite	to invite (somebody) before others
+preinvited	to invite (somebody) before others
+preinvites	to invite (somebody) before others
+preinviting	to invite (somebody) before others
+preship	to ship beforehand
+preshipped	to ship beforehand
+preships	to ship beforehand
+prestore	to store beforehand
+prestores	to store beforehand
+prestoring	to store beforehand
+preunite	to unite beforehand
+preunited	to unite beforehand
+preunites	to unite beforehand
+preuniting	to unite beforehand
+previsor	one that previses (to foresee)
+previsors	one that previses (to foresee)
+primi	the main part in a musical piece
+privatist	a person who exhibits a lack of concern for public life
+privatists	a person who exhibits a lack of concern for public life
+procarp	a female sexual organ in certain algae
+procarps	a female sexual organ in certain algae
+prochain	prochein (nearest in time, relation, or degree)
+prolan	a sex hormone
+prolans	a sex hormone
+prometric	in favour of the metric system
+promodern	in favour of the modern
+prost	prosit (used as a drinking toast)
+ptomainic	causing or resulting from ptomaines
+purflers	one that purfles (to decorate the border of)
+purins	purine (a chemical compound)
+puton	a hoax or deception
+putons	a hoax or deception
+quai	quay (a wharf)
+quais	quay (a wharf)
+rachitides	rickets (a disease resulting from vitamin D deficiency)
+rambla	a dry ravine
+ramblas	a dry ravine
+ramilie	ramillie (a type of wig)
+ramilies	ramillie (a type of wig)
+ramillie	a type of wig
+ramillies	a type of wig
+ramin	a Malaysian tree
+ramins	a Malaysian tree
+ramtilla	ramtil (a tropical plant)
+ramtillas	ramtil (a tropical plant)
+ranchless	having no ranch or ranches
+raviest	characteristic of a rave (an all-night dance party with fast electronic music)
+rawin	a wind measurement made by tracking a balloon with radar
+rawins	a wind measurement made by tracking a balloon with radar
+reacclaim	to acclaim again
+reacclaimed	to acclaim again
+reacclaiming	to acclaim again
+reacclaims	to acclaim again
+recaution	to caution again
+recautioned	to caution again
+recautioning	to caution again
+recautions	to caution again
+recitativi	recitative (a species of musical recitation in which the words are delivered in a manner resembling that of ordinary declamation; also, a piece of music intended for such recitation; -- opposed to melisma)
+redoublers	(bridge) a person who redoubles
+regisseur	official in a dance company with varying duties, usually including directing productions
+regisseurs	official in a dance company with varying duties, usually including directing productions
+reglorified	to glorify again
+reglorifies	to glorify again
+reglorify	to glorify again
+reglorifying	to glorify again
+relleno	a Mexican dish of a stuffed and fried green chile
+rellenos	a Mexican dish of a stuffed and fried green chile
+remorid	a type of marine fish
+reseaux	a filter screen for making color films
+rewan	to win again
+rewrapt	to wrap again
+rezero	to reset (a gauge) back to zero
+rezeroed	to reset (a gauge) back to zero
+rezeroes	to reset (a gauge) back to zero
+rezeroing	to reset (a gauge) back to zero
+rezeros	to reset (a gauge) back to zero
+rhizoctonia	a plant fungus which affects a wide range of plants including potatoes and is found worldwide
+rhizoctonias	a plant fungus which affects a wide range of plants including potatoes and is found worldwide
+ringtaw	a game of marbles
+ringtaws	a game of marbles
+ripsawn	to saw wood by cutting with the grain
+risorgimento	the period of and the movement for the political unification of Italy in the 19th century
+risorgimentos	the period of and the movement for the political unification of Italy in the 19th century
+risus	a grin or laugh
+risuses	a grin or laugh
+ronnel	an insecticide
+ronnels	an insecticide
+roosers	one that rooses (to praise)
+rosace	an ornamentation resembling a rose
+rosaces	an ornamentation resembling a rose
+rosinol	rosin oil
+rosinols	rosin oil
+roughback	a rough-skinned flatfish
+roughbacks	a rough-skinned flatfish
+roven	to fasten by passing through or around something
+royalmast	the highest part of a mast
+royalmasts	the highest part of a mast
+ruer	one that rues (to feel sorrow or remorse for)
+ruers	one that rues (to feel sorrow or remorse for)
+sabe	to savvy
+sabeing	to savvy
+sacrarial	an ancient roman shrine
+saganash	a white man -- an Algonquian Indian term
+saganashes	a white man -- an Algonquian Indian term
+saladang	a wild ox
+saladangs	a wild ox
+sangrail	the legendary cup used by Christ at the Last Supper
+sangrails	the legendary cup used by Christ at the Last Supper
+saponated	treated or combined with soap
+saprobial	relating to saprobity
+satiably	capable of being satiated
+saughy	a willow tree
+schussers	one that schusses (to make a fast, straight run in skiing)
+schwarmerei	enthusiasm
+schwarmereis	enthusiasm
+scraich	to utter a shrill cry
+scraiched	to utter a shrill cry
+scraiching	to utter a shrill cry
+scraichs	to utter a shrill cry
+scraigh	to scraich (to utter a shrill cry)
+scraighed	to scraich (to utter a shrill cry)
+scraighing	to scraich (to utter a shrill cry)
+scraighs	to scraich (to utter a shrill cry)
+scrimpit	meager (deficient in quantity or quality)
+sculch	clean trash
+sculches	clean trash
+scultch	sculch (clean trash)
+scultches	sculch (clean trash)
+sebasic	sebacic (derived from a certain acid)
+secalose	a complex carbohydrate
+secaloses	a complex carbohydrate
+seicento	the seventeenth century
+seicentos	the seventeenth century
+semicured	partly cured or preserved
+semideifies	to treat someone or something almost as a god
+semideify	to treat someone or something almost as a god
+semideifying	to treat someone or something almost as a god
+semigala	somewhat gala
+semihobo	a person having some of the characteristics of a hobo
+semihoboes	a person having some of the characteristics of a hobo
+semihobos	a person having some of the characteristics of a hobo
+semillon	a white grape grown in France
+semillons	a white grape grown in France
+semipious	quite pious; somewhat pious
+semistiff	somewhat or fairly stiff; partially stiff
+sensa	an object of perception or sensation
+sensum	an object of perception or sensation
+sententia	(literary) an opinion, idea, thought, or aphorism, whether written or spoken; a maxim or proverb
+sententiae	(literary) an opinion, idea, thought, or aphorism, whether written or spoken; a maxim or proverb
+sexologic	pertaining to the study of human sexuality
+shacklebone	the wrist
+shacklebones	the wrist
+shaird	shard (a fragment of broken pottery)
+shairds	shard (a fragment of broken pottery)
+shamosim	shammes (a minor official of a synagogue)
+shankpiece	(shoemaking) the inner sole or arch support in the shank of a shoe
+shankpieces	(shoemaking) the inner sole or arch support in the shank of a shoe
+shaul	to shoal (to become shallow)
+shauled	to shoal (to become shallow)
+shauls	to shoal (to become shallow)
+shavie	a trick or prank
+shavies	a trick or prank
+shekelim	an ancient unit of weight and money
+shelta	an esoteric jargon of Gaelic
+sheltas	an esoteric jargon of Gaelic
+shiviti	a plaque with a Hebrew verse
+shivitis	a plaque with a Hebrew verse
+shnapps	schnapps (a strong liquor)
+showbizzes	show business
+sialoid	resembling saliva (a fluid secreted by the glands of the mouth)
+siccan	such (of that kind)
+sidecheck	part of a horse's harness
+sidechecks	part of a horse's harness
+signiori	signor (an Italian title of courtesy for a man)
+silastic	trademark, silicone rubber
+silastics	trademark, silicone rubber
+simioid	simious (pertaining to simians)
+sistroid	included between the convex sides of two intersecting curves
+skeen	skean (a type of dagger)
+skeens	skean (a type of dagger)
+skelpit	to slap (to strike with the open hand)
+sklent	to slant (to deviate from the horizontal or vertical)
+sklented	to slant (to deviate from the horizontal or vertical)
+sklenting	to slant (to deviate from the horizontal or vertical)
+sklents	to slant (to deviate from the horizontal or vertical)
+skreegh	to screech (to utter a harsh, shrill cry)
+skreeghed	to screech (to utter a harsh, shrill cry)
+skreeghing	to screech (to utter a harsh, shrill cry)
+skreeghs	to screech (to utter a harsh, shrill cry)
+slainte	used to toast one's health
+slickeners	a tool used for slickening
+slieve	a mountain
+slieves	a mountain
+smeek	to smoke (to emit smoke (the gaseous product of burning materials))
+smeeked	to smoke (to emit smoke (the gaseous product of burning materials))
+smeeking	to smoke (to emit smoke (the gaseous product of burning materials))
+smeeks	to smoke (to emit smoke (the gaseous product of burning materials))
+smorg	a smorgasbord
+smorgs	a smorgasbord
+sneesh	snuff (to use or inhale snuff (powdered tobacco))
+sneeshes	snuff (to use or inhale snuff (powdered tobacco))
+snippersnapper	(pejorative) an insignificant but pretentious person
+snippersnappers	(pejorative) an insignificant but pretentious person
+snocoach	a bus-like vehicle with large tires or tracks for traveling on snow
+snocoaches	a bus-like vehicle with large tires or tracks for traveling on snow
+snowflea	a wingless insect appearing on snow in the spring
+snowfleas	a wingless insect appearing on snow in the spring
+soapsudsy	Derivative of soapsuds (foam or lather made from soap)
+soleprint	a print of the sole of a foot
+soleprints	a print of the sole of a foot
+soliquid	a fluid colloidal system
+soliquids	a fluid colloidal system
+sonovox	a sound effects device
+sonovoxes	a sound effects device
+soths	sooth (truth)
+spaldeen	a small hollow rubber ball
+spaldeens	a small hollow rubber ball
+spavie	spavin (a disease of horses)
+spavies	spavin (a disease of horses)
+spaviet	spavin (a disease of horses)
+speise	speiss (a metallic mixture obtained in smelting certain ores)
+speises	speiss (a metallic mixture obtained in smelting certain ores)
+speltz	spelt (a variety of wheat)
+speltzes	spelt (a variety of wheat)
+sphygmus	the pulse
+sphygmuses	the pulse
+spindlers	one that spindles (to impale on a slender rod)
+spirituel	having a refined and lively mind or wit Also (feminine): spirituelle
+sporozoal	(biology) belonging or relating to Sporozoa
+sporozoic	another term for sporozoal
+spunkie	a light caused by the combustion of marsh gas
+spurters	one that spurts (to gush forth)
+staggie	a colt
+stourie	stoury (dusty)
+stoury	dusty (full of dust)
+stretta	stretto (a concluding musical passage played at a faster tempo)
+strettas	stretto (a concluding musical passage played at a faster tempo)
+strette	stretto (a concluding musical passage played at a faster tempo)
+stroyers	one that stroys (to destroy)
+stylitism	(Christianity) the practice of being a stylite
+stylitisms	(Christianity) the practice of being a stylite
+suably	capable of being sued
+subconsul	an assistant to a consul
+subconsuls	an assistant to a consul
+subdeputies	an assistant to a deputy
+subdeputy	an assistant to a deputy
+subduably	Derivative of subdue (to establish ascendancy over by force)
+subinfeud	(feudal law) a grant by a feudal tenant of land to a further tenant
+subinfeuded	(feudal law) a grant by a feudal tenant of land to a further tenant
+subinfeuding	(feudal law) a grant by a feudal tenant of land to a further tenant
+subinfeuds	(feudal law) a grant by a feudal tenant of land to a further tenant
+subsere	a type of ecological succession
+subseres	a type of ecological succession
+suffari	a safari
+suffaris	a safari
+sulfo	sulfonic (containing a certain univalent radical)
+superably	Derivative of superable (able to be surmounted or overcome)
+supersaur	a very large dinosaur
+supersaurs	a very large dinosaur
+surgers	one that surges (to move in a swelling manner)
+surnamers	one that surnames (to give a family name to)
+swail	swale (a tract of low, marshy ground)
+swails	swale (a tract of low, marshy ground)
+sweeney	sweeny (atrophy of the shoulder muscles in horses)
+sweeneys	sweeny (atrophy of the shoulder muscles in horses)
+swilers	one that hunts seals
+swoun	to swoon (to faint)
+swouned	to swoon (to faint)
+swouning	to swoon (to faint)
+swouns	to swoon (to faint)
+sylvins	sylvite (an ore of potassium)
+symbiots	symbiont (an organism living in close association with another)
+synaestheses	the harmonious combination of differing impulses arising from a work of art
+synaesthesis	the harmonious combination of differing impulses arising from a work of art
+synergia	synergy (combined action)
+synergias	synergy (combined action)
+syngasses	a mixture of carbon monoxide and hydrogen used in chemical synthesis
+synura	any of a genus of protozoa
+synurae	any of a genus of protozoa
+tabbis	a silk fabric
+tabbises	a silk fabric
+taborins	taborine (a taboret)
+talcked	to treat with talc (a soft mineral with a soapy texture)
+talcking	to treat with talc (a soft mineral with a soapy texture)
+tamein	a garment worn by Burmese women
+tameins	a garment worn by Burmese women
+targa	a type of convertible sports car
+targas	a type of convertible sports car
+tegua	a type of moccasin
+teguas	a type of moccasin
+tegumen	tegmen (a covering)
+tegumina	tegmen (a covering)
+teleran	a system of air navigation
+telerans	a system of air navigation
+teleshop	to shop by interactive telecommunications systems
+teleshopped	to shop by interactive telecommunications systems
+teleshops	to shop by interactive telecommunications systems
+tensibly	capable of being stretched
+tentie	tenty (watchful)
+tentier	tenty (watchful)
+tentiest	tenty (watchful)
+tenty	watchful (closely observant or alert)
+terminably	Derivative of terminable (able to be terminated)
+tevatron	a particle accelerator
+tevatrons	a particle accelerator
+thae	these; those
+thairm	tharm (the belly)
+thairms	tharm (the belly)
+thindown	a lessening in the number of atomic particles and cosmic rays passing through the earth's atmosphere
+thindowns	a lessening in the number of atomic particles and cosmic rays passing through the earth's atmosphere
+thio	containing sulfur
+thrawn	twisted (to combine by winding together)
+threapers	one that threaps (to dispute)
+throughither	another word for through-other
+ticklace	a type of small seabird
+ticklaces	a type of small seabird
+tictacked	to ticktack (to ticktock)
+tictacking	to ticktack (to ticktock)
+tictoc	to ticktock (to make the ticking sound of a clock)
+tictocked	to ticktock (to make the ticking sound of a clock)
+tictocking	to ticktock (to make the ticking sound of a clock)
+tictocs	to ticktock (to make the ticking sound of a clock)
+tinkertoy	a children's toy construction set
+tinkertoys	a children's toy construction set
+titchie	titchy (very small)
+tofutti	a food made without dairy products -- a trademark
+tofuttis	a food made without dairy products -- a trademark
+tolans	a chemical compound
+toolhead	a part of a machine
+toolheads	a part of a machine
+toupie	a round boneless smoked ham
+toupies	a round boneless smoked ham
+towplane	an airplane that tows gliders
+towplanes	an airplane that tows gliders
+toyland	the toy industry
+toylands	the toy industry
+trachle	to draggle
+trachled	to draggle
+trachles	to draggle
+trachling	to draggle
+transexualism	Derivative of transsexualism (a strong desire to change sex)
+transexualisms	Derivative of transsexualism (a strong desire to change sex)
+transvaluate	to change the value of
+transvaluated	to change the value of
+transvaluates	to change the value of
+transvaluating	to change the value of
+trauchle	to trachle (to draggle)
+trauchled	to trachle (to draggle)
+trauchles	to trachle (to draggle)
+trauchling	to trachle (to draggle)
+trawley	a small truck or car for conveying material
+trawleys	a small truck or car for conveying material
+tressour	tressure (a type of heraldic design)
+tressours	tressure (a type of heraldic design)
+tricities	an area that comprises three adjoining independent cities
+tricity	an area that comprises three adjoining independent cities
+trigo	wheat (a cereal grass)
+trigos	wheat (a cereal grass)
+trilateralist	advocate of trilateralism
+trilateralists	advocate of trilateralism
+triptyca	a triptych (an ancient writing tablet)
+triptycas	a triptych (an ancient writing tablet)
+trois	the number three
+tsorriss	tsuris (a series of misfortunes)
+tubate	tubular (shaped like a tube)
+tubulator	Derivative of tubulate (to form or shape into a tube)
+tubulators	Derivative of tubulate (to form or shape into a tube)
+turfski	a type of ski
+turfskiing	skiing using turfskis
+turfskiings	skiing using turfskis
+turfskis	a type of ski
+twae	two (a number)
+twankies	a variety of green tea
+twanky	a variety of green tea
+twasome	twosome (a group of two)
+twasomes	twosome (a group of two)
+typp	a unit of yarn size
+typps	a unit of yarn size
+ubique	everywhere (in every place; in all places; hence, in every part; throughly; altogether)
+underbud	to bud from beneath
+underbudded	to bud from beneath
+underbudding	to bud from beneath
+underbuds	to bud from beneath
+unensured	being not ensured
+unguenta	an ointment
+unguentum	an ointment
+uninstal	to remove a file or an application from a computer
+uninstals	to remove a file or an application from a computer
+unmannish	not mannish
+unquaking	being not quaking
+unsoncy	unsonsie (unlucky)
+upby	upbye (a little farther on)
+upbye	a little farther on
+urb	an urban area
+urbia	cities collectively
+urbias	cities collectively
+vauntie	boastful (given to boasting)
+vawntie	vaunty (vauntie)
+vendibly	salably (capable of being or fit to be sold)
+verite	the technique of filming so as to convey candid realism
+verites	the technique of filming so as to convey candid realism
+vermoulu	eaten by worms
+vitesse	speed (to move swiftly)
+vitesses	speed (to move swiftly)
+wab	a web
+waeful	woeful (full of woe)
+waenesses	woeness (sadness)
+waesuck	waesucks (used to express pity)
+waesucks	used to express pity
+waffie	a vagabond
+wahconda	wakanda (a supernatural force in Sioux beliefs)
+wahcondas	wakanda (a supernatural force in Sioux beliefs)
+wakanda	a supernatural force in Sioux beliefs
+wakandas	a supernatural force in Sioux beliefs
+wakiki	shell money of the South Sea Islands
+wakikis	shell money of the South Sea Islands
+walleys	a type of jump in figure skating
+wallie	a valet
+wallydrag	(Scottish) a worthless person or animal
+wallydrags	(Scottish) a worthless person or animal
+wamefou	a bellyful
+wamefous	a bellyful
+wappenschawings	a periodical muster or review of the men under arms in a particular lordship or district
+warsle	to wrestle (to engage in a type of hand-to-hand contest)
+warsled	to wrestle (to engage in a type of hand-to-hand contest)
+warsler	a wrestler (one that wrestles)
+warslers	a wrestler (one that wrestles)
+warsles	to wrestle (to engage in a type of hand-to-hand contest)
+warsling	to wrestle (to engage in a type of hand-to-hand contest)
+warstle	to wrestle (to engage in a type of hand-to-hand contest)
+warstled	to wrestle (to engage in a type of hand-to-hand contest)
+warstler	a wrestler (one that wrestles)
+warstlers	a wrestler (one that wrestles)
+warstles	to wrestle (to engage in a type of hand-to-hand contest)
+warstling	to wrestle (to engage in a type of hand-to-hand contest)
+wasterie	wastry (reckless extravagance)
+wastrie	wastry (reckless extravagance)
+watchcries	a password
+watchcry	a password
+waterbusses	a large motorboat for carrying passengers
+webfed	designed to print a continuous roll of paper
+wheep	to wheeple (to give forth a prolonged whistle)
+wheeped	to wheeple (to give forth a prolonged whistle)
+wheeping	to wheeple (to give forth a prolonged whistle)
+whigmaleerie	a trinket, whimsical ornament, or trifle
+whigmaleeries	a trinket, whimsical ornament, or trifle
+whitecomb	(veterinary science) a fungal disease infecting the combs of certain fowls
+whitecombs	(veterinary science) a fungal disease infecting the combs of certain fowls
+whitrack	a weasel
+whitracks	a weasel
+whoosis	an object or person whose name is not known
+whoosises	an object or person whose name is not known
+whosis	whoosis (an object or person whose name is not known)
+whosises	whoosis (an object or person whose name is not known)
+willyard	willful (bent on having one's own way)
+willyart	willyard (willful)
+wingbow	a mark on the wing of a domestic fowl
+wingbows	a mark on the wing of a domestic fowl
+witherod	a North American shrub
+witherods	a North American shrub
+woenesses	sadness (the state of being sad)
+wonners	a prodigy
+woodtone	a finish that imitates wood
+woodtones	a finish that imitates wood
+woopy	woopie (a well-off older person)
+xerus	an African ground squirrel
+xeruses	an African ground squirrel
+yince	once (one single time)
+yird	earth (to cover with earth (soil))
+yirds	earth (to cover with earth (soil))
+yirth	yird (earth)
+yirths	yird (earth)
+yomim	day (the time between sunrise and sunset)
+zinkified	to zincify (to coat with zinc)
+zinkifies	to zincify (to coat with zinc)
+zinkify	to zincify (to coat with zinc)
+zinkifying	to zincify (to coat with zinc)

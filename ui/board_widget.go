@@ -2,6 +2,8 @@
 package ui
 
 import (
+	"unicode/utf8"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
@@ -47,7 +49,19 @@ func newCellWidget(row, col int, square engine.SquareType, onTap func(int, int))
 // setContent updates what the cell displays and refreshes it. highlight outlines a
 // committed tile in the AI-word colour; pickedUp outlines a staged tile chosen for a
 // tap-to-move. Both are ignored for an empty cell.
+//
+// A cell whose contents are unchanged is left untouched. Every board refresh calls this for
+// all 225 cells even though a tap typically changes one, and a Refresh frees and re-uploads
+// the cell's rectangle and both texts, so refreshing unconditionally costs hundreds of
+// texture round-trips per interaction. tile is compared by value, not by pointer: callers
+// pass the address of a fresh copy each time, so pointer equality would never hold.
 func (c *cellWidget) setContent(tile *engine.Tile, staged, highlight, pickedUp bool) {
+	unchanged := staged == c.staged && highlight == c.highlight && pickedUp == c.pickedUp &&
+		(tile == nil) == (c.tile == nil) &&
+		(tile == nil || *tile == *c.tile)
+	if unchanged {
+		return
+	}
 	c.tile = tile
 	c.staged = staged
 	c.highlight = highlight
@@ -77,6 +91,16 @@ func (c *cellWidget) Dragged(e *fyne.DragEvent) {
 
 // DragEnd reports the gesture's final pointer position; the controller moves a staged
 // tile, recalls it (released off the board), or treats the gesture as a tap.
+// cancelDrag discards the widget's in-progress drag tracking. The controller calls it when it
+// abandons a gesture that never delivered its DragEnd, so the next gesture is seeded afresh:
+// on touch the pointer position is accumulated from deltas starting at the gesture's origin,
+// and a widget still believing it is mid-drag would continue from the abandoned gesture's end
+// point instead.
+func (c *cellWidget) cancelDrag() {
+	c.dragging = false
+	c.dragAbs = fyne.Position{}
+}
+
 func (c *cellWidget) DragEnd() {
 	if c.dragging && c.onDragEnd != nil {
 		c.onDragEnd(c.row, c.col, c.dragAbs)
@@ -132,9 +156,10 @@ func (r *cellRenderer) Layout(size fyne.Size) {
 
 	// Tile letters fill the cell; multi-character premium labels (W×2/W×3/…) use a
 	// smaller glyph so they fit on one line. The ★ centre marker uses a tile-sized
-	// glyph.
+	// glyph. The count must be in runes: ★ and × are multi-byte, so a byte length would
+	// put the single-glyph ★ on the smaller multi-character branch.
 	factor := float32(0.5)
-	if r.cell.tile == nil && len(r.letter.Text) > 1 {
+	if r.cell.tile == nil && utf8.RuneCountInString(r.letter.Text) > 1 {
 		factor = 0.32
 	}
 	// A tile's letter is nudged right of centre (clear of the bottom-left points value);

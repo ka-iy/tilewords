@@ -18,9 +18,15 @@ import (
 // overlay, so the enclosing Scroll never pans and the panel is stuck wherever the last
 // auto-scroll left it. On mobile this layers a transparent catcher above the scroll's
 // content that forwards drags to the scroll and copies copyText() on a long press
-// (reporting via onCopied). The catcher implements only Draggable and SecondaryTappable,
-// so other gestures fall through to the label beneath it (double-tap word / triple-tap
-// line selection keep working); drag-to-extend-selection is traded for drag-to-scroll.
+// (reporting via onCopied).
+//
+// On touch this replaces the label's own tap gestures rather than coexisting with them.
+// The driver hit-tests by walking the visible tree and keeping the LAST match, and the
+// catcher is stacked after the label, so every tap the catcher matches resolves to the
+// catcher. It matches as a SecondaryTappable, and implements neither Tappable nor
+// DoubleTappable, so an ordinary tap on the panel is dropped and the label's double-tap
+// word / triple-tap line selection never fires. Copying is therefore via the long press
+// here and the tab bar's Copy button, not by selecting text.
 //
 // On desktop it is a no-op: the mouse wheel already scrolls, click-drag selects, and the
 // tab bar's Copy button copies the whole panel.
@@ -32,8 +38,9 @@ func enableTouchScroll(s *container.Scroll, copyText func() string, onCopied fun
 	s.Refresh()
 }
 
-// dragScroller handles drag (pan) and secondary tap (copy); it deliberately implements no
-// other pointer interface so double-tap/triple-tap selection falls through to the label.
+// dragScroller handles drag (pan) and secondary tap (copy). It implements no other pointer
+// interface, which means an ordinary tap that lands on it is discarded rather than passed
+// down — see enableTouchScroll for why nothing beneath it receives taps on touch.
 var (
 	_ fyne.Draggable         = (*dragScroller)(nil)
 	_ fyne.SecondaryTappable = (*dragScroller)(nil)
@@ -61,15 +68,21 @@ func newDragScroller(target *container.Scroll, copyText func() string, onCopied 
 // Dragged pans the target by the drag delta, clamped to the scrollable range. The
 // offset moves opposite the drag (dragging down reveals earlier content), matching
 // the Scroll's own touch panning.
+// Panning goes through ScrollToOffset rather than assigning Offset and calling Refresh:
+// Scroll.Refresh recursively refreshes the scrolled content, which re-wraps the long
+// selectable label these panels hold, while ScrollToOffset repositions the content and bars
+// without touching it. That matters per frame — after a flick the driver replays decaying
+// drag events every 16 ms for up to half a second.
 func (d *dragScroller) Dragged(e *fyne.DragEvent) {
 	s := d.target
 	outer := s.Size()
 	inner := s.Content.MinSize()
-	s.Offset = fyne.NewPos(
+	// Pre-clamping keeps ScrollToOffset's "offset unchanged" early return effective once a
+	// fling reaches the end of the travel, so the replayed events stop costing anything.
+	s.ScrollToOffset(fyne.NewPos(
 		clampOffset(s.Offset.X-e.Dragged.DX, outer.Width, inner.Width),
 		clampOffset(s.Offset.Y-e.Dragged.DY, outer.Height, inner.Height),
-	)
-	s.Refresh()
+	))
 }
 
 // DragEnd completes the gesture; panning is applied incrementally in Dragged, so

@@ -1,7 +1,6 @@
 package defs
 
 import (
-	"bytes"
 	"embed"
 	"fmt"
 	"sync"
@@ -45,12 +44,18 @@ func Available() bool {
 // instance. It returns a descriptive error when the asset was not embedded.
 func Load() (*DB, error) {
 	loadOnce.Do(func() {
-		data, err := embeddedDefs.ReadFile(defsAssetPath)
+		// Stream the asset rather than ReadFile it: the embedded bytes live in the binary's
+		// read-only data and cost no heap, but ReadFile converts them to a []byte, which
+		// copies the whole compressed asset for the duration of the decode. Decode reads
+		// sequentially and needs no more than a Reader.
+		f, err := embeddedDefs.Open(defsAssetPath)
 		if err != nil {
-			loadErr = fmt.Errorf("defs.Load: asset %q not embedded (run 'make defs'): %w", defsAssetPath, err)
+			loadErr = fmt.Errorf("defs.Load: asset not embedded, run 'make defs': %w", err)
 			return
 		}
-		db, err := Decode(bytes.NewReader(data))
+		defer f.Close()
+
+		db, err := Decode(f)
 		if err != nil {
 			loadErr = fmt.Errorf("defs.Load: %w", err)
 			return

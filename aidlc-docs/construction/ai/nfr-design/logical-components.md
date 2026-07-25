@@ -140,7 +140,8 @@ level (FR-05 / BR-AI-04 / BR-AI-05).
 
 **Algorithm**:
 - `candidates` is sorted: score descending, `OpponentAccess` ascending (BR-AI-03).
-- Level 10: return `candidates[0]` — deterministic, no RNG (BR-AI-04).
+- Level 10: count the leading candidates scoring within `topPlayMargin` of the best, then
+  return one of those at random (BR-AI-04). Uses the RNG, so level 10 is not deterministic.
 - Levels 1–9: compute `k = max(1, round(total × (1 - (level-1)/9)))`; return
   `candidates[rng.Intn(k)]` (BR-AI-05).
 

@@ -52,19 +52,38 @@ func (b *Bag) Draw(n int) []Tile {
 }
 
 // Return adds tiles back to the bag. If rng is non-nil the bag is reshuffled
-// after the tiles are inserted; pass nil to skip the reshuffle (used by Undo).
+// after the tiles are inserted; pass nil to skip the reshuffle.
 func (b *Bag) Return(tiles []Tile, rng *rand.Rand) {
 	b.tiles = append(b.tiles, tiles...)
-	if rng != nil {
-		for i := len(b.tiles) - 1; i > 0; i-- {
-			j := rng.Intn(i + 1)
-			b.tiles[i], b.tiles[j] = b.tiles[j], b.tiles[i]
-		}
+	b.Shuffle(rng)
+}
+
+// Shuffle randomises the order of the tiles remaining in the bag using the Fisher-Yates
+// algorithm. A nil rng is a no-op, which is what lets a caller ask for the order to be left
+// alone (tests that assert an exact bag).
+func (b *Bag) Shuffle(rng *rand.Rand) {
+	if rng == nil {
+		return
+	}
+	for i := len(b.tiles) - 1; i > 0; i-- {
+		j := rng.Intn(i + 1)
+		b.tiles[i], b.tiles[j] = b.tiles[j], b.tiles[i]
 	}
 }
 
 // Count returns the number of tiles remaining in the bag.
 func (b *Bag) Count() int { return len(b.tiles) }
+
+// malformedTile returns the first tile in the bag that the game could not have produced,
+// and whether one was found. See Tile.wellFormed; used by ValidateDecodedState.
+func (b *Bag) malformedTile() (Tile, bool) {
+	for _, t := range b.tiles {
+		if !t.wellFormed() {
+			return t, true
+		}
+	}
+	return Tile{}, false
+}
 
 // Clone returns an independent deep copy of the bag.
 func (b *Bag) Clone() *Bag {

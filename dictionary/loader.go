@@ -57,18 +57,34 @@ func Load(name DictName) (*Dictionary, error) {
 		return cachedDict, nil
 	}
 
-	// Loading a different dictionary: drop the previously cached one first so its large
-	// GADDAG can be garbage-collected rather than staying live alongside the new decode.
+	// Open the asset before evicting anything. The likeliest failure is a name whose asset was
+	// not built into this binary, and discovering that after dropping the cache would throw
+	// away a perfectly good dictionary that the next load then has to decode again.
+	//
+	// Stream the asset rather than ReadFile it: the embedded bytes live in the binary's
+	// read-only data and cost no heap, but ReadFile converts them to a []byte, which copies
+	// the whole asset. Decoding then peaks at the asset plus the graph instead of the graph
+	// alone — a spike the mobile low-memory killer reacts to.
+	path := assetPath(name)
+	f, err := embeddedAssets.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("dictionary.Load: %w: asset %q not found; run 'make gaddag' to build it", err, path)
+	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("dictionary.Load: stat asset %q: %w", path, err)
+	}
+
+	// Loading a different dictionary: drop the previously cached one before decoding, so its
+	// large GADDAG can be garbage-collected rather than staying live alongside the new one.
+	// Holding it back to restore on a decode failure would defeat that, and a decode failure
+	// means the embedded asset itself is corrupt — a broken binary, not a routine outcome.
 	cachedDict = nil
 	cachedName = ""
 
-	path := assetPath(name)
-	data, err := embeddedAssets.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("dictionary.Load: asset %q not found (run 'make gaddag' to build it): %w", path, err)
-	}
-
-	g, err := loadGADDAG(data)
+	g, err := decodeGADDAG(f, info.Size())
 	if err != nil {
 		return nil, fmt.Errorf("dictionary.Load: %w", err)
 	}

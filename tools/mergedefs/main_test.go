@@ -46,6 +46,63 @@ func TestParseWebsterSensesEmpty(t *testing.T) {
 	}
 }
 
+// TestParseWebsterSensesCitationIsNotABoundary verifies that a number which merely sits after
+// whitespace and ends in a period — a scripture citation or a cross-reference — does not split
+// the entry. Splitting there used to discard everything before it, so these two entries
+// shipped as "(Rev. Ver.)" and "[Obs.] Spenser." with their real definitions thrown away.
+func TestParseWebsterSensesCitationIsNotABoundary(t *testing.T) {
+	cases := []struct {
+		name string
+		def  string
+		want string // text the first sense must contain
+	}{
+		{
+			"scripture citation",
+			"The place of departed spirits; Hades; also, the grave. " +
+				"For thou wilt not leave my soul to sheol. Ps. xvi. 10. (Rev. Ver.)",
+			"The place of departed spirits",
+		},
+		{
+			"cross-reference",
+			"See Dit, n., 2. [Obs.] Spenser.",
+			"See Dit",
+		},
+		{
+			"sense numbering that does not start at one",
+			"An inflated ball to be kicked in sport. 2. The game played with such a ball.",
+			"An inflated ball",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			senses := parseWebsterSenses(tc.def)
+			if len(senses) == 0 {
+				t.Fatal("definition produced no senses")
+			}
+			if !strings.Contains(senses[0].Gloss, tc.want) {
+				t.Errorf("first sense = %q, want it to contain %q", senses[0].Gloss, tc.want)
+			}
+		})
+	}
+}
+
+// TestParseWebsterSensesKeepsUnnumberedLeadIn verifies the text before a genuine "1." boundary
+// is kept as its own sense rather than skipped, since Webster often leaves the leading
+// definition unnumbered.
+func TestParseWebsterSensesKeepsUnnumberedLeadIn(t *testing.T) {
+	def := "The act of performing. 1. A representation before an audience. 2. Execution of a duty."
+	senses := parseWebsterSenses(def)
+	if len(senses) != 3 {
+		t.Fatalf("got %d senses, want 3 (lead-in plus two numbered): %+v", len(senses), senses)
+	}
+	if !strings.Contains(senses[0].Gloss, "The act of performing") {
+		t.Errorf("lead-in sense = %q, want it to hold the unnumbered definition", senses[0].Gloss)
+	}
+	if !strings.Contains(senses[1].Gloss, "representation before an audience") {
+		t.Errorf("sense 1 = %q", senses[1].Gloss)
+	}
+}
+
 func TestParseWordNetLine(t *testing.T) {
 	// A real-shaped noun line: two lemmas, gloss with a trailing example.
 	line := `00002137 03 n 02 abstraction 0 abstract_entity 0 010 @ 00001740 n 0000 | a general concept; "an abstraction of the idea"`

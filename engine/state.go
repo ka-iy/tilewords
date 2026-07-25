@@ -2,6 +2,7 @@
 package engine
 
 import (
+	"fmt"
 	"math/rand"
 
 	"tilewords/dictionary"
@@ -32,6 +33,11 @@ const (
 // GameState is the canonical, single source of truth for all mutable game data.
 // All fields are exported so encoding/gob can serialise a save file.
 // All mutations must go through Command.Execute; all reversals through Command.Undo.
+//
+// It holds no undo stack of its own: the executed commands live with the UI's move-history
+// log, which is what steps an undo back through the turns. Undo is therefore not restored
+// across a save/load (FR-09 — undo is available immediately after a move, not after resuming
+// a saved game), which is why History below stores rendered lines rather than commands.
 type GameState struct {
 	Board      *Board
 	HumanRack  *Rack
@@ -47,19 +53,14 @@ type GameState struct {
 	// MoveNumber increments on each Command.Execute and decrements on Undo.
 	MoveNumber int
 	DictName   dictionary.DictName
-	// AILevel is the difficulty level (1–10) selected at game start.
+	// AILevel is the difficulty level selected at game start, in the ai package's level range
+	// (see ai.MinLevel and ai.MaxLevel). The engine stores it without interpreting it; the
+	// range is the ai package's to define and it clamps anything outside it.
 	AILevel int
 	// Mode is the game mode (board layout + tile economy) chosen at game start. It is
 	// persisted so a resumed game keeps the same board and economy. Older save files
 	// without this field decode as the zero value, ClassicMode.
 	Mode GameMode
-
-	// LastHumanCommand and LastAICommand store the most recent commands for undo.
-	// These fields are intentionally excluded from save files: undo state is
-	// discarded on save/load (consistent with FR-09: undo is available only
-	// immediately after a move, not after resuming a saved game).
-	LastHumanCommand Command
-	LastAICommand    Command
 
 	// EndgameScored guards ApplyEndgameScoring against double application, including
 	// across a save/load: it is exported so gob persists it, ensuring a finished
@@ -177,26 +178,74 @@ func drawForFirstTurn(bag *Bag, rng *rand.Rand) (first Turn, humanLetter, aiLett
 	}
 }
 
+// ValidateDecodedState checks a GameState that came from outside the engine — a decoded
+// save file — for the structural invariants every state the engine builds already
+// satisfies. It returns an error describing the first problem found.
+//
+// Callers must run this on any decoded state before playing it. gob reports only the
+// problems it can see in the encoding, so a file whose bytes decode cleanly can still
+// carry values no game could have reached, and code downstream is written against the
+// invariants rather than re-checking them. A single flipped bit is enough: it can turn a
+// rack blank into a tile with letter 0, which the AI's move generator would then index a
+// letter-keyed array with.
+//
+// It deliberately checks only what would otherwise crash or corrupt play. Implausible but
+// harmless values — a negative score, an odd turn number — are left alone rather than
+// second-guessed, so a save is refused only when playing it could not work.
+func ValidateDecodedState(s *GameState) error {
+	if s == nil {
+		return fmt.Errorf("engine.ValidateDecodedState: nil state")
+	}
+	if s.Board == nil || s.HumanRack == nil || s.AIRack == nil || s.Bag == nil {
+		return fmt.Errorf("engine.ValidateDecodedState: missing board, rack, or bag")
+	}
+
+	// Tiles must be ones the game could have produced, wherever they are held. The bag
+	// matters as much as the racks: a malformed tile there surfaces turns later, when
+	// Replenish draws it onto a rack.
+	for _, holder := range []struct {
+		name string
+		bad  func() (Tile, bool)
+	}{
+		{"human rack", s.HumanRack.malformedTile},
+		{"AI rack", s.AIRack.malformedTile},
+		{"bag", s.Bag.malformedTile},
+		{"board", s.Board.malformedTile},
+	} {
+		if t, found := holder.bad(); found {
+			return fmt.Errorf("engine.ValidateDecodedState: %s holds an unplayable tile {Letter:%d IsBlank:%v}",
+				holder.name, t.Letter, t.IsBlank)
+		}
+	}
+
+	// A rack over capacity cannot be played: an exchange removes the selected tiles, draws
+	// that many back, and then cannot fit them.
+	if n := s.HumanRack.Count(); n > MaxRackSize {
+		return fmt.Errorf("engine.ValidateDecodedState: human rack holds %d tiles, more than the %d-tile capacity", n, MaxRackSize)
+	}
+	if n := s.AIRack.Count(); n > MaxRackSize {
+		return fmt.Errorf("engine.ValidateDecodedState: AI rack holds %d tiles, more than the %d-tile capacity", n, MaxRackSize)
+	}
+	return nil
+}
+
 // Clone returns a deep copy of the GameState suitable for use by the AI goroutine.
 // The clone is fully independent: mutations to the original do not affect it.
-// LastHumanCommand and LastAICommand are intentionally omitted; the AI operates
-// on a read-only snapshot and has no need for undo state.
+//
+// It copies the struct wholesale and then replaces every field that would otherwise be
+// shared, so a field added to GameState is carried over by default rather than silently
+// dropped from clones until someone notices.
 func (s *GameState) Clone() *GameState {
-	return &GameState{
-		Board:             s.Board.Clone(),
-		HumanRack:         s.HumanRack.Clone(),
-		AIRack:            s.AIRack.Clone(),
-		Bag:               s.Bag.Clone(),
-		HumanScore:        s.HumanScore,
-		AIScore:           s.AIScore,
-		ConsecutivePasses: s.ConsecutivePasses,
-		CurrentTurn:       s.CurrentTurn,
-		MoveNumber:        s.MoveNumber,
-		DictName:          s.DictName,
-		AILevel:           s.AILevel,
-		Mode:              s.Mode,
-		// LastHumanCommand and LastAICommand are deliberately omitted.
-	}
+	c := *s
+	c.Board = s.Board.Clone()
+	c.HumanRack = s.HumanRack.Clone()
+	c.AIRack = s.AIRack.Clone()
+	c.Bag = s.Bag.Clone()
+	// History is rendered display data the AI never reads; sharing the slice would let the
+	// UI append to it while the AI goroutine holds the clone.
+	c.History = nil
+	// OpeningDraw is written once by New and never mutated, so the pointer is safe to share.
+	return &c
 }
 
 // currentRack returns the rack belonging to the player whose turn it is.

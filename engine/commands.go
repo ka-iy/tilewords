@@ -17,7 +17,14 @@ type Command interface {
 	Execute(state *GameState, dict *dictionary.Dictionary, rng *rand.Rand) error
 	// Undo reverses the effect of the most recent Execute on state.
 	// Undo must not fail; if state is inconsistent, it panics with a diagnostic.
-	Undo(state *GameState)
+	//
+	// rng reshuffles the bag once the undone tiles are back in it, so the order the next
+	// draw will follow is not the order the undone move already revealed. Restoring the bag
+	// exactly would otherwise let a player play a move, see the tiles they drew, undo, and
+	// replay knowing what is coming. Board, racks, scores, turn and counters are still
+	// restored exactly; only the unseen bag order changes. Pass nil to keep the order
+	// (tests that assert exact restoration).
+	Undo(state *GameState, rng *rand.Rand)
 }
 
 // PlayCommand executes a PlayMove and stores the data needed to reverse it.
@@ -60,7 +67,11 @@ func (cmd *PlayCommand) Execute(state *GameState, dict *dictionary.Dictionary, r
 	// Place tiles on the board.
 	for _, pt := range cmd.Move.Placed {
 		if err := state.Board.Place(pt.Row, pt.Col, pt.Tile); err != nil {
-			// Board placement failure after rack removal indicates a bug.
+			// Unreachable: ValidatePlacement above has already rejected out-of-bounds
+			// coordinates, cells the board already occupies, and two tiles claiming the
+			// same cell — the three ways Place can fail. Kept as an assertion because the
+			// rack is already debited here, so there is no error return that could honour
+			// Execute's unchanged-on-error contract.
 			panic(fmt.Sprintf("engine.PlayCommand.Execute: board.Place failed after rack.Remove: %v", err))
 		}
 	}
@@ -90,7 +101,7 @@ func (cmd *PlayCommand) Execute(state *GameState, dict *dictionary.Dictionary, r
 }
 
 // Undo reverses a PlayCommand.Execute, restoring state to exactly its prior form.
-func (cmd *PlayCommand) Undo(state *GameState) {
+func (cmd *PlayCommand) Undo(state *GameState, rng *rand.Rand) {
 	// The player who made this move is now on the opposite turn (we flipped in Execute).
 	state.CurrentTurn = opposite(state.CurrentTurn)
 	state.MoveNumber--
@@ -100,12 +111,13 @@ func (cmd *PlayCommand) Undo(state *GameState) {
 	// Deduct the score awarded by this move.
 	subtractScore(state, cmd.Move.Score)
 
-	// Return tiles drawn during Execute back to the bag (no reshuffle on undo).
+	// Return tiles drawn during Execute back to the bag, reshuffling so the draw order this
+	// move revealed is not the order the next draw follows (see Command.Undo).
 	if len(cmd.drawnTiles) > 0 {
 		if err := rack.Remove(cmd.drawnTiles); err != nil {
 			panic(fmt.Sprintf("engine.PlayCommand.Undo: failed to remove drawn tiles from rack: %v", err))
 		}
-		state.Bag.Return(cmd.drawnTiles, nil)
+		state.Bag.Return(cmd.drawnTiles, rng)
 	}
 
 	// Remove placed tiles from the board and return them to the rack.
@@ -155,6 +167,16 @@ func (cmd *ExchangeCommand) Execute(state *GameState, dict *dictionary.Dictionar
 
 	rack := currentRack(state)
 
+	// An over-capacity rack cannot be exchanged: the draw below replaces exactly the tiles
+	// removed, so the rack ends the turn at the size it started, and Add would reject it.
+	// Rejected here, before anything is mutated, because Execute must leave state unchanged
+	// when it returns an error. A rack this size can only come from a decoded save that
+	// bypassed ValidateDecodedState.
+	if rack.Count() > MaxRackSize {
+		return fmt.Errorf("engine.ExchangeCommand.Execute: rack holds %d tile(s), more than the %d-tile capacity",
+			rack.Count(), MaxRackSize)
+	}
+
 	// Remove the tiles to be exchanged from the rack.
 	if err := rack.Remove(cmd.Move.Tiles); err != nil {
 		return fmt.Errorf("engine.ExchangeCommand.Execute: %w", err)
@@ -167,6 +189,10 @@ func (cmd *ExchangeCommand) Execute(state *GameState, dict *dictionary.Dictionar
 	// Draw replacements, then return the exchanged tiles (with reshuffle).
 	cmd.drawnTiles = state.Bag.Draw(len(cmd.Move.Tiles))
 	if err := rack.Add(cmd.drawnTiles); err != nil {
+		// Unreachable: the bag holds at least MaxRackSize tiles and the rack was within
+		// capacity, so the draw returns exactly as many tiles as Remove took out. Kept as
+		// an assertion because the rack and bag are already mutated here, so there is no
+		// error return that could honour Execute's unchanged-on-error contract.
 		panic(fmt.Sprintf("engine.ExchangeCommand.Execute: failed to add drawn tiles to rack: %v", err))
 	}
 	state.Bag.Return(cmd.Move.Tiles, rng) // reshuffle
@@ -182,7 +208,7 @@ func (cmd *ExchangeCommand) Execute(state *GameState, dict *dictionary.Dictionar
 }
 
 // Undo reverses an ExchangeCommand.Execute.
-func (cmd *ExchangeCommand) Undo(state *GameState) {
+func (cmd *ExchangeCommand) Undo(state *GameState, rng *rand.Rand) {
 	state.CurrentTurn = opposite(state.CurrentTurn)
 	state.MoveNumber--
 
@@ -198,8 +224,12 @@ func (cmd *ExchangeCommand) Undo(state *GameState) {
 		panic(fmt.Sprintf("engine.ExchangeCommand.Undo: failed to return exchanged tiles to rack: %v", err))
 	}
 
-	// Restore bag from snapshot taken before Execute's reshuffle.
+	// Restore the bag's contents from the snapshot taken before Execute, then reshuffle: the
+	// snapshot is what makes the tile multiset exact, and the reshuffle is what stops the
+	// player from previewing the replacements an exchange drew and then undoing it (see
+	// Command.Undo).
 	state.Bag.restoreSnapshot(cmd.bagSnapshot)
+	state.Bag.Shuffle(rng)
 
 	state.ConsecutivePasses = cmd.prevPasses
 }
@@ -219,25 +249,15 @@ func (cmd *PassCommand) Execute(state *GameState, dict *dictionary.Dictionary, r
 	return nil
 }
 
-// Undo reverses a PassCommand.Execute.
-func (cmd *PassCommand) Undo(state *GameState) {
+// Undo reverses a PassCommand.Execute. A pass neither draws nor returns tiles, so there is
+// nothing for rng to reshuffle and no draw order the move could have revealed.
+func (cmd *PassCommand) Undo(state *GameState, _ *rand.Rand) {
 	state.CurrentTurn = opposite(state.CurrentTurn)
 	state.MoveNumber--
 	state.ConsecutivePasses = cmd.prevPasses
 }
 
-// UndoLastRound reverts one full human+AI round: the AI's most recent command first,
-// then the human's command before that (FR-09).
-// Must only be called when CurrentTurn == HumanTurn and both LastHumanCommand and
-// LastAICommand are non-nil; the UI is responsible for checking preconditions.
-func UndoLastRound(state *GameState) {
-	// Undo AI's move first (it was the most recent), then the human's.
-	if state.LastAICommand != nil {
-		state.LastAICommand.Undo(state)
-		state.LastAICommand = nil
-	}
-	if state.LastHumanCommand != nil {
-		state.LastHumanCommand.Undo(state)
-		state.LastHumanCommand = nil
-	}
-}
+// Undo is driven by the UI, which owns the stack of executed commands (see the move-history
+// log in the ui package). The engine deliberately keeps no "last command" of its own: a
+// single-round undo entry point here would duplicate that stack and could only ever reverse
+// one round, whereas the UI's stack steps back turn after turn.

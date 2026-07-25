@@ -53,10 +53,13 @@ const (
 	// misparsed into a nonsensical graph.
 	assetMagic = "TWGDDG\x01\n"
 
-	// maxAssetCount bounds a declared node or edge count. A corrupt count must not be
-	// handed straight to make(), which would abort the process on an absurd allocation;
-	// no legitimate asset comes close to this.
-	maxAssetCount = 1 << 31
+	// maxAssetCount is the absolute ceiling on a declared node or edge count, backing up the
+	// tighter per-asset bound decodeGADDAG derives from the asset's own length. A corrupt
+	// count must not be handed straight to make(), which would abort the process on an
+	// absurd allocation; no legitimate asset comes close to this. The type is explicit
+	// because an untyped constant this large does not fit the int of a 32-bit build
+	// (GOARCH=arm, 386), which made passing it to a ...any parameter a compile error there.
+	maxAssetCount uint64 = 1 << 31
 )
 
 // GADDAG is the directed acyclic word graph described in Appel & Jacobson (1998), stored
@@ -134,19 +137,31 @@ func writeGADDAG(w io.Writer, mg minimizedGraph, root NodeID, wordCount uint32) 
 	return bw.Flush()
 }
 
-// loadGADDAG deserialises a GADDAG from bytes produced by tools/buildgaddag or Build. Every
-// count, edge count and target is validated as it is read, so a corrupt or truncated asset
-// is reported as an error here rather than indexing out of bounds during a traversal, and
-// nothing larger than the graph itself is allocated on the way.
+// loadGADDAG deserialises a GADDAG from a complete asset held in memory. It is a thin
+// wrapper over decodeGADDAG for callers that already have the bytes; Load streams instead,
+// to avoid copying the whole asset onto the heap just to decode it.
 func loadGADDAG(data []byte) (*GADDAG, error) {
-	br := bufio.NewReaderSize(bytes.NewReader(data), 1<<16)
+	return decodeGADDAG(bytes.NewReader(data), int64(len(data)))
+}
+
+// decodeGADDAG deserialises a GADDAG from r, which must yield the bytes produced by
+// tools/buildgaddag or Build. Every count, edge count and target is validated as it is read,
+// so a corrupt or truncated asset is reported as an error here rather than indexing out of
+// bounds during a traversal, and nothing larger than the graph itself is allocated on the way.
+//
+// size is the asset's length in bytes. It bounds the declared counts, and is the only thing
+// that stops a corrupt count from reaching make() before any of the data that count
+// describes has been read. Pass a negative size when the length is genuinely unknown, which
+// leaves only the far looser maxAssetCount ceiling.
+func decodeGADDAG(r io.Reader, size int64) (*GADDAG, error) {
+	br := bufio.NewReaderSize(r, 1<<16)
 
 	magic := make([]byte, len(assetMagic))
 	if _, err := io.ReadFull(br, magic); err != nil {
-		return nil, fmt.Errorf("dictionary.Load: read header: %w", err)
+		return nil, fmt.Errorf("read header: %w", err)
 	}
 	if string(magic) != assetMagic {
-		return nil, fmt.Errorf("dictionary.Load: not a GADDAG asset of this version; rebuild it with 'make gaddag'")
+		return nil, fmt.Errorf("not a GADDAG asset of this version; rebuild it with 'make gaddag'")
 	}
 
 	readCount := func(what string) (uint64, error) {
@@ -162,25 +177,37 @@ func loadGADDAG(data []byte) (*GADDAG, error) {
 
 	nodeCount, err := readCount("node count")
 	if err != nil {
-		return nil, fmt.Errorf("dictionary.Load: %w", err)
+		return nil, err
 	}
 	edgeCount, err := readCount("edge count")
 	if err != nil {
-		return nil, fmt.Errorf("dictionary.Load: %w", err)
+		return nil, err
+	}
+	// Bound both counts by the asset's own length before anything is allocated from them.
+	// Each node costs at least one edge-count varint byte, and each edge at least a label
+	// byte plus one target varint byte, so an asset of size bytes cannot describe more than
+	// size nodes or size/2 edges however corrupt its header is.
+	if size >= 0 {
+		if nodeCount > uint64(size) {
+			return nil, fmt.Errorf("node count is %d, more than a %d-byte asset can describe", nodeCount, size)
+		}
+		if edgeCount > uint64(size)/2 {
+			return nil, fmt.Errorf("edge count is %d, more than a %d-byte asset can describe", edgeCount, size)
+		}
 	}
 	wordCount, err := readCount("word count")
 	if err != nil {
-		return nil, fmt.Errorf("dictionary.Load: %w", err)
+		return nil, err
 	}
 	root, err := readCount("root id")
 	if err != nil {
-		return nil, fmt.Errorf("dictionary.Load: %w", err)
+		return nil, err
 	}
 	if NodeID(root) != RootNodeID {
-		return nil, fmt.Errorf("dictionary.Load: invalid root node %d (want %d)", root, RootNodeID)
+		return nil, fmt.Errorf("invalid root node %d (want %d)", root, RootNodeID)
 	}
 	if root >= nodeCount {
-		return nil, fmt.Errorf("dictionary.Load: root node %d addresses node %d of %d", root, root, nodeCount)
+		return nil, fmt.Errorf("root node %d addresses node %d of %d", root, root, nodeCount)
 	}
 
 	// Rebuild the offsets from the per-node edge counts. The counts must account for
@@ -191,31 +218,43 @@ func loadGADDAG(data []byte) (*GADDAG, error) {
 	for i := uint64(0); i < nodeCount; i++ {
 		n, err := binary.ReadUvarint(br)
 		if err != nil {
-			return nil, fmt.Errorf("dictionary.Load: read edge count for node %d: %w", i, err)
+			return nil, fmt.Errorf("read edge count for node %d: %w", i, err)
 		}
 		sum += n
 		if sum > edgeCount {
-			return nil, fmt.Errorf("dictionary.Load: edge counts overrun the edge total at node %d", i)
+			return nil, fmt.Errorf("edge counts overrun the edge total at node %d", i)
 		}
 		edgeOffsets[i+1] = uint32(sum)
 	}
 	if sum != edgeCount {
-		return nil, fmt.Errorf("dictionary.Load: edge counts cover %d of %d edges", sum, edgeCount)
+		return nil, fmt.Errorf("edge counts cover %d of %d edges", sum, edgeCount)
 	}
 
 	edgeLetters := make([]byte, edgeCount)
 	if _, err := io.ReadFull(br, edgeLetters); err != nil {
-		return nil, fmt.Errorf("dictionary.Load: read edge letters: %w", err)
+		return nil, fmt.Errorf("read edge letters: %w", err)
+	}
+	// Successor binary-searches a node's labels, so they must be strictly ascending within
+	// the node. Corruption that leaves the counts and offsets consistent can still reorder
+	// labels, and the search would then follow the wrong edge or miss a real one, answering
+	// with a different set of words than the asset encodes instead of reporting a problem.
+	for i := uint64(0); i < nodeCount; i++ {
+		lo, hi := edgeOffsets[i], edgeOffsets[i+1]
+		for j := lo + 1; j < hi; j++ {
+			if edgeLetters[j] <= edgeLetters[j-1] {
+				return nil, fmt.Errorf("node %d has edge labels that are not strictly ascending", i)
+			}
+		}
 	}
 
 	edgeTargets := make([]NodeID, edgeCount)
 	for i := range edgeTargets {
 		t, err := binary.ReadUvarint(br)
 		if err != nil {
-			return nil, fmt.Errorf("dictionary.Load: read target for edge %d: %w", i, err)
+			return nil, fmt.Errorf("read target for edge %d: %w", i, err)
 		}
 		if t >= nodeCount {
-			return nil, fmt.Errorf("dictionary.Load: edge %d targets node %d of %d", i, t, nodeCount)
+			return nil, fmt.Errorf("edge %d targets node %d of %d", i, t, nodeCount)
 		}
 		edgeTargets[i] = NodeID(t)
 	}
@@ -224,7 +263,7 @@ func loadGADDAG(data []byte) (*GADDAG, error) {
 	buf := make([]byte, 8)
 	for i := range terminal {
 		if _, err := io.ReadFull(br, buf); err != nil {
-			return nil, fmt.Errorf("dictionary.Load: read terminal bitset word %d: %w", i, err)
+			return nil, fmt.Errorf("read terminal bitset word %d: %w", i, err)
 		}
 		terminal[i] = binary.LittleEndian.Uint64(buf)
 	}
@@ -311,7 +350,8 @@ func (g *GADDAG) contains(word string) bool {
 	return g.IsTerminal(node)
 }
 
-// Build constructs a GADDAG from the given word list and writes gob-encoded bytes to w.
+// Build constructs a GADDAG from the given word list and writes it to w in the asset layout
+// documented at the top of this file.
 // words must already be normalised to uppercase and contain only A-Z characters.
 // The input is sorted and deduplicated before construction.
 // This function is the single source of the GADDAG construction algorithm and is used

@@ -176,7 +176,7 @@ func (p phoneColumnLayout) boardSide(width float32) float32 {
 
 func (p phoneColumnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	y := float32(0)
-	for _, o := range objs {
+	for i, o := range objs {
 		w, h := size.Width, o.MinSize().Height
 		if o == p.board {
 			side := p.boardSide(size.Width)
@@ -184,7 +184,14 @@ func (p phoneColumnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 		}
 		o.Resize(fyne.NewSize(w, h))
 		o.Move(fyne.NewPos(0, y))
-		y += h + phoneColGap
+		y += h
+		// Gaps go between children only, matching MinSize and nonHistoryHeight. A gap after
+		// the last child would make the column one gap taller than those two report, and in
+		// fill mode — where the history pane is sized to exactly consume the spare height —
+		// that surplus pushes the pane's bottom edge off a viewport that does not scroll.
+		if i < len(objs)-1 {
+			y += phoneColGap
+		}
 	}
 }
 
@@ -243,6 +250,11 @@ type phoneColumnScroll struct {
 	scrolled bool
 	// inited guards the first mode selection.
 	inited bool
+	// histMinH is the history minimum height currently applied, so setHistoryMin can skip
+	// an unchanged value. Read only when histInited is set.
+	histMinH float32
+	// histInited guards the first setHistoryMin, since 0 is a plausible height.
+	histInited bool
 }
 
 func newPhoneColumnScroll(column *fyne.Container, board fyne.CanvasObject, histWrap *fyne.Container) *phoneColumnScroll {
@@ -269,8 +281,16 @@ func (p *phoneColumnScroll) nonHistoryHeight(width float32) float32 {
 	return total
 }
 
-// setHistoryMin sets the history wrapper's minimum height and re-lays the column.
+// setHistoryMin sets the history wrapper's minimum height and re-lays the column. Like
+// setScrolled it does nothing when the value is unchanged: refreshing the wrapper re-lays
+// and refreshes the whole tab panel beneath it, including both word-wrapped panels, and
+// Resize runs on every viewport event — in scroll mode always with the same constant height.
 func (p *phoneColumnScroll) setHistoryMin(h float32) {
+	if p.histInited && h == p.histMinH {
+		return
+	}
+	p.histInited = true
+	p.histMinH = h
 	p.histWrap.Layout = minHeightLayout{minH: h}
 	p.histWrap.Refresh()
 }

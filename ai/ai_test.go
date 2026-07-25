@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"os"
 	"testing"
-	"time"
 
 	"tilewords/ai"
 	"tilewords/dictionary"
@@ -235,18 +234,101 @@ func TestGenerateMoves_NoDuplicates(t *testing.T) {
 	}
 }
 
-// TestSelectMove_Level10 verifies level 10 always returns candidates[0].
-func TestSelectMove_Level10(t *testing.T) {
+// TestSelectMove_Level10SteepScoresPicksBest verifies that when nothing else comes close to
+// the best play, level 10 plays it. The near-best window is a score window, so a steep drop
+// after the leader leaves nothing to choose between and the AI cannot squander the turn.
+func TestSelectMove_Level10SteepScores(t *testing.T) {
 	candidates := []ai.MoveCandidate{
 		{Score: 100},
-		{Score: 80},
+		{Score: 80}, // 20% below the best: outside the window
 		{Score: 60},
 	}
 	rng := deterministicRNG(42)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 200; i++ {
+		if got := ai.SelectMove(candidates, 10, rng); got.Score != 100 {
+			t.Fatalf("level 10 with a steep score drop: got %d, want the best play (100)", got.Score)
+		}
+	}
+}
+
+// TestSelectMove_Level10VariesAmongNearBest verifies level 10 does not always play the single
+// best move when comparable alternatives exist, and never plays one outside the margin.
+func TestSelectMove_Level10VariesAmongNearBest(t *testing.T) {
+	candidates := []ai.MoveCandidate{
+		{Score: 100},
+		{Score: 95}, // within 10% of the best: eligible
+		{Score: 92}, // within 10%: eligible
+		{Score: 40}, // far below: must never be chosen
+	}
+	rng := deterministicRNG(7)
+	seen := make(map[int]bool)
+	for i := 0; i < 500; i++ {
 		got := ai.SelectMove(candidates, 10, rng)
-		if got.Score != 100 {
-			t.Errorf("level 10: expected score 100, got %d", got.Score)
+		seen[got.Score] = true
+		if got.Score < 90 {
+			t.Fatalf("level 10 chose a play %d, outside the near-best margin", got.Score)
+		}
+	}
+	if len(seen) < 2 {
+		t.Errorf("level 10 always played the same score %v; it should vary among near-best plays", seen)
+	}
+	if !seen[100] {
+		t.Error("level 10 never played the best move; it should remain reachable")
+	}
+}
+
+// TestSelectMove_Level10AllZeroScores verifies the degenerate case where every play scores
+// zero: there is nothing to choose between on score, so the sort's OpponentAccess tiebreak
+// stands rather than the window widening to the whole list.
+func TestSelectMove_Level10AllZeroScores(t *testing.T) {
+	candidates := []ai.MoveCandidate{
+		{Score: 0, OpponentAccess: 1},
+		{Score: 0, OpponentAccess: 5},
+	}
+	rng := deterministicRNG(3)
+	for i := 0; i < 50; i++ {
+		if got := ai.SelectMove(candidates, 10, rng); got.OpponentAccess != 1 {
+			t.Fatalf("all-zero scores: got OpponentAccess %d, want the lowest (1)", got.OpponentAccess)
+		}
+	}
+}
+
+// TestSelectMove_GodModeAlwaysBest verifies the top level always plays the single best move,
+// even where near-best alternatives exist that NearBestLevel would sometimes choose instead.
+func TestSelectMove_GodModeAlwaysBest(t *testing.T) {
+	candidates := []ai.MoveCandidate{
+		{Score: 100, OpponentAccess: 2},
+		{Score: 99}, // within the near-best margin, so level 10 would sometimes take it
+		{Score: 98},
+	}
+	rng := deterministicRNG(11)
+	for i := 0; i < 500; i++ {
+		got := ai.SelectMove(candidates, ai.GodModeLevel, rng)
+		if got.Score != 100 || got.OpponentAccess != 2 {
+			t.Fatalf("god mode: got score %d access %d, want the best play (100, 2)",
+				got.Score, got.OpponentAccess)
+		}
+	}
+}
+
+// TestSelectMove_GodModeIsDeterministic verifies god mode ignores the RNG entirely, so the same
+// board and rack always produce the same move.
+func TestSelectMove_GodModeIsDeterministic(t *testing.T) {
+	candidates := []ai.MoveCandidate{{Score: 50}, {Score: 49}, {Score: 48}}
+	a := ai.SelectMove(candidates, ai.GodModeLevel, deterministicRNG(1))
+	b := ai.SelectMove(candidates, ai.GodModeLevel, deterministicRNG(9999))
+	if a.Score != b.Score {
+		t.Errorf("god mode varied with the seed: %d vs %d", a.Score, b.Score)
+	}
+}
+
+// TestSelectMove_LevelsAboveMaxClampToGodMode verifies an out-of-range level (e.g. from a
+// tampered save) clamps into the accepted range rather than indexing out of it.
+func TestSelectMove_LevelsAboveMaxClampToGodMode(t *testing.T) {
+	candidates := []ai.MoveCandidate{{Score: 30}, {Score: 29}}
+	for _, level := range []int{ai.MaxLevel + 1, 50, 1 << 20} {
+		if got := ai.SelectMove(candidates, level, deterministicRNG(2)); got.Score != 30 {
+			t.Errorf("level %d: got %d, want the best play (30)", level, got.Score)
 		}
 	}
 }
@@ -335,51 +417,5 @@ func TestChooseMove_NoCandidates_SmallBag(t *testing.T) {
 	}
 }
 
-// TestAIWorker_RequestPoll verifies the full Request→Poll cycle returns a move.
-func TestAIWorker_RequestPoll(t *testing.T) {
-	rng := deterministicRNG(0)
-	state := engine.New(dictionary.DictENABLE, 10, rng)
-	state.CurrentTurn = engine.AITurn
-
-	worker := ai.NewAIWorker(ai.ChooseMove)
-	worker.Request(state, testDict, 10)
-
-	// Poll with a real timeout so the test does not hang or spin excessively.
-	deadline := time.Now().Add(5 * time.Second)
-	var gotMove engine.Move
-	for time.Now().Before(deadline) {
-		if move, ok := worker.Poll(); ok {
-			gotMove = move
-			break
-		}
-		time.Sleep(time.Millisecond)
-	}
-	if gotMove == nil {
-		t.Fatal("AIWorker did not produce a move within 5 seconds")
-	}
-}
-
-// TestAIWorker_DoublePanics verifies Request panics when called while busy.
-func TestAIWorker_DoublePanics(t *testing.T) {
-	rng := deterministicRNG(0)
-	state := engine.New(dictionary.DictENABLE, 10, rng)
-
-	// Use a stub that blocks until the test sends on a channel.
-	block := make(chan struct{})
-	stub := func(s *engine.GameState, d *dictionary.Dictionary, level int, r *rand.Rand) engine.Move {
-		<-block
-		return engine.PassMove{}
-	}
-
-	worker := ai.NewAIWorker(stub)
-	worker.Request(state, testDict, 10)
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic on double Request, got none")
-		}
-		close(block) // unblock the stub
-	}()
-
-	worker.Request(state, testDict, 10) // should panic
-}
+// Choosing a move on a background goroutine — the pattern a UI uses so its own thread never
+// blocks — is covered by TestPBT_AI_OffGoroutine_NoRace in ai_pbt_test.go.

@@ -27,6 +27,18 @@ func (t Tile) DisplayLetter() byte {
 	return t.Letter
 }
 
+// wellFormed reports whether the tile is one the game could have produced: a blank, or a
+// tile whose Letter is an uppercase A-Z. Every tile the engine creates satisfies this, so
+// it only ever fails for a tile that came from outside — a decoded save file, where a
+// single corrupted byte can leave a letter the rest of the engine has no meaning for.
+func (t Tile) wellFormed() bool {
+	if t.IsBlank {
+		// A blank's assignment is either absent or a real letter.
+		return t.AssignedLetter == 0 || (t.AssignedLetter >= 'A' && t.AssignedLetter <= 'Z')
+	}
+	return t.Letter >= 'A' && t.Letter <= 'Z'
+}
+
 // PlacedTile pairs a Tile with its board coordinates.
 type PlacedTile struct {
 	Tile     Tile

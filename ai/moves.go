@@ -42,12 +42,20 @@ type rackCounts [27]int
 type moveKey string
 
 // rackToCountArray converts a rack into a rackCounts array for traversal.
+//
+// A tile that is neither a blank nor an A-Z letter is skipped rather than counted: its
+// letter cannot be played, and indexing by it would run off the end of the array. Racks
+// decoded from a save file are not guaranteed to hold only well-formed tiles (a single
+// flipped bit in the encoded IsBlank flag turns a blank into Letter 0), and byte
+// subtraction wraps, so an unchecked index here would abort the process from the AI
+// goroutine — where there is no recover — leaving a save that crashes on every load.
 func rackToCountArray(rack *engine.Rack) rackCounts {
 	var counts rackCounts
 	for _, t := range rack.Tiles() {
-		if t.IsBlank {
+		switch {
+		case t.IsBlank:
 			counts[26]++
-		} else {
+		case t.Letter >= 'A' && t.Letter <= 'Z':
 			counts[t.Letter-'A']++
 		}
 	}

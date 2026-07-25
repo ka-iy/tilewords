@@ -36,6 +36,62 @@ type App struct {
 	// the system light/dark variant often settles only after the first screen is built, so
 	// this is what makes the initial screen adopt the right colours.
 	redraw func()
+
+	// nav counts screen transitions. An asynchronous load captures it before starting and
+	// compares it when it finishes, so a result whose screen the player has already left is
+	// dropped instead of replacing whatever they navigated to. Without it, leaving the menu
+	// mid-load drops the player into a game they no longer asked for — including one whose
+	// save they just deleted — and orphans the previous game screen along with its
+	// definitions worker.
+	nav int
+
+	// game is the gameplay screen currently installed, or nil. Kept so a new screen can shut
+	// the previous one's background worker down instead of leaking it.
+	game *gameScreen
+
+	// uiGen counts widget-tree builds, including the rebuilds a theme change triggers. An
+	// asynchronous callback that captured widgets from a particular build compares it to know
+	// whether those widgets are still on screen; writing to a detached tree shows the player
+	// nothing. Unlike nav it counts rebuilds of the same screen, which is exactly the case
+	// nav cannot see.
+	uiGen int
+
+	// screenMsg is a message for the next build of the main-menu or setup screen to display.
+	// It is how an asynchronous result reaches whichever widget tree is current, rather than
+	// the one its closure happened to capture.
+	screenMsg string
+}
+
+// redrawNow rebuilds the current screen, recording that any widgets an in-flight callback
+// captured are now detached.
+func (a *App) redrawNow() {
+	a.uiGen++
+	if a.redraw != nil {
+		a.redraw()
+	}
+}
+
+// reportOnCurrentScreen delivers an asynchronous load message. When the widget tree that
+// started the load is still installed, onAttached updates it directly, which preserves
+// whatever the player had entered. When that tree has been rebuilt — a theme variant settling
+// mid-load is the usual cause — the message is handed to the next build instead, so a failure
+// is still seen rather than written into detached widgets.
+func (a *App) reportOnCurrentScreen(gen int, msg string, onAttached func()) {
+	if a.uiGen == gen {
+		a.screenMsg = ""
+		onAttached()
+		return
+	}
+	a.screenMsg = msg
+	a.redrawNow()
+}
+
+// takeScreenMsg returns any pending message for a screen being built and clears it, so it is
+// shown once rather than reappearing on every later rebuild.
+func (a *App) takeScreenMsg() string {
+	msg := a.screenMsg
+	a.screenMsg = ""
+	return msg
 }
 
 // Run constructs the application, shows the main menu and runs the Fyne event
@@ -91,7 +147,7 @@ func Run() error {
 	a.fapp.Settings().AddListener(func(fyne.Settings) {
 		fyne.Do(func() {
 			if a.redraw != nil {
-				a.redraw()
+				a.redrawNow()
 			}
 		})
 	})
@@ -113,22 +169,51 @@ func (a *App) quit() {
 // showMainMenu installs the main-menu screen. errMsg, when non-empty, is shown
 // to the player (e.g. a forwarded load failure).
 func (a *App) showMainMenu(errMsg string) {
-	a.redraw = func() { a.win.SetContent(a.buildMainMenu(errMsg)) }
-	a.redraw()
+	a.leaveScreen()
+	a.screenMsg = errMsg
+	// The message is read from screenMsg rather than captured here, so a rebuild shows a
+	// message that arrived after this screen was installed.
+	a.redraw = func() { a.win.SetContent(a.buildMainMenu(a.takeScreenMsg())) }
+	a.redrawNow()
 }
 
 // showSetup installs the new-game setup screen.
 func (a *App) showSetup() {
+	a.leaveScreen()
 	a.redraw = func() { a.win.SetContent(a.buildSetup()) }
-	a.redraw()
+	a.redrawNow()
 }
+
+// leaveScreen records that the installed screen is being replaced, invalidating any
+// asynchronous load still in flight for it, and shuts down the outgoing game screen's
+// background worker so it does not outlive the screen it belongs to.
+func (a *App) leaveScreen() {
+	a.nav++
+	// A message meant for the screen being left has nowhere to go.
+	a.screenMsg = ""
+	if a.game != nil {
+		a.game.abandoned = true
+		a.game.stopDefinitions()
+		a.game = nil
+	}
+}
+
+// screenToken returns the current navigation counter, to be passed to screenIsCurrent when an
+// asynchronous result comes back.
+func (a *App) screenToken() int { return a.nav }
+
+// screenIsCurrent reports whether the screen that started an asynchronous load is still the
+// one installed, i.e. whether its result should still be applied.
+func (a *App) screenIsCurrent(token int) bool { return a.nav == token }
 
 // showGame installs the gameplay screen for an initialised state and dictionary. The
 // move-history format is taken from state.ScrabbleNotation. If it is the AI's turn (e.g.
 // the AI won the opening draw, or a saved game was the AI's move), the AI turn is started
 // immediately.
 func (a *App) showGame(state *engine.GameState, dict *dictionary.Dictionary) {
+	a.leaveScreen()
 	gs := newGameScreen(a, state, dict)
+	a.game = gs
 	content := gs.build()
 	// Start the definitions lookup worker once the screen's widgets exist. This is done
 	// here rather than in build() so tests that build a screen directly do not spawn the
@@ -156,9 +241,13 @@ func (a *App) showGame(state *engine.GameState, dict *dictionary.Dictionary) {
 // the given mode and shows the game screen. scrabbleNotation selects the move-history
 // format.
 func (a *App) startNewGame(dictName dictionary.DictName, level int, mode engine.GameMode, scrabbleNotation bool, onErr func(string)) {
+	token := a.screenToken()
 	go func() {
 		dict, err := dictionary.Load(dictName)
 		fyne.Do(func() {
+			if !a.screenIsCurrent(token) {
+				return // the player left the screen that asked for this game
+			}
 			if err != nil {
 				onErr(sanitiseError(err))
 				return
@@ -181,9 +270,13 @@ func (a *App) loadSavedGame(onErr func(string)) {
 		return
 	}
 	dictName := state.DictName
+	token := a.screenToken()
 	go func() {
 		dict, err := dictionary.Load(dictName)
 		fyne.Do(func() {
+			if !a.screenIsCurrent(token) {
+				return // the player left the menu that asked for this game
+			}
 			if err != nil {
 				onErr(sanitiseError(err))
 				return

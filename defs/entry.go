@@ -14,10 +14,19 @@
 //     (from a "plural of X" sense or a lemma's inflection table).
 //   - Stem: rule-based de-inflection (including classical plurals) produces a
 //     lemma that is a headword.
-//   - Fuzzy: a known orthographic correspondence (e.g. -ise/-ize, -our/-or,
-//     ae/e) rewrites the word into a headword. Both this and the stem layer only
-//     ever accept a rewrite that is itself a real headword, so neither can invent
-//     a definition from an unrelated near-spelling.
+//   - Fuzzy: a known orthographic correspondence (e.g. -ise/-ize, ae/e) rewrites
+//     the word into a headword.
+//
+// The last two layers accept only a rewrite that is itself a real headword, which rules out
+// nonsense but not a real word that happens to be the wrong one: "acta" is not the plural of
+// "acton", and "haen" is not a spelling of "hen". Those layers are therefore restricted to the
+// shapes where they were measured to be right — see minClassicalLen in inflect.go and
+// minContractionLen in variant.go — and a word outside them is reported as having no
+// definition rather than resolved to a guess.
+//
+// Within a layer the first candidate that is a headword wins, so candidate ORDER is the
+// tiebreak whenever two rewrites of one word are both real headwords. candidateStems
+// documents the orderings this relies on.
 package defs
 
 // Sense is one definition of a headword.

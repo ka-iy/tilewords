@@ -37,10 +37,21 @@ func TestHistory_ShowsOpeningDraw(t *testing.T) {
 	}
 
 	gs.logCommand("You", &engine.PlayCommand{Move: engine.PlayMove{WordsFormed: []string{"CAT"}, Score: 5}})
-	lines := strings.Split(gs.historyLabel.Text, "\n")
-	if len(lines) != 2 || lines[0] != want {
-		t.Errorf("after a move, history = %v; want opening line first then the move", lines)
+	// Entries are separated by a blank line, so split on the separator rather than on "\n".
+	entries := historyEntries(gs)
+	if len(entries) != 2 || entries[0] != want {
+		t.Errorf("after a move, history = %v; want opening line first then the move", entries)
 	}
+}
+
+// historyEntries returns the move-history panel's entries, splitting on the blank line that
+// separates them so a wrapped or multi-line entry still counts once.
+func historyEntries(gs *gameScreen) []string {
+	text := gs.historyLabel.Text
+	if text == "" {
+		return nil
+	}
+	return strings.Split(text, "\n\n")
 }
 
 // TestOpeningDrawLine covers the AI-first wording and the blank rendering.

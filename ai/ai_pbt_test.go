@@ -135,31 +135,36 @@ func TestPBT_AI_NoDuplicates(t *testing.T) {
 
 // TestPBT_AI_Level10Deterministic (PBT-AI-04): two calls with the same inputs return
 // identical MoveCandidate at level 10.
-func TestPBT_AI_Level10Deterministic(t *testing.T) {
+// TestPBT_AI_Level10PlaysNearBest (PBT-AI-04): whatever seed it is given, a level-10 play
+// always scores within topPlayMargin of the best available play. Level 10 varies its choice
+// among comparable plays rather than always taking the optimum, so the invariant worth
+// holding is the bound on what it gives up, not that the move is identical every time.
+func TestPBT_AI_Level10PlaysNearBest(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
 		rng := rand.New(rand.NewSource(seed))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		rack := simpleRackGen().Draw(t, "rack")
 
-		c1 := ai.GenerateMoves(state.Board, rack, testDict)
-		c2 := ai.GenerateMoves(state.Board, rack, testDict)
-
-		if len(c1) == 0 {
+		candidates := ai.GenerateMoves(state.Board, rack, testDict)
+		if len(candidates) == 0 {
 			return // no candidates: nothing to check
 		}
+		best := candidates[0].Score
 
-		rng1 := rand.New(rand.NewSource(42))
-		rng2 := rand.New(rand.NewSource(99)) // different seed — must not affect level 10
-		m1 := ai.SelectMove(c1, 10, rng1)
-		m2 := ai.SelectMove(c2, 10, rng2)
-
-		if m1.Score != m2.Score {
-			t.Fatalf("level 10 non-deterministic: scores %d vs %d", m1.Score, m2.Score)
-		}
-		if m1.OpponentAccess != m2.OpponentAccess {
-			t.Fatalf("level 10 non-deterministic: OpponentAccess %d vs %d",
-				m1.OpponentAccess, m2.OpponentAccess)
+		// Any seed must land inside the window; the margin is a fraction of the best score,
+		// and a best score of zero admits only the first candidate.
+		for _, s := range []int64{1, 42, 99, seed} {
+			got := ai.SelectMove(candidates, 10, rand.New(rand.NewSource(s)))
+			if best <= 0 {
+				if got.Score != best {
+					t.Fatalf("all plays score %d but level 10 returned %d", best, got.Score)
+				}
+				continue
+			}
+			if float64(got.Score) < float64(best)*0.9 {
+				t.Fatalf("level 10 played %d, more than 10%% below the best available %d", got.Score, best)
+			}
 		}
 	})
 }
@@ -223,29 +228,39 @@ func TestPBT_AI_ChooseMove_NonNil(t *testing.T) {
 	})
 }
 
-// TestPBT_AI_Worker_NoRace (PBT-AI-07): AIWorker produces valid moves under race
-// detector without data races. Run with go test -race.
-func TestPBT_AI_Worker_NoRace(t *testing.T) {
+// TestPBT_AI_OffGoroutine_NoRace (PBT-AI-07): choosing a move on a background goroutine,
+// the way a UI must so its own thread never blocks, produces a valid move and no data race.
+// The state handed over is a Clone, which is what makes the caller's live state safe to keep
+// reading meanwhile. Run with go test -race.
+func TestPBT_AI_OffGoroutine_NoRace(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
 		rng := rand.New(rand.NewSource(seed))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		state.CurrentTurn = engine.AITurn
 
-		worker := ai.NewAIWorker(ai.ChooseMove)
-		worker.Request(state, testDict, 10)
+		// Snapshot and hand off exactly as ui does, with the goroutine owning its own rng.
+		snapshot := state.Clone()
+		result := make(chan engine.Move, 1)
+		go func() {
+			result <- ai.ChooseMove(snapshot, testDict, 10, rand.New(rand.NewSource(seed)))
+		}()
 
-		deadline := time.Now().Add(5 * time.Second)
-		var gotMove engine.Move
-		for time.Now().Before(deadline) {
-			if move, ok := worker.Poll(); ok {
-				gotMove = move
-				break
-			}
-			time.Sleep(time.Millisecond)
+		// Keep reading the live state while the AI works: a clone that shared anything
+		// mutable with it would show up here under -race.
+		for i := 0; i < 50; i++ {
+			_ = state.Bag.Count()
+			_ = state.AIRack.Count()
+			_ = state.Board.HasAnyTile()
 		}
-		if gotMove == nil {
-			t.Fatal("AIWorker did not produce a move within 5 seconds")
+
+		select {
+		case gotMove := <-result:
+			if gotMove == nil {
+				t.Fatal("ChooseMove returned nil")
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("ChooseMove did not produce a move within 5 seconds")
 		}
 	})
 }

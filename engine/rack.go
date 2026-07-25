@@ -27,6 +27,17 @@ func (r *Rack) Tiles() []Tile {
 // Count returns the number of tiles currently on the rack.
 func (r *Rack) Count() int { return len(r.tiles) }
 
+// malformedTile returns the first tile on the rack that the game could not have produced,
+// and whether one was found. See Tile.wellFormed; used by ValidateDecodedState.
+func (r *Rack) malformedTile() (Tile, bool) {
+	for _, t := range r.tiles {
+		if !t.wellFormed() {
+			return t, true
+		}
+	}
+	return Tile{}, false
+}
+
 // Add appends tiles to the rack. Returns an error if adding would exceed MaxRackSize.
 func (r *Rack) Add(tiles []Tile) error {
 	if len(r.tiles)+len(tiles) > MaxRackSize {
@@ -56,9 +67,11 @@ func (r *Rack) Remove(tiles []Tile) error {
 			return fmt.Errorf("engine.Rack.Remove: tile {Letter:%c IsBlank:%v} not found in rack",
 				want.Letter, want.IsBlank)
 		}
-		// Remove element at idx by replacing with the last element and shrinking.
-		work[idx] = work[len(work)-1]
-		work = work[:len(work)-1]
+		// Close the gap by shifting the rest down, which keeps the surviving tiles in
+		// their existing order. Swapping the last tile into the gap would be cheaper but
+		// would move an untouched tile to a new slot, and the rack's order is the player's
+		// own arrangement (see MoveTile and Shuffle) rendered slot by slot.
+		work = append(work[:idx], work[idx+1:]...)
 	}
 	r.tiles = work
 	return nil

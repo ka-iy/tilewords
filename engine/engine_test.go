@@ -464,7 +464,7 @@ func TestPlayCommand_ExecuteUndo(t *testing.T) {
 	scoreBefore := state.HumanScore
 	moveNumBefore := state.MoveNumber
 
-	cmd.Undo(state)
+	cmd.Undo(state, nil)
 
 	if state.CurrentTurn != HumanTurn {
 		t.Error("CurrentTurn should be HumanTurn after undo")
@@ -502,7 +502,7 @@ func TestExchangeCommand_ExecuteUndo(t *testing.T) {
 		t.Errorf("rack count after exchange = %d, want %d", state.HumanRack.Count(), initialRackCount)
 	}
 
-	cmd.Undo(state)
+	cmd.Undo(state, nil)
 
 	if state.CurrentTurn != HumanTurn {
 		t.Error("CurrentTurn should be HumanTurn after undo")
@@ -530,7 +530,7 @@ func TestPassCommand_ExecuteUndo(t *testing.T) {
 		t.Error("expected AITurn after pass")
 	}
 
-	cmd.Undo(state)
+	cmd.Undo(state, nil)
 
 	if state.ConsecutivePasses != 0 {
 		t.Errorf("ConsecutivePasses after undo = %d, want 0", state.ConsecutivePasses)
@@ -762,7 +762,7 @@ func TestPlayCommand_Undo_BlankTileReset(t *testing.T) {
 		t.Fatalf("Execute: %v", err)
 	}
 
-	cmd.Undo(state)
+	cmd.Undo(state, nil)
 
 	// After undo, find the blank in the rack; it must have Letter=0 and AssignedLetter=0.
 	found := false

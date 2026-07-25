@@ -3,17 +3,20 @@ package ui
 
 import (
 	"encoding/gob"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"tilewords/engine"
 )
 
 // SaveManager persists and restores engine.GameState to a single save slot.
-// The save file is written atomically (temp file → rename) to prevent corruption
-// on process death mid-write — Pattern 3 / NFR-UI-R3.
+// The save file is written atomically (temp file → fsync → rename) so neither process death
+// nor power loss mid-write can corrupt it — Pattern 3 / NFR-UI-R3.
 //
 // Use NewSaveManager("") for production (resolves os.UserConfigDir/tilewords/).
 // Inject a temp directory in tests to avoid touching the real config directory (NFR-UI-TEST-1).
@@ -52,19 +55,24 @@ func (sm *SaveManager) Save(state *engine.GameState) error {
 		return fmt.Errorf("ui.SaveManager.Save: open temp: %w", err)
 	}
 
-	// LastHumanCommand and LastAICommand are Command interface fields. Gob
-	// cannot encode non-nil interface values without gob.Register for each
-	// concrete type. Per the design intent, undo history is not persisted:
-	// encode a shallow copy with those fields zeroed.
-	saveable := *state
-	saveable.LastHumanCommand = nil
-	saveable.LastAICommand = nil
-
-	encErr := gob.NewEncoder(f).Encode(&saveable)
+	// GameState carries no undo state, so there is nothing to strip before encoding: the
+	// executed commands live with the UI's history log and are deliberately not persisted.
+	encErr := gob.NewEncoder(f).Encode(state)
+	// Flush the encoded bytes to the device before the rename publishes them. Without this
+	// the rename can reach the disk while the data behind it has not, so a power loss just
+	// after a save leaves a truncated file where the previous good save used to be.
+	syncErr := error(nil)
+	if encErr == nil {
+		syncErr = f.Sync()
+	}
 	closeErr := f.Close()
 	if encErr != nil {
 		os.Remove(tmp)
 		return fmt.Errorf("ui.SaveManager.Save: encode: %w", encErr)
+	}
+	if syncErr != nil {
+		os.Remove(tmp)
+		return fmt.Errorf("ui.SaveManager.Save: sync: %w", syncErr)
 	}
 	if closeErr != nil {
 		os.Remove(tmp)
@@ -74,6 +82,15 @@ func (sm *SaveManager) Save(state *engine.GameState) error {
 	if err := os.Rename(tmp, sm.path); err != nil {
 		os.Remove(tmp)
 		return fmt.Errorf("ui.SaveManager.Save: rename: %w", err)
+	}
+
+	// Make the directory entry itself durable, so the rename survives a power loss too. A
+	// failure here is not reported: the save is already written and renamed, so the game is
+	// safe against everything except an abrupt power cut, and failing the save would be
+	// more misleading than the residual risk. Not supported on every platform.
+	if dh, err := os.Open(dir); err == nil {
+		_ = dh.Sync()
+		_ = dh.Close()
 	}
 	return nil
 }
@@ -91,9 +108,10 @@ func (sm *SaveManager) Load() (*engine.GameState, error) {
 	if err := gob.NewDecoder(f).Decode(&state); err != nil {
 		return nil, fmt.Errorf("ui.SaveManager.Load: decode: %w", err)
 	}
-	// Defensive nil-pointer guard: gob may succeed but leave fields zeroed.
-	if state.Board == nil || state.HumanRack == nil || state.AIRack == nil || state.Bag == nil {
-		return nil, fmt.Errorf("ui.SaveManager.Load: corrupt save file (nil game fields)")
+	// A save file is outside data: gob only reports what the encoding itself makes visible,
+	// so check the game invariants before handing the state to code that assumes them.
+	if err := engine.ValidateDecodedState(&state); err != nil {
+		return nil, fmt.Errorf("ui.SaveManager.Load: corrupt save file: %w", err)
 	}
 	return &state, nil
 }
@@ -114,27 +132,75 @@ func (sm *SaveManager) Delete() error {
 	return nil
 }
 
-// sanitiseError converts an error to a short user-facing string. It strips any
-// function-name prefix and truncates at 120 characters so that internal paths,
-// type names, and Go error chains are never shown in the UI (SECURITY-UI-2).
+// sanitiseError converts an error to a short user-facing string. It strips the Go
+// function-name prefixes that wrapping adds and truncates the result, so internal paths and
+// type names are never shown in the UI (SECURITY-UI-2).
+//
+// Only leading segments that look like a qualified Go symbol are removed. Cutting at the
+// last ": " instead would keep just the innermost segment, discarding the part of the chain
+// written to be read — "asset not found; run 'make gaddag'" would arrive as
+// "file does not exist", and unrelated failures would collapse to the same words.
+//
+// A filesystem error names the path it failed on. Only that path is removed, not the whole
+// message, so an explanation wrapped around it still reaches the player.
 func sanitiseError(err error) string {
 	if err == nil {
 		return ""
 	}
+
 	msg := err.Error()
-	// Strip everything up to and including the last ": " (function-name prefix).
 	for {
-		_, after, found := strings.Cut(msg, ": ")
-		if !found {
+		before, after, found := strings.Cut(msg, ": ")
+		// A wrapping prefix is a package-qualified symbol: dotted and unspaced, like
+		// "ui.SaveManager.Load". Anything else is prose meant for the reader, so stop.
+		if !found || strings.ContainsAny(before, " \t") || !strings.Contains(before, ".") {
 			break
 		}
 		msg = after
 	}
-	if len(msg) > 120 {
-		msg = msg[:120] + "…"
-	}
+
+	msg = scrubPaths(err, msg)
+	msg = truncateRunes(msg, 120)
 	if msg == "" {
 		msg = "unknown error"
 	}
 	return msg
+}
+
+// scrubPaths replaces the filesystem paths named anywhere in err's chain with a neutral
+// phrase wherever they appear in msg, so a path never reaches the UI (SECURITY-UI-2) while
+// the surrounding explanation survives.
+func scrubPaths(err error, msg string) string {
+	replace := func(path string) {
+		if path != "" {
+			msg = strings.ReplaceAll(msg, path, "the file")
+		}
+	}
+	var pathErr *fs.PathError
+	if errors.As(err, &pathErr) {
+		replace(pathErr.Path)
+	}
+	var linkErr *os.LinkError
+	if errors.As(err, &linkErr) {
+		replace(linkErr.Old)
+		replace(linkErr.New)
+	}
+	return msg
+}
+
+// truncateRunes shortens s to at most max runes, appending an ellipsis when it cuts. It
+// counts runes rather than bytes so a multi-byte character is never split into an invalid
+// fragment, which would render as a replacement glyph.
+func truncateRunes(s string, max int) string {
+	if utf8.RuneCountInString(s) <= max {
+		return s
+	}
+	n := 0
+	for i := range s {
+		if n == max {
+			return s[:i] + "…"
+		}
+		n++
+	}
+	return s
 }

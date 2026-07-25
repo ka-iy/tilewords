@@ -111,6 +111,83 @@ func TestGenerateMoves_DistinctWordsSameFootprint(t *testing.T) {
 	}
 }
 
+// TestGenerateMoves_BlankAndRealTileBothTried verifies that when the rack holds a letter
+// both as a real tile and as a blank, BOTH physical assignments of a word using that letter
+// are generated. They are different plays, not duplicates: a blank scores zero, so which
+// cell it covers changes the score. Generating only one would hide the higher-scoring
+// assignment from move selection, and the AI would play a weaker move while a better one
+// was legal.
+func TestGenerateMoves_BlankAndRealTileBothTried(t *testing.T) {
+	board := engine.NewBoard()
+	// FIZZ down column J: F and I are on the board, so the play supplies both Z's — one
+	// from the real Z, one from the blank. (8,9) is a plain square and (9,9) a Triple
+	// Letter, so the assignment that puts the real Z on the premium scores far more, and
+	// the two must be told apart.
+	placeTile(board, 6, 9, 'F', 4)
+	placeTile(board, 7, 9, 'I', 1)
+	rack := &engine.Rack{}
+	_ = rack.Add([]engine.Tile{
+		{Letter: 'Z', Points: 10},
+		{Letter: 0, Points: 0, IsBlank: true},
+	})
+
+	var fizz []ai.MoveCandidate
+	for _, c := range ai.GenerateMoves(board, rack, testDict) {
+		for _, w := range c.Move.WordsFormed {
+			if w == "FIZZ" {
+				fizz = append(fizz, c)
+			}
+		}
+	}
+	if len(fizz) != 2 {
+		t.Fatalf("generated %d FIZZ candidates, want 2 (real Z then blank, and blank then real Z)", len(fizz))
+	}
+
+	// The two must differ in which cell carries the blank, and therefore in score.
+	blankCell := func(c ai.MoveCandidate) [2]int {
+		for _, p := range c.Move.Placed {
+			if p.Tile.IsBlank {
+				return [2]int{p.Row, p.Col}
+			}
+		}
+		t.Fatalf("FIZZ candidate placed no blank: %v", c.Move.Placed)
+		return [2]int{}
+	}
+	if blankCell(fizz[0]) == blankCell(fizz[1]) {
+		t.Errorf("both FIZZ candidates put the blank at %v; the two assignments were not enumerated", blankCell(fizz[0]))
+	}
+	if fizz[0].Score == fizz[1].Score {
+		t.Errorf("both FIZZ candidates score %d; expected the blank's cell to change the score", fizz[0].Score)
+	}
+
+	// A blank must never contribute face value, whichever cell it lands on.
+	for _, c := range fizz {
+		for _, p := range c.Move.Placed {
+			if p.Tile.IsBlank && p.Tile.Points != 0 {
+				t.Errorf("blank at (%d,%d) scored %d points, want 0", p.Row, p.Col, p.Tile.Points)
+			}
+		}
+	}
+}
+
+// TestGenerateMoves_BlankOnlyRackStillPlays verifies the blank branch is still reached when
+// the rack holds no real tile for the letter, i.e. offering the real tile first did not make
+// the blank fallback unreachable.
+func TestGenerateMoves_BlankOnlyRackStillPlays(t *testing.T) {
+	board := engine.NewBoard()
+	placeTile(board, 7, 7, 'C', 3)
+	placeTile(board, 7, 9, 'T', 1)
+	rack := &engine.Rack{}
+	_ = rack.Add([]engine.Tile{{Letter: 0, Points: 0, IsBlank: true}})
+	c, ok := formedWord(ai.GenerateMoves(board, rack, testDict), "CAT")
+	if !ok {
+		t.Fatal("CAT not generated from a blank-only rack")
+	}
+	if len(c.Move.Placed) != 1 || !c.Move.Placed[0].Tile.IsBlank {
+		t.Fatalf("expected a single blank tile, got %v", c.Move.Placed)
+	}
+}
+
 // TestGenerateMoves_HookStillValidated verifies that even with the broadened
 // generator, every candidate produced for a populated board passes the engine's
 // authoritative ValidatePlacement (no illegal moves leak through).

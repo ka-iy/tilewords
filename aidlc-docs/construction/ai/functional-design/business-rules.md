@@ -28,11 +28,33 @@ this ordering and must not re-sort internally.
 
 ---
 
-## BR-AI-04: Level-10 Move Selection Is Deterministic
+## BR-AI-04: Level-10 Move Selection Is Near-Best
 
-At level 10, `SelectMove` returns `candidates[0]` — the candidate with the highest score
-and, among equal-score candidates, the lowest `OpponentAccess`. No randomness is used.
-The same board+rack always produces the same level-10 move.
+At level 10, `SelectMove` samples uniformly from the candidates scoring within
+`topPlayMargin` (10%) of the best available score:
+
+```
+cutoff = best × (1 - topPlayMargin)
+```
+
+Candidates are sorted by score descending, so those form a prefix; the selection is always
+at least `candidates[0]`. The same board+rack may therefore produce different level-10 moves.
+
+Rationale:
+
+- An opponent that unfailingly finds the single optimum is both predictable and unlike any
+  human expert.
+- The window is defined by **score**, not by rank. A rank says nothing about how much is
+  given up: where the three best plays score 40, 12 and 11, sampling the top three would
+  surrender most of the turn's value two times in three. A score window bounds the loss by
+  construction, so level 10 never plays a weak move.
+- Where the best play has no near rival, the window contains only that play and level 10
+  plays it.
+- When the best score is 0 every play is worth the same, so the window is not applied and
+  the sort's `OpponentAccess` tiebreak stands.
+
+Difficulty remains a *selection* concern only; move generation always enumerates every legal
+play (BR-AI-01).
 
 ---
 

@@ -205,10 +205,8 @@ type GameState struct {
     ConsecutivePasses int
     CurrentTurn       Turn
     MoveNumber        int             // increments on each Execute; 0 before first move
-    LastHumanCommand  Command         // nil before human's first move; set by PlayCommand/ExchangeCommand/PassCommand
-    LastAICommand     Command         // nil before AI's first move; set by AI's command
     DictName          dictionary.DictName
-    AILevel           int             // 1–10
+    AILevel           int             // ai.MinLevel–ai.MaxLevel (1–11; 11 is god mode)
 }
 ```
 

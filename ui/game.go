@@ -105,6 +105,12 @@ type gameScreen struct {
 	boardBox      *fyne.Container
 	humanRackBoxC *fyne.Container
 
+	// boardLabels holds the board's row and column labels (A–O then 1–15). They are kept
+	// here because their colour is baked in at construction: the game screen is refreshed
+	// rather than rebuilt when the theme variant changes, so refresh must recolour them or
+	// they keep the previous variant's colour and can end up unreadable.
+	boardLabels []*canvas.Text
+
 	rackLabel  *canvas.Text    // "Your rack" / red "GAME OVER" — green on the human's turn
 	playIcon   *widget.Icon    // green play triangle beside the rack on the human's turn
 	rackHeader *fyne.Container // wraps the rack label row; relaid out when the label text changes
@@ -158,10 +164,14 @@ type gameScreen struct {
 	// is dispatched on defsWordCh to defsWorker, which looks its meaning up and appends
 	// a formatted entry to defsEntries; defsLabel shows the entries separated by blank
 	// lines. defsWordCh is nil when the definitions asset is not embedded in the build.
-	defsLabel   *widget.Label
-	defsScroll  *container.Scroll
-	defsEntries []string
-	defsWordCh  chan string
+	defsLabel  *widget.Label
+	defsScroll *container.Scroll
+	// defsEntries holds the rendered definition entries shown in the Definitions tab, each
+	// tagged with the history turn that produced it so an undone turn's entries can be
+	// dropped. Without the tag the panel would keep describing words no longer on the board,
+	// and list a word twice once it was replayed.
+	defsEntries []defsEntry
+	defsWordCh  chan defsRequest
 	// defsClosed guards against closing defsWordCh more than once when the screen is left.
 	defsClosed bool
 
@@ -251,8 +261,10 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	// Row/column labels follow the cells; boardLayout positions them in the gutters
 	// reserved along the top (A–O) and left (1–15) edges.
 	colLabels, rowLabels := newBoardLabels()
-	boardObjs = append(boardObjs, colLabels...)
-	boardObjs = append(boardObjs, rowLabels...)
+	gs.boardLabels = append(append(gs.boardLabels[:0], colLabels...), rowLabels...)
+	for _, l := range gs.boardLabels {
+		boardObjs = append(boardObjs, l)
+	}
 	board := container.New(boardLayout{}, boardObjs...)
 	gs.boardBox = board
 
@@ -361,6 +373,9 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	gs.historyLabel = widget.NewLabel("")
 	gs.historyLabel.Wrapping = fyne.TextWrapWord
 	gs.historyLabel.Selectable = true
+	// A fixed-width font lines the coordinates, words and scores up column-wise down the log,
+	// so successive entries can be compared by eye instead of read one at a time.
+	gs.historyLabel.TextStyle = fyne.TextStyle{Monospace: true}
 	gs.historyScroll = container.NewVScroll(gs.historyLabel)
 	historyText := func() string { return gs.historyLabel.Text }
 	enableTouchScroll(gs.historyScroll, historyText, onCopied) // drag pans; long press copies (touch only)
@@ -510,6 +525,15 @@ func (gs *gameScreen) refresh() {
 	}
 	gs.youLabel.SetText(fmt.Sprintf("%sYou: %d", youMark, gs.state.HumanScore))
 	gs.aiLabel.SetText(fmt.Sprintf("%sAI: %d", aiMark, gs.state.AIScore))
+
+	// Board labels follow the current theme variant. Only the ones whose colour actually
+	// changed are refreshed, so an ordinary refresh (every tap) does no work here.
+	if col := bodyTextColor(); len(gs.boardLabels) > 0 && gs.boardLabels[0].Color != col {
+		for _, l := range gs.boardLabels {
+			l.Color = col
+			l.Refresh()
+		}
+	}
 
 	// Rack label: red "GAME OVER" when the game has ended; otherwise "Your rack",
 	// green with a play icon on the human's turn and the normal colour otherwise. The
@@ -776,9 +800,25 @@ func (gs *gameScreen) recallAll() {
 // pointing at a slot, which refresh() renders as a permanent phantom empty slot —
 // making the rack appear to be missing a tile. Clearing it at turn boundaries and on
 // any tap guarantees a leaked drag source cannot outlive the gesture.
+//
+// The widgets' own drag tracking is reset too. On touch a DragEvent carries no absolute
+// position, so the pointer is followed by accumulating deltas from where the gesture began; a
+// widget left believing it is mid-drag would seed the next gesture from the abandoned one's
+// end point, drawing the ghost away from the finger and hit-testing the drop to the wrong
+// cell — or to none, which recalls the tile.
 func (gs *gameScreen) clearDragState() {
 	gs.dragRackSrc = -1
 	gs.dragBoardSrc = [2]int{-1, -1}
+	for _, c := range gs.cells {
+		if c != nil {
+			c.cancelDrag()
+		}
+	}
+	for _, s := range gs.humanRack {
+		if s != nil {
+			s.cancelDrag()
+		}
+	}
 }
 
 // assignBlank sets the chosen letter on the staged blank from rack slot fromRackIdx.
@@ -905,7 +945,9 @@ func (gs *gameScreen) doUndo() {
 		if e.cmd == nil {
 			break // reached a restored entry (no command); those are not undoable
 		}
-		e.cmd.Undo(gs.state)
+		// gs.rng reshuffles the bag as part of the undo, so replaying the turn cannot draw
+		// the tiles this move already revealed.
+		e.cmd.Undo(gs.state, gs.rng)
 		gs.history = gs.history[:len(gs.history)-1]
 		if e.player == "You" {
 			break
@@ -914,6 +956,7 @@ func (gs *gameScreen) doUndo() {
 	gs.recomputeAIHighlight()
 	gs.recomputeLastPoints()
 	gs.refreshHistory()
+	gs.dropUndoneDefinitions()
 	gs.recallAll()
 	gs.setStatus("Move undone.", false)
 	gs.refresh()
@@ -937,8 +980,8 @@ func (gs *gameScreen) toggleAIRack() {
 }
 
 func (gs *gameScreen) goMainMenu() {
-	gs.abandoned = true // ignore any in-flight AI callback
-	gs.stopDefinitions()
+	// showMainMenu tears this screen down (marking it abandoned so any in-flight AI callback
+	// is ignored, and stopping the definitions worker) as part of leaving it.
 	gs.app.showMainMenu("")
 }
 
@@ -1074,9 +1117,21 @@ func (gs *gameScreen) onBoardDragEnd(row, col int, abs fyne.Position) {
 		return
 	}
 	st, ok := gs.stagedAt(row, col)
-	if !ok || !wasDrag {
+	if !ok {
+		// The gesture began on a cell holding no staged tile, so there was never anything to
+		// move: resolve it as a tap, which is how a slight finger movement on a cell arrives.
 		gs.refresh()
 		gs.onBoardTap(row, col)
+		return
+	}
+	if !wasDrag {
+		// A staged tile is here, but this gesture is no longer the recorded drag — its source
+		// was cleared while the gesture was still in flight. On touch that happens when a tap
+		// arrives during the driver's post-release momentum, and that tap has already been
+		// handled. Resolving this late DragEnd as another tap would count the gesture twice,
+		// and a synthesised tap on the source cell can land inside the double-press window and
+		// recall the tile the player was only trying to place.
+		gs.refresh()
 		return
 	}
 	if r2, c2, okB := gs.cellAt(abs); okB {
@@ -1384,6 +1439,12 @@ func (gs *gameScreen) applyAIMove(move engine.Move, timedOut bool) {
 	}
 	gs.aiThinking = false
 
+	// Anything that went wrong with the AI's turn is held here rather than shown straight
+	// away: logCommand clears the status line so a completed move shows the score summary
+	// instead of the previous turn's transient message, which would also discard a notice
+	// set before it. The notice is re-applied afterwards so the player is actually told.
+	notice := ""
+
 	var cmd engine.Command
 	switch m := move.(type) {
 	case engine.PlayMove:
@@ -1393,21 +1454,27 @@ func (gs *gameScreen) applyAIMove(move engine.Move, timedOut bool) {
 	case engine.PassMove:
 		cmd = &engine.PassCommand{}
 	default:
-		gs.setStatus("AI returned an unknown move - passing.", true)
+		// Unreachable: engine.Move's marker method is unexported, so the three cases above
+		// are the only implementations, and ChooseMove always returns one of them.
+		notice = "AI returned an unknown move - passing."
 		cmd = &engine.PassCommand{}
 	}
 
 	executed := cmd
 	if err := cmd.Execute(gs.state, gs.dict, gs.rng); err != nil {
-		gs.setStatus(fmt.Sprintf("AI move invalid (%s) - passing.", sanitiseError(err)), true)
+		notice = fmt.Sprintf("AI move invalid (%s) - passing.", sanitiseError(err))
 		fallback := &engine.PassCommand{}
 		_ = fallback.Execute(gs.state, gs.dict, gs.rng)
 		executed = fallback
 	} else if timedOut {
-		gs.setStatus("AI timed out - pass applied.", true)
+		notice = "AI timed out - pass applied."
 	}
 
 	gs.logCommand("AI", executed)
+
+	if notice != "" {
+		gs.setStatus(notice, true)
+	}
 
 	// The human's turn now begins, so guarantee a clean slate. The human cannot act
 	// during the AI turn, so any staged tile, selection, or drag state lingering here is
@@ -1601,7 +1668,9 @@ func (gs *gameScreen) refreshHistory() {
 	for _, e := range gs.history {
 		lines = append(lines, e.line)
 	}
-	gs.historyLabel.SetText(strings.Join(lines, "\n"))
+	// Entries are separated by a blank line, matching the definitions panel: a turn's line can
+	// wrap onto several rows, so without the gap it is not obvious where one turn ends.
+	gs.historyLabel.SetText(strings.Join(lines, "\n\n"))
 	gs.scrollHistoryToEnd()
 }
 

@@ -38,8 +38,41 @@ requirement of the respective sources.
     not define. Each entry's source is marked in a section comment. Currently:
     - **John Jamieson, *An Etymological Dictionary of the Scottish Language*** —
       public domain. Covers Scots/dialect words (`cannie`, `cranreuch`, `sheuch`,
-      `leuch`).
+      `leuch`, `taigle`, `drouk`, `kae`).
       Project Gutenberg eBook #40521: https://www.gutenberg.org/ebooks/40521
+      Where Jamieson carries two entries for one headword, both senses are given
+      (`blume`, `tirr`). Regional markers ("S.", "S. B.", "Galloway") are dropped, and
+      the archaic verb spelling "reach" is given as "retch" (`cowk`).
+    - **Webster's New Modern English Dictionary** (Consolidated Book Publishers, 1922) —
+      public domain; every copyright date in the volume is 1908-1922, so US copyright has
+      expired. OCR text from the Internet Archive, item `webstersnewmoder00web`. Because OCR
+      output cannot be trusted unchecked, each gloss was read back against the source page
+      (`befana`, `eboulement`, `siffleur`, `stegomyia`).
+      https://archive.org/details/webstersnewmoder00web
+    - **Extended Free Zyzzyva Dictionary (OWL 2.1, 2016)** — definitions by **Joseph
+      Petree**, obtained via the WOW24 Zyzzyva import compiled by Mitch Bayersdorfer and
+      released under **CC BY-SA 4.0** (© 2026 Mitch Bayersdorfer). This is the only source
+      found that defines the Scrabble-tournament vocabulary absent from every general
+      dictionary (`acta`, `aerosat`, `pistolero`, `wab`), and supplies the large majority of
+      this glossary.
+      https://pdxscrabble.neocities.org/word-lists/WOW24-Dictionary-Import
+      Joseph Petree's permission requires that his name appear in the definitions file and
+      that the text not be severely altered, so his wording is kept verbatim and only
+      Zyzzyva's formatting notation is stripped (inflection tables, cross-reference prefixes,
+      the `~` non-tournament flag, provenance markers). The bundle also credits WGPO, NASPA
+      Zyzzyva and Wiktionary, all recorded here and in LEXICON.txt.
+      Note: the bundle's README attaches a non-commercial note to its contents, deriving from
+      WGPO's terms for the **WOW24 word list**. That word list is not used here — only
+      definition text, keyed to this project's own word lists — but anyone redistributing this
+      asset commercially should confirm that reading for themselves.
+    - **The Online Plain Text English Dictionary (OPTED) v0.03**, Ralph S. Sutherland —
+      public domain, derived from the Project Gutenberg etext of Webster's Unabridged
+      Dictionary (1913), the same 1913 edition already credited above. Used only for the
+      irregular Latin plurals it records as cross-references and that no de-inflection rule
+      derives (`animi`, `semina`, `vertigines`); each entry names the singular and gives that
+      singular's OPTED definition. OPTED asks that OPTED, Project Gutenberg and Webster's
+      1913 all be acknowledged, which this section and the Webster entry above do.
+      https://www.mso.anu.edu.au/~ralph/OPTED/
       (text: https://www.gutenberg.org/cache/epub/40521/pg40521.txt)
     - **Glossary to Edmund Spenser's *The Faerie Queene*, Book I** — public domain,
       via Wikisource. Covers Spenserian archaisms (`teene`, `talaunts`,

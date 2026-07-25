@@ -1,7 +1,10 @@
 // Package engine is documented in doc.go.
 package engine
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // Score calculates the total score for move on board, including all cross-word
 // scores and the bingo bonus (+50 for playing all 7 tiles in one turn).
@@ -11,6 +14,15 @@ import "fmt"
 func Score(board *Board, move *PlayMove) (int, error) {
 	if len(move.WordsFormed) == 0 {
 		return 0, fmt.Errorf("engine.Score: WordsFormed is empty — call ValidatePlacement first")
+	}
+	// Bounds-check the placed tiles. A non-empty WordsFormed is not evidence that the move
+	// was validated: a caller can set the field directly. Without this, an off-board
+	// coordinate walks into Board.Cell, which panics — IsEmpty reports out-of-bounds cells
+	// as empty while covers reports them as covered, so the word walk keeps going.
+	for _, pt := range move.Placed {
+		if pt.Row < 0 || pt.Row > 14 || pt.Col < 0 || pt.Col > 14 {
+			return 0, fmt.Errorf("engine.Score: position (%d,%d) is out of bounds", pt.Row, pt.Col)
+		}
 	}
 
 	total := 0
@@ -119,8 +131,13 @@ func extractWordPositions(board *Board, move *PlayMove) [][][2]int {
 		result = append(result, mainPositions)
 	}
 
-	// Cross-words: for each newly placed tile, extend perpendicular.
-	for _, pt := range move.Placed {
+	// Cross-words: for each newly placed tile, extend perpendicular. The tiles are walked in
+	// board order rather than in the caller's slice order, so the cross-words come out
+	// left-to-right / top-to-bottom as this package documents. Callers build Placed in
+	// whatever order the tiles were produced — the UI in the order the player tapped them —
+	// so trusting the slice order would make the same play report its cross-words
+	// differently depending on how it happened to be entered.
+	for _, pt := range placedInBoardOrder(move.Placed) {
 		cross := crossWordPositions(board, move.Placed, pt.Row, pt.Col, !horiz)
 		if len(cross) >= 2 {
 			result = append(result, cross)
@@ -128,6 +145,20 @@ func extractWordPositions(board *Board, move *PlayMove) [][][2]int {
 	}
 
 	return result
+}
+
+// placedInBoardOrder returns placed sorted left-to-right then top-to-bottom, as a copy so
+// the caller's slice keeps the order it chose.
+func placedInBoardOrder(placed []PlacedTile) []PlacedTile {
+	ordered := make([]PlacedTile, len(placed))
+	copy(ordered, placed)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		if ordered[i].Row != ordered[j].Row {
+			return ordered[i].Row < ordered[j].Row
+		}
+		return ordered[i].Col < ordered[j].Col
+	})
+	return ordered
 }
 
 // mainWordPositions returns the full sequence of positions for the main word,

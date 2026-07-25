@@ -64,7 +64,12 @@ func TestClassicalPluralStems(t *testing.T) {
 		{"aerotaxes", "aerotaxis"},
 		{"agamogeneses", "agamogenesis"},
 		{"aerenchymata", "aerenchyma"},
-		{"cacti", "cactus"},
+		// "bacilli" rather than the shorter "cacti": the ending-replacement rules are held
+		// back below minClassicalLen, where they only ever reached unrelated headwords. Short
+		// classical plurals are unaffected in practice because Wiktionary records them as
+		// inflected forms, so they resolve at the form-of layer before these rules run —
+		// see TestShortClassicalPluralsResolveByFormOf.
+		{"bacilli", "bacillus"},
 		{"addenda", "addendum"},
 		{"phenomena", "phenomenon"},
 	}
@@ -72,6 +77,25 @@ func TestClassicalPluralStems(t *testing.T) {
 		if got := candidateStems(c.word); !containsStr(got, c.want) {
 			t.Errorf("candidateStems(%q) = %v, want to contain %q", c.word, got, c.want)
 		}
+	}
+}
+
+// TestShortClassicalPluralsResolveByFormOf documents why holding the ending-replacement rules
+// back below minClassicalLen costs no coverage for common short plurals: the form-of layer
+// already resolves them, and it runs first.
+func TestShortClassicalPluralsResolveByFormOf(t *testing.T) {
+	entries := map[string]*Entry{
+		"cactus": {Word: "cactus", Senses: []Sense{{POS: "noun", Gloss: "a spiny plant"}}},
+	}
+	db := NewDB(entries, map[string]string{"cacti": "cactus"})
+
+	res, ok := db.Lookup("cacti")
+	if !ok {
+		t.Fatal(`Lookup("cacti") not found`)
+	}
+	if res.Headword != "cactus" || res.Kind != MatchFormOf {
+		t.Errorf(`Lookup("cacti") = head %q kind %v; want head "cactus" kind %v`,
+			res.Headword, res.Kind, MatchFormOf)
 	}
 }
 
@@ -406,6 +430,18 @@ func TestDecodeRejectsMalformedAsset(t *testing.T) {
 		{"pos index out of range", func(a *rawAsset) { a.sensePOS = []uint64{0, 7} }, "part-of-speech index"},
 		{"form lemma out of range", func(a *rawAsset) { a.formLemma = []uint64{9} }, "form lemma"},
 		{"truncated mid-stream", func(a *rawAsset) { a.formLemma = nil }, "form lemma"},
+		// A count is rejected before it is allocated from. Without a bound tight enough to
+		// keep the value inside an int, a 32-bit build (armeabi-v7a) converts it to a
+		// negative length and make() panics instead of the asset being reported as corrupt;
+		// on 64-bit it would allocate gigabytes from a header alone.
+		{"headword count beyond maximum", func(a *rawAsset) { a.nHead = maxItemCount + 1 }, "beyond the"},
+		{"sense count beyond maximum", func(a *rawAsset) { a.nSense = maxItemCount + 1 }, "beyond the"},
+		{"form count beyond maximum", func(a *rawAsset) { a.nForm = maxItemCount + 1 }, "beyond the"},
+		// At 2^31 the value is exactly what an int32 cannot hold; the old bound admitted it.
+		{"headword count at the 32-bit boundary", func(a *rawAsset) { a.nHead = 1 << 31 }, "beyond the"},
+		// More headwords than the blob describing them could possibly hold.
+		{"headword count exceeds its blob", func(a *rawAsset) { a.nHead = 1 << 20 }, "more than the"},
+		{"form count exceeds its blob", func(a *rawAsset) { a.nForm = 1 << 20 }, "more than the"},
 	}
 
 	for _, tc := range cases {

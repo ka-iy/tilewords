@@ -26,17 +26,51 @@ func (gs *gameScreen) startDefinitions() {
 		gs.defsLabel.SetText(defsUnavailableNote)
 		return
 	}
-	gs.defsWordCh = make(chan string, defsWordBuffer)
+	gs.defsWordCh = make(chan defsRequest, defsWordBuffer)
 	go gs.runDefinitionsWorker()
 	gs.dispatchHistoryDefinitions()
+}
+
+// defsRequest is one queued lookup: a word and the index of the history turn that formed it.
+type defsRequest struct {
+	// word is the word to look up.
+	word string
+	// turn is the history index of the play that formed word. The entry belongs to the
+	// panel only while the history still reaches that index.
+	turn int
+}
+
+// defsEntry is one rendered definition shown in the Definitions tab.
+type defsEntry struct {
+	// text is the formatted entry, ready to display.
+	text string
+	// turn is the history index of the play that formed the word; see defsRequest.turn.
+	turn int
 }
 
 // dispatchHistoryDefinitions queues the words of every play already in the move history
 // for lookup. It repopulates the Definitions tab when a saved game is loaded; for a new
 // game the history holds no plays yet, so it is a no-op.
 func (gs *gameScreen) dispatchHistoryDefinitions() {
-	for _, e := range gs.history {
-		gs.dispatchDefinitions(e.words)
+	for i, e := range gs.history {
+		gs.dispatchDefinitionsForTurn(e.words, i)
+	}
+}
+
+// dropUndoneDefinitions removes the entries belonging to turns the history no longer has,
+// called after an undo. Entries already displayed are filtered here; entries still in flight
+// are rejected on arrival by appendDefinition, since a lookup dispatched before the undo can
+// be delivered after it.
+func (gs *gameScreen) dropUndoneDefinitions() {
+	kept := gs.defsEntries[:0]
+	for _, e := range gs.defsEntries {
+		if e.turn < len(gs.history) {
+			kept = append(kept, e)
+		}
+	}
+	gs.defsEntries = kept
+	if gs.defsLabel != nil {
+		gs.defsLabel.SetText(gs.definitionsText())
 	}
 }
 
@@ -53,13 +87,20 @@ func (gs *gameScreen) stopDefinitions() {
 // non-blocking: if the buffer were ever full the word is dropped rather than stall the
 // UI goroutine, since a missing definition is a cosmetic loss. It is a no-op when the
 // definitions asset is unavailable (defsWordCh is nil).
+// It is called from logCommand before the turn is appended to the history, so the turn the
+// words belong to is the index that append will occupy.
 func (gs *gameScreen) dispatchDefinitions(words []string) {
+	gs.dispatchDefinitionsForTurn(words, len(gs.history))
+}
+
+// dispatchDefinitionsForTurn queues words as belonging to the given history turn.
+func (gs *gameScreen) dispatchDefinitionsForTurn(words []string, turn int) {
 	if gs.defsWordCh == nil {
 		return
 	}
 	for _, w := range words {
 		select {
-		case gs.defsWordCh <- w:
+		case gs.defsWordCh <- defsRequest{word: w, turn: turn}:
 		default:
 		}
 	}
@@ -81,16 +122,23 @@ func (gs *gameScreen) runDefinitionsWorker() {
 		}
 		return
 	}
-	for word := range gs.defsWordCh {
-		entry := formatDefinitionEntry(db, word)
+	for req := range gs.defsWordCh {
+		entry := defsEntry{text: formatDefinitionEntry(db, req.word), turn: req.turn}
 		fyne.Do(func() { gs.appendDefinition(entry) })
 	}
 }
 
 // appendDefinition adds one entry to the Definitions tab and scrolls it into view.
 // It must run on the UI goroutine and is a no-op once the screen has been left.
-func (gs *gameScreen) appendDefinition(entry string) {
+//
+// An entry whose turn the history no longer reaches is dropped: lookups run off the UI
+// goroutine, so one dispatched before an undo can arrive after it, and appending it would
+// put an undone word back into the panel that dropUndoneDefinitions had just cleaned.
+func (gs *gameScreen) appendDefinition(entry defsEntry) {
 	if gs.abandoned {
+		return
+	}
+	if entry.turn >= len(gs.history) {
 		return
 	}
 	gs.defsEntries = append(gs.defsEntries, entry)
@@ -103,7 +151,11 @@ func (gs *gameScreen) appendDefinition(entry string) {
 // definitionsText joins the definition entries with a blank line between them, so each
 // word's entry is visually separated from the previous one.
 func (gs *gameScreen) definitionsText() string {
-	return strings.Join(gs.defsEntries, "\n\n")
+	texts := make([]string, len(gs.defsEntries))
+	for i, e := range gs.defsEntries {
+		texts[i] = e.text
+	}
+	return strings.Join(texts, "\n\n")
 }
 
 // scrollDefinitionsToEnd keeps the newest definition entry in view after the panel

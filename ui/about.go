@@ -85,10 +85,11 @@ func (a *App) showAbout() {
 		showCopied()
 	})
 
-	// On touch, a finger drag pans the scroll instead of selecting text, and a long
-	// press copies the whole panel; double/triple tap still selects a word/line. This
-	// mirrors the move-history panel (see dragscroll.go). On desktop it is a no-op —
-	// the wheel scrolls, click-drag selects, and the button copies.
+	// On touch, a finger drag pans the scroll instead of selecting text and a long press
+	// copies the whole panel; tap-to-select is not available there, so the Copy button and
+	// the long press are the ways to take the text. This mirrors the move-history panel
+	// (see dragscroll.go). On desktop it is a no-op — the wheel scrolls, click-drag
+	// selects, and the button copies.
 	enableTouchScroll(scroll, func() string { return fullText }, showCopied)
 
 	content := container.NewBorder(copyBtn, nil, nil, nil, scroll)

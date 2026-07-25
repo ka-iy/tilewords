@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2/test"
 	"pgregory.net/rapid"
 
+	"tilewords/ai"
 	"tilewords/dictionary"
 	"tilewords/engine"
 )
@@ -40,14 +41,17 @@ func TestSanitize(t *testing.T) {
 	if got := sanitize(GameSettings{Dict: "beta", Mode: engine.ClassicMode, Difficulty: 5}, testAvail); got.Dict != "beta" {
 		t.Errorf("available dict not preserved: Dict = %q, want beta", got.Dict)
 	}
-	// BR-2: difficulty outside 1–10 resets to the default; in-range is preserved.
-	for _, bad := range []int{0, -3, 11, 100} {
+	// BR-2: a difficulty outside the AI's level range resets to the default.
+	for _, bad := range []int{0, -3, ai.MaxLevel + 1, 100} {
 		if got := sanitize(GameSettings{Dict: "alpha", Difficulty: bad}, testAvail); got.Difficulty != def.Difficulty {
 			t.Errorf("difficulty %d: got %d, want default %d", bad, got.Difficulty, def.Difficulty)
 		}
 	}
-	if got := sanitize(GameSettings{Dict: "alpha", Difficulty: 8}, testAvail); got.Difficulty != 8 {
-		t.Errorf("in-range difficulty not preserved: got %d, want 8", got.Difficulty)
+	// Every level the AI accepts is preserved, including the god-mode top level.
+	for _, ok := range []int{ai.MinLevel, 8, ai.NearBestLevel, ai.GodModeLevel} {
+		if got := sanitize(GameSettings{Dict: "alpha", Difficulty: ok}, testAvail); got.Difficulty != ok {
+			t.Errorf("in-range difficulty %d not preserved: got %d", ok, got.Difficulty)
+		}
 	}
 	// BR-3: an unknown mode falls back to Classic; Interesting is preserved.
 	if got := sanitize(GameSettings{Dict: "alpha", Mode: engine.GameMode(99), Difficulty: 5}, testAvail); got.Mode != engine.ClassicMode {

@@ -375,6 +375,31 @@ func TestLoadGADDAG_RejectsMalformedAsset(t *testing.T) {
 		{"bad root", func(a *rawAsset) { a.root = 0 }, "invalid root node"},
 		{"root beyond node count", func(a *rawAsset) { a.nodeCount = 1; a.edgeCounts = []uint64{1} }, "root node"},
 		{"node count beyond maximum", func(a *rawAsset) { a.nodeCount = maxAssetCount + 1 }, "beyond the"},
+		// At the maximum the absolute ceiling does not fire, so only the asset-size bound
+		// stands between a corrupt count and an 8 GiB make().
+		{"node count at the maximum", func(a *rawAsset) { a.nodeCount = maxAssetCount }, "than a"},
+		{"node count beyond the asset size", func(a *rawAsset) { a.nodeCount = 1 << 20 }, "than a"},
+		{"edge count beyond the asset size", func(a *rawAsset) { a.edgeCount = 1 << 20 }, "than a"},
+		{
+			"edge labels not ascending",
+			func(a *rawAsset) {
+				a.edgeCount = 2
+				a.edgeCounts = []uint64{0, 2}
+				a.letters = "ba"
+				a.targets = []uint64{0, 0}
+			},
+			"not strictly ascending",
+		},
+		{
+			"duplicate edge labels",
+			func(a *rawAsset) {
+				a.edgeCount = 2
+				a.edgeCounts = []uint64{0, 2}
+				a.letters = "aa"
+				a.targets = []uint64{0, 0}
+			},
+			"not strictly ascending",
+		},
 		{"truncated bitset", func(a *rawAsset) { a.termWords = 0 }, "terminal bitset"},
 		{"truncated letters", func(a *rawAsset) { a.letters = ""; a.targets = nil; a.termWords = 0 }, "edge letters"},
 	}

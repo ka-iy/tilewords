@@ -36,7 +36,7 @@ TILEWORDS IS NOT AFFILIATED WITH ANY OF THE ABOVE-MENTIONED PRODUCTS OR ENTITIES
 
 • Two game modes: Classic uses the standard 15x15 premium-square layout and tile economy, while Interesting uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
 
-• Selectable AI difficulty: choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard).
+• Selectable AI difficulty: choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard). Even at level 10, the AI is not infallible - just like a human being. At level 11, it is - this is God Mode (for the AI, not you). To quote from "This is Spinal Tap": "Why don't you just make 10 louder and make 10 be the top number?" / "...These go to ELEVEN!" 
 
 • Move history: a running log of every turn - who played, the words formed, and the score - with an option to show it in standard Scrabble notation.
 
@@ -81,8 +81,14 @@ DEFINITIONS
 
 • Glossary to Edmund Spenser's "The Faerie Queene", Book I: public domain, via Wikisource. https://en.wikisource.org/wiki/The_Faerie_Queene_(unsourced)/Book_I/Glossary
 
+• Extended Free Zyzzyva Dictionary (OWL 2.1): definitions by Joseph Petree, used with his permission and with his name recorded here as he asks; his wording is kept verbatim. Obtained via the WOW24 Zyzzyva import compiled by Mitch Bayersdorfer, (C) 2026, released under CC BY-SA 4.0, which also credits the Word Game Players Organization (WOW24 lexicon), NASPA Zyzzyva, and Wiktionary. This is the source for the tournament-lexicon words no general dictionary defines. https://pdxscrabble.neocities.org/word-lists/WOW24-Dictionary-Import
 
-Definitions are shown for reference during play. Where more than one source defines a word, the Wiktionary sense is preferred; Webster's 1913, WordNet, and the glossaries fill gaps for archaic and dialectal words.
+• Webster's New Modern English Dictionary (1922): public domain, OCR text via the Internet Archive. https://archive.org/details/webstersnewmoder00web
+
+• The Online Plain Text English Dictionary (OPTED) v0.03: by Ralph S. Sutherland, public domain, derived from the Project Gutenberg etext of Webster's Unabridged Dictionary (1913). https://www.mso.anu.edu.au/~ralph/OPTED/
+
+
+Definitions are shown for reference during play. Where more than one source defines a word, the Wiktionary sense is preferred; Webster's 1913, WordNet, and the glossaries fill gaps for archaic, dialectal, and tournament-lexicon words.
 
 While (almost) every effort has been made to fill the gaps in the definitions, gaps do remain; where a played word has no definition that could be found, such will be indicated in the "Definitions" tab on the game screen.
 

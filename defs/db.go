@@ -79,8 +79,20 @@ const (
 
 	// maxBlobLen bounds a declared blob size. A corrupt length must not be handed
 	// straight to make(), which would abort the process on an absurd allocation; no
-	// legitimate asset comes close to this.
-	maxBlobLen = 1 << 31
+	// legitimate asset comes close to this — the largest blob the shipped asset declares is
+	// its gloss blob, at about 13 MB.
+	//
+	// The bound also has to keep the value inside an int. On a 32-bit build (GOARCH=arm,
+	// 386) int is 32 bits, so a limit at or above 1<<31 lets a corrupt length convert to a
+	// negative int and reach make() as an invalid length, which panics rather than being
+	// reported as the corrupt asset it is.
+	maxBlobLen = 1 << 28
+
+	// maxItemCount bounds a declared number of items (headwords, senses, forms, parts of
+	// speech). It is far tighter than maxBlobLen because an item count is small even for a
+	// large asset — the shipped one declares about 250k senses — and each count is
+	// multiplied by an element size before it is allocated.
+	maxItemCount = 1 << 24
 )
 
 // NewDB builds a DB from a headword map and an inflection-edge map. Neither map is
@@ -512,10 +524,10 @@ func Decode(r io.Reader) (*DB, error) {
 		limit uint64
 		what  string
 	}{
-		{&nHead, maxBlobLen, "headword count"},
-		{&nSense, maxBlobLen, "sense count"},
-		{&nForm, maxBlobLen, "form count"},
-		{&nPOS, maxBlobLen, "part-of-speech count"},
+		{&nHead, maxItemCount, "headword count"},
+		{&nSense, maxItemCount, "sense count"},
+		{&nForm, maxItemCount, "form count"},
+		{&nPOS, maxItemCount, "part-of-speech count"},
 		{&headLen, maxBlobLen, "headword blob size"},
 		{&glossLen, maxBlobLen, "gloss blob size"},
 		{&formLen, maxBlobLen, "form blob size"},
@@ -523,6 +535,18 @@ func Decode(r io.Reader) (*DB, error) {
 		if *f.dst, err = readCount(br, f.limit, f.what); err != nil {
 			return nil, fmt.Errorf("defs.Decode: %w", err)
 		}
+	}
+
+	// Cross-check the counts against the blobs they describe before anything is allocated
+	// from them. A headword and a form are each at least one byte, so a header declaring
+	// more of them than its blob could hold is corrupt — and catching that here is what
+	// stops readOffsets from allocating an array sized for the bogus count first and only
+	// then discovering, from the blob, that the count was impossible.
+	if nHead > headLen {
+		return nil, fmt.Errorf("defs.Decode: %d headwords declared, more than the %d-byte headword blob can hold", nHead, headLen)
+	}
+	if nForm > formLen {
+		return nil, fmt.Errorf("defs.Decode: %d forms declared, more than the %d-byte form blob can hold", nForm, formLen)
 	}
 
 	if nPOS > 0 {

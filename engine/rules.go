@@ -36,12 +36,22 @@ func ValidatePlacement(board *Board, move *PlayMove, dict *dictionary.Dictionary
 		return nil, fmt.Errorf("engine.ValidatePlacement: tiles must all be in one row or one column")
 	}
 
-	// Step 3 — Occupancy: no placed tile may overwrite an existing tile (BR-E01)
+	// Step 3 — Occupancy: no placed tile may overwrite an existing tile (BR-E01), and no
+	// two placed tiles may claim the same cell. Checking each tile only against the board
+	// would let a move stack tiles on one square: the extra entries inflate len(Placed) into
+	// an unearned bingo bonus, and Board.Place rejects the repeat only after the rack has
+	// already been debited, which PlayCommand.Execute cannot recover from.
+	var seen [15][15]bool
 	for _, pt := range move.Placed {
 		if pt.Row < 0 || pt.Row > 14 || pt.Col < 0 || pt.Col > 14 {
 			return nil, fmt.Errorf("engine.ValidatePlacement: position (%d,%d) is out of bounds",
 				pt.Row, pt.Col)
 		}
+		if seen[pt.Row][pt.Col] {
+			return nil, fmt.Errorf("engine.ValidatePlacement: position (%d,%d) is used by more than one tile",
+				pt.Row, pt.Col)
+		}
+		seen[pt.Row][pt.Col] = true
 		if !board.IsEmpty(pt.Row, pt.Col) {
 			return nil, fmt.Errorf("engine.ValidatePlacement: cell (%d,%d) is already occupied",
 				pt.Row, pt.Col)
@@ -151,16 +161,24 @@ func hasAdjacent(board *Board, placed []PlacedTile) bool {
 }
 
 // IsGameOver reports whether state meets any end condition (BR-E10).
+//
+// Rack exhaustion is tested first, because both conditions can become true on the same turn:
+// a zero-scoring play that empties the last rack is a scoreless turn, so it can push the
+// counter to six while also playing the player out. Going out is the stronger claim — that
+// player used their last letter, which is what earns the going-out bonus, whereas the
+// scoreless-turn rule exists for a game where nobody can play at all. Testing passes first
+// would report SixConsecutivePasses and deduct both racks, denying the bonus to a player who
+// had in fact gone out.
 func IsGameOver(state *GameState) (bool, EndReason) {
-	// Six consecutive non-play moves across both players (BR-E10).
-	if state.ConsecutivePasses >= 6 {
-		return true, SixConsecutivePasses
-	}
 	// One player exhausted their rack while the bag is empty (BR-E11).
 	if state.Bag.Count() == 0 {
 		if state.HumanRack.Count() == 0 || state.AIRack.Count() == 0 {
 			return true, RackExhausted
 		}
+	}
+	// Six consecutive non-play moves across both players (BR-E10).
+	if state.ConsecutivePasses >= 6 {
+		return true, SixConsecutivePasses
 	}
 	return false, NotOver
 }
@@ -170,6 +188,13 @@ func IsGameOver(state *GameState) (bool, EndReason) {
 // of how the game ended. The function is idempotent: repeated calls are no-ops, so
 // a stray second invocation cannot double-adjust the scores.
 func ApplyEndgameScoring(state *GameState, reason EndReason) {
+	// A game that has not ended has nothing to adjust. This is checked before the
+	// EndgameScored latch is set, so a caller that forwards IsGameOver's reason without
+	// checking its bool cannot both deduct the racks from a live game and suppress the real
+	// adjustment when the game does end.
+	if reason == NotOver {
+		return
+	}
 	if state.EndgameScored {
 		return
 	}
@@ -190,8 +215,8 @@ func ApplyEndgameScoring(state *GameState, reason EndReason) {
 			state.AIScore += humanRemaining
 			state.HumanScore -= humanRemaining
 		}
-	default:
-		// Six consecutive passes (BR-E12): each player loses their own remaining
+	case SixConsecutivePasses:
+		// Six consecutive scoreless turns (BR-E12): each player loses their own remaining
 		// tile values, with no redistribution.
 		state.HumanScore -= humanRemaining
 		state.AIScore -= aiRemaining

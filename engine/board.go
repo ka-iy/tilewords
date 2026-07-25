@@ -147,6 +147,19 @@ func NewBoardForMode(mode GameMode) *Board {
 // Mode returns the game mode this board was built for.
 func (b *Board) Mode() GameMode { return b.mode }
 
+// malformedTile returns the first tile on the board that the game could not have produced,
+// and whether one was found. See Tile.wellFormed; used by ValidateDecodedState.
+func (b *Board) malformedTile() (Tile, bool) {
+	for r := range b.cells {
+		for c := range b.cells[r] {
+			if t := b.cells[r][c].Tile; t != nil && !t.wellFormed() {
+				return *t, true
+			}
+		}
+	}
+	return Tile{}, false
+}
+
 // LetterPoints returns the face value of an uppercase letter A–Z in this board's mode
 // (0 for any other byte, including the blank sentinel). The AI move generator uses it to
 // stamp the correct per-mode face value onto tiles it places.

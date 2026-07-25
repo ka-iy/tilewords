@@ -215,12 +215,26 @@ type listTotal struct {
 	Name string
 	// Total is the number of non-blank words in the list.
 	Total int
-	// Missing is how many of those words the base DB cannot define.
+	// Missing is how many of those words the base DB cannot define directly (see computeMisses).
 	Missing int
 }
 
-// computeMisses returns the deduplicated, sorted set of lowercase words that the
-// base DB cannot define across the given lists, plus each list's totals.
+// definedDirectly reports whether a match kind means the DB holds a definition for the queried
+// word itself, rather than explaining it through a related word.
+func definedDirectly(k defs.MatchKind) bool {
+	return k == defs.MatchExact || k == defs.MatchFormOf
+}
+
+// computeMisses returns the deduplicated, sorted set of lowercase words that the base DB
+// cannot define *directly* across the given lists, plus each list's totals.
+//
+// A word counts as missing unless the base DB holds a definition for the word itself — an
+// exact headword, or one Wiktionary records it as an inflected form of. A word that resolves
+// only through the stem or orthographic-variant layers does NOT count as covered: those layers
+// explain a word using a related word's gloss, so a supplement that can define the word itself
+// is strictly better and must not be skipped. Treating any resolution as coverage let a
+// broadening of the stem rules silently displace real definitions — "barde", "glace" and
+// "geste" each lost their own Webster gloss to a stem guess at "bard", "glac" and "gest".
 func computeMisses(base *defs.DB, lists []string) ([]string, []listTotal, error) {
 	missing := make(map[string]bool)
 	totals := make([]listTotal, 0, len(lists))
@@ -231,7 +245,7 @@ func computeMisses(base *defs.DB, lists []string) ([]string, []listTotal, error)
 		}
 		lt := listTotal{Name: listName(path), Total: len(words)}
 		for _, w := range words {
-			if _, ok := base.Lookup(w); ok {
+			if res, ok := base.Lookup(w); ok && definedDirectly(res.Kind) {
 				continue
 			}
 			lt.Missing++
@@ -333,10 +347,33 @@ func loadGlossary(label, path string, entries map[string]*defs.Entry, srcOf map[
 	return added, nil
 }
 
-// senseNumRE matches a Webster sense number ("1.", "2.", ...) used as a boundary
+// senseNumRE matches a candidate Webster sense number ("1.", "2.", ...) used as a boundary
 // between numbered definitions within one entry. It requires the number to sit at
 // the start of the text or after whitespace so mid-sentence figures are not split.
+// Matching alone does not make a boundary — see websterSenseBoundaries.
 var senseNumRE = regexp.MustCompile(`(?:^|\s)(\d{1,2})\.\s`)
+
+// websterSenseBoundaries returns the matches in locs that are really sense numbers: those
+// forming the run 1, 2, 3, … from the start. Webster's text is full of numbers that sit after
+// whitespace and end in a period without introducing a sense — scripture citations ("Ps. xvi.
+// 10.") and cross-references ("See Dit, n., 2.") most of all. Treating those as boundaries
+// splits an entry at the wrong place, and because the text before the first boundary used to
+// be dropped, it discarded the definition entirely: "sheol" shipped as "(Rev. Ver.)" and
+// "ditt" as "[Obs.] Spenser.". Requiring the sequence to begin at 1 rejects both, leaving the
+// entry as a single unsplit sense with its text intact.
+func websterSenseBoundaries(def string, locs [][]int) [][]int {
+	var out [][]int
+	want := 1
+	for _, loc := range locs {
+		n, err := strconv.Atoi(def[loc[2]:loc[3]])
+		if err != nil || n != want {
+			continue
+		}
+		out = append(out, loc)
+		want++
+	}
+	return out
+}
 
 // parseWebsterSenses splits a Webster's 1913 definition blob into senses on its
 // numbered-definition boundaries, cleaning and capping each. Webster's compact
@@ -347,11 +384,16 @@ func parseWebsterSenses(def string) []defs.Sense {
 		return nil
 	}
 
-	locs := senseNumRE.FindAllStringIndex(def, -1)
+	locs := websterSenseBoundaries(def, senseNumRE.FindAllStringSubmatchIndex(def, -1))
 	var segments []string
 	if len(locs) == 0 {
 		segments = []string{def}
 	} else {
+		// Text before the first sense number is a definition too — Webster often leaves the
+		// leading sense unnumbered — so it is emitted rather than skipped over.
+		if lead := def[:locs[0][0]]; strings.TrimSpace(lead) != "" {
+			segments = append(segments, lead)
+		}
 		for i, loc := range locs {
 			start := loc[1] // text after this sense's "N. "
 			end := len(def)

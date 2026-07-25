@@ -153,7 +153,7 @@ func TestPBT_ExecuteUndo_RoundTrip(t *testing.T) {
 		if err := cmd.Execute(state, testDict, rng2); err != nil {
 			t.Fatalf("Execute: %v", err)
 		}
-		cmd.Undo(state)
+		cmd.Undo(state, nil)
 
 		if state.HumanScore != prevScore {
 			t.Fatalf("HumanScore: got %d, want %d", state.HumanScore, prevScore)

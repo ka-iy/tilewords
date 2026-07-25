@@ -56,25 +56,54 @@ func extendLeft(
 		if !cc[row][col][l-'A'] {
 			continue
 		}
-		isBlank := false
-		if counts[l-'A'] > 0 {
-			counts[l-'A']--
-		} else if counts[26] > 0 {
-			counts[26]--
-			isBlank = true
-		} else {
+		next, ok := g.Successor(node, l)
+		if !ok {
 			continue
 		}
-		if next, ok := g.Successor(node, l); ok {
-			pt := newRackTile(board, l, isBlank, row, col)
+		for _, useBlank := range blankChoices {
+			if !takeRackLetter(counts, l, useBlank) {
+				continue
+			}
+			pt := newRackTile(board, l, useBlank, row, col)
 			afterLeft(board, g, dict, cc, counts, anchor, next, row, col, limit-1, append(placed, pt), candidates, seen)
-		}
-		if isBlank {
-			counts[26]++
-		} else {
-			counts[l-'A']++
+			returnRackLetter(counts, l, useBlank)
 		}
 	}
+}
+
+// blankChoices orders the two ways a rack can supply one letter: its own tile first,
+// then a blank standing in for it. Both must be tried — see takeRackLetter.
+var blankChoices = [2]bool{false, true}
+
+// takeRackLetter consumes one tile for letter l from counts, using a blank when useBlank,
+// and reports whether the rack had one. Every caller must pair a true return with
+// returnRackLetter on the way back out of the recursion.
+//
+// A rack holding both a real l and a blank can play l either way, and the two are
+// different plays rather than duplicates: a blank scores zero, so which of the word's
+// cells it covers changes the score, sometimes by a lot (a blank sitting on a triple
+// letter square wastes it). Preferring the real tile and stopping there would generate
+// only one assignment per word — often the lower-scoring one — so the caller must offer
+// both and let scoring choose.
+func takeRackLetter(counts *rackCounts, l byte, useBlank bool) bool {
+	idx := l - 'A'
+	if useBlank {
+		idx = 26
+	}
+	if counts[idx] == 0 {
+		return false
+	}
+	counts[idx]--
+	return true
+}
+
+// returnRackLetter undoes one takeRackLetter, restoring the rack for the next branch.
+func returnRackLetter(counts *rackCounts, l byte, useBlank bool) {
+	if useBlank {
+		counts[26]++
+		return
+	}
+	counts[l-'A']++
 }
 
 // afterLeft runs immediately after the cell at (row, col) has been consumed as the
@@ -170,25 +199,22 @@ func extendRight(
 		if !cc[row][col][l-'A'] {
 			continue
 		}
-		isBlank := false
-		if counts[l-'A'] > 0 {
-			counts[l-'A']--
-		} else if counts[26] > 0 {
-			counts[26]--
-			isBlank = true
-		} else {
+		next, ok := g.Successor(node, l)
+		if !ok {
 			continue
 		}
-		if next, ok := g.Successor(node, l); ok {
-			pt := newRackTile(board, l, isBlank, row, col)
+		// Both tile sources are tried here for the same reason as in extendLeft; the two
+		// loops must stay in step, or a word's blank assignments would be enumerated on
+		// one side of the anchor but not the other.
+		for _, useBlank := range blankChoices {
+			if !takeRackLetter(counts, l, useBlank) {
+				continue
+			}
+			pt := newRackTile(board, l, useBlank, row, col)
 			nr, nc := nextRightPos(anchor, row, col)
 			extendRight(board, g, dict, cc, counts, anchor, next,
 				nr, nc, leftTiles, append(newRight, pt), candidates, seen)
-		}
-		if isBlank {
-			counts[26]++
-		} else {
-			counts[l-'A']++
+			returnRackLetter(counts, l, useBlank)
 		}
 	}
 }

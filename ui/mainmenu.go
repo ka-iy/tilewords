@@ -17,8 +17,10 @@ func (a *App) buildMainMenu(errMsg string) fyne.CanvasObject {
 	title := menuTitleTiles()
 
 	subtitle := widget.NewLabelWithStyle(
-		"A two-player almost-free-form cross×word game, quite like That Game We Shall "+
-			"Not Name For Fear Of Being Sued By That Company That Sounds Like It Has A Male Sibling",
+		"A free, fully open-source, fully offline cross-word tile game where you play against "+
+			"the computer, winning points by making more cromulent words than your automated opponent. "+
+			"Quite like 'That S-word Game We Shall Not Name For Fear Of Being Sued By That "+
+			"Company That Sounds Like It Has A Male Sibling.'\n\nPress the 'About' button for details.",
 		fyne.TextAlignCenter, fyne.TextStyle{Italic: true})
 	subtitle.Wrapping = fyne.TextWrapWord
 
@@ -36,14 +38,24 @@ func (a *App) buildMainMenu(errMsg string) fyne.CanvasObject {
 	})
 	newBtn.Importance = widget.HighImportance
 
+	// Every control that leaves this screen is disabled for the duration of the load, not
+	// just Load and New Game: navigating away mid-load leaves a result with nowhere sensible
+	// to land, and deleting the save while it is being loaded is incoherent.
 	loadBtn = widget.NewButton("Load Game", func() {
 		loadBtn.Disable()
 		newBtn.Disable()
+		deleteBtn.Disable()
 		status.SetText("Loading…")
+		// The load reports back through the App, so a failure is still shown if this widget
+		// tree has been rebuilt in the meantime (a theme variant settling does that).
+		gen := a.uiGen
 		a.loadSavedGame(func(msg string) {
-			status.SetText(msg)
-			loadBtn.Enable()
-			newBtn.Enable()
+			a.reportOnCurrentScreen(gen, msg, func() {
+				status.SetText(msg)
+				loadBtn.Enable()
+				newBtn.Enable()
+				deleteBtn.Enable()
+			})
 		})
 	})
 

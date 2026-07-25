@@ -2,7 +2,6 @@ package ui
 
 import (
 	"math/rand"
-	"strings"
 	"testing"
 
 	"fyne.io/fyne/v2/test"
@@ -84,8 +83,9 @@ func TestSaveManager_PersistsMoveHistory(t *testing.T) {
 		t.Error("restored move history must not be undoable")
 	}
 
-	// The panel shows the opening-draw line followed by the two moves.
-	if lines := strings.Split(gs2.historyLabel.Text, "\n"); len(lines) != 3 {
-		t.Errorf("history panel = %d lines, want 3 (opening + 2 moves): %q", len(lines), lines)
+	// The panel shows the opening-draw line followed by the two moves, entries separated by a
+	// blank line.
+	if entries := historyEntries(gs2); len(entries) != 3 {
+		t.Errorf("history panel = %d entries, want 3 (opening + 2 moves): %q", len(entries), entries)
 	}
 }

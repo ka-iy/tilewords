@@ -43,9 +43,13 @@ const boardLabelTextFactor = labelGutterFactor * 2 / 3
 // top to bottom) for the board, matching the Scrabble notation convention (columns are
 // letters, rows are numbers; see engine notation). The two runs are returned in the
 // order boardLayout expects them appended after the cells.
-func newBoardLabels() (colLabels, rowLabels []fyne.CanvasObject) {
-	colLabels = make([]fyne.CanvasObject, boardDim)
-	rowLabels = make([]fyne.CanvasObject, boardDim)
+//
+// They are returned as *canvas.Text rather than fyne.CanvasObject so the caller can keep
+// hold of them and recolour them when the theme variant changes; their colour is fixed at
+// construction and nothing else can reach them once they are inside the board container.
+func newBoardLabels() (colLabels, rowLabels []*canvas.Text) {
+	colLabels = make([]*canvas.Text, boardDim)
+	rowLabels = make([]*canvas.Text, boardDim)
 	for i := 0; i < boardDim; i++ {
 		colLabels[i] = newBoardLabelText(string(rune('A' + i)))
 		rowLabels[i] = newBoardLabelText(fmt.Sprintf("%d", i+1))

@@ -7,6 +7,7 @@ import (
 
 	"fyne.io/fyne/v2"
 
+	"tilewords/ai"
 	"tilewords/dictionary"
 	"tilewords/engine"
 )
@@ -16,8 +17,9 @@ import (
 const settingsPrefKey = "defaultGameSettings"
 
 // defaultDifficulty is the AI difficulty used when no valid saved value exists; it matches
-// the setup screen's initial slider position.
-const defaultDifficulty = 5
+// the setup screen's initial slider position. It sits low in the range so a first game is
+// winnable while the player is still learning the board — the difficulty is theirs to raise.
+const defaultDifficulty = 3
 
 // GameSettings is the persisted set of New Game Setup choices — saved as the player's
 // defaults and restored the next time the setup screen opens.
@@ -30,7 +32,7 @@ type GameSettings struct {
 	Dict dictionary.DictName `json:"dict"`
 	// Mode is the chosen board layout + tile economy.
 	Mode engine.GameMode `json:"mode"`
-	// Difficulty is the AI difficulty level, 1 (easy) to 10 (hard).
+	// Difficulty is the AI difficulty level, ai.MinLevel (easy) to ai.MaxLevel (god mode).
 	Difficulty int `json:"difficulty"`
 	// Notation selects Scrabble-notation move history when true.
 	Notation bool `json:"notation"`
@@ -58,13 +60,14 @@ func dictInList(name dictionary.DictName, avail []dictionary.DictName) bool {
 
 // sanitize coerces every field of gs into a valid value, substituting the built-in default
 // for anything out of range: an unavailable dictionary becomes the first available one, a
-// difficulty outside 1–10 becomes defaultDifficulty, and an unknown mode becomes ClassicMode.
+// difficulty outside the AI's level range becomes defaultDifficulty, and an unknown mode
+// becomes ClassicMode.
 func sanitize(gs GameSettings, avail []dictionary.DictName) GameSettings {
 	def := defaultGameSettings(avail)
 	if !dictInList(gs.Dict, avail) {
 		gs.Dict = def.Dict
 	}
-	if gs.Difficulty < 1 || gs.Difficulty > 10 {
+	if gs.Difficulty < ai.MinLevel || gs.Difficulty > ai.MaxLevel {
 		gs.Difficulty = def.Difficulty
 	}
 	if gs.Mode != engine.ClassicMode && gs.Mode != engine.InterestingMode {
