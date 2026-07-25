@@ -258,10 +258,19 @@ type phoneColumnScroll struct {
 	histMinH float32
 	// histInited guards the first setHistoryMin, since 0 is a plausible height.
 	histInited bool
+	// gesture is passed to the page's drag router so a drag that began on a tile is delivered
+	// there rather than panning the page; see pageDragRouter.
+	gesture *gestureOwner
+	// router pans the page in scroll mode; nil in fill mode, where the column fits and there is
+	// nothing to scroll.
+	router *pageDragRouter
 }
 
-func newPhoneColumnScroll(column *fyne.Container, board fyne.CanvasObject, histWrap *fyne.Container) *phoneColumnScroll {
-	p := &phoneColumnScroll{column: column, board: board, histWrap: histWrap, holder: container.NewStack()}
+func newPhoneColumnScroll(column *fyne.Container, board fyne.CanvasObject, histWrap *fyne.Container,
+	gesture *gestureOwner,
+) *phoneColumnScroll {
+	p := &phoneColumnScroll{column: column, board: board, histWrap: histWrap,
+		holder: container.NewStack(), gesture: gesture}
 	p.ExtendBaseWidget(p)
 	return p
 }
@@ -307,11 +316,27 @@ func (p *phoneColumnScroll) setScrolled(scroll bool) {
 	p.inited = true
 	p.scrolled = scroll
 	if scroll {
-		p.holder.Objects = []fyne.CanvasObject{container.NewVScroll(p.column)}
+		scroll := container.NewVScroll(p.column)
+		p.router = newPageDragRouter(scroll, p.gesture)
+		// The router is stacked UNDER the column: the hit test keeps the last match, so the
+		// column's widgets still win where the pointer is over them, while the router wins over
+		// the scroll's own panning on the dead space around them. See pageDragRouter.
+		scroll.Content = container.NewStack(p.router, p.column)
+		p.holder.Objects = []fyne.CanvasObject{scroll}
 	} else {
+		p.router = nil
 		p.holder.Objects = []fyne.CanvasObject{p.column}
 	}
 	p.holder.Refresh()
+}
+
+// panPage scrolls the page by a drag another gesture handler could not use. It does nothing while
+// the column fits its viewport, since then there is no page scroll at all.
+func (p *phoneColumnScroll) panPage(e *fyne.DragEvent) {
+	if p.router == nil {
+		return
+	}
+	p.router.pan(e)
 }
 
 // Resize chooses fill vs scroll for the new viewport, sizing the history pane to suit.

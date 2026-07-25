@@ -154,6 +154,14 @@ type gameScreen struct {
 	levelLabel *widget.Label // AI difficulty, shown in the top counters row
 	statusRT   *widget.RichText
 
+	// page is the phone arrangement's scrolling page, used to pan it for gestures another handler
+	// cannot use. It is nil in the wide arrangement, whose panes scroll individually.
+	page *phoneColumnScroll
+
+	// gesture records which widget the current touch gesture began on, so a drag can be delivered
+	// there even when the driver hands it elsewhere; see gestureOwner.
+	gesture gestureOwner
+
 	// Move-history log + undo stack (right of the board). Each entry is one executed
 	// command; undo pops entries and reverses them, one turn per press.
 	history       []historyEntry
@@ -257,6 +265,7 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 			c := newCellWidget(row, col, sq, gs.onBoardTap)
 			c.onDrag = gs.onBoardDrag
 			c.onDragEnd = gs.onBoardDragEnd
+			c.gesture = &gs.gesture
 			gs.cells[row*boardDim+col] = c
 			boardObjs = append(boardObjs, c)
 		}
@@ -277,6 +286,7 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 		s := newRackSlotWidget(i, gs.onRackTap)
 		s.onDrag = gs.onRackDrag
 		s.onDragEnd = gs.onRackDragEnd
+		s.gesture = &gs.gesture
 		gs.humanRack[i] = s
 		humanObjs[i] = s
 	}
@@ -286,6 +296,8 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	aiObjs := make([]fyne.CanvasObject, engine.MaxRackSize)
 	for i := 0; i < engine.MaxRackSize; i++ {
 		s := newRackSlotWidget(i, nil) // AI rack is not interactive
+		// Nothing here can be dragged, so a drag on this row goes to the page instead of dying.
+		s.onUnusableDrag = gs.panPage
 		gs.aiRack[i] = s
 		aiObjs[i] = s
 	}
@@ -381,15 +393,16 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	gs.historyLabel.TextStyle = fyne.TextStyle{Monospace: true}
 	gs.historyScroll = container.NewVScroll(gs.historyLabel)
 	historyText := func() string { return gs.historyLabel.Text }
-	enableTouchScroll(gs.historyScroll, historyText, onCopied) // drag pans; long press copies (touch only)
-	gs.refreshHistory()                                        // show the opening-draw line before any move is made
+	// Touch: drag pans, long press copies. A pane too short to scroll hands the drag to the page.
+	enableTouchScroll(gs.historyScroll, historyText, onCopied, gs.panPage)
+	gs.refreshHistory() // show the opening-draw line before any move is made
 
 	gs.defsLabel = widget.NewLabel("")
 	gs.defsLabel.Wrapping = fyne.TextWrapWord
 	gs.defsLabel.Selectable = true
 	gs.defsScroll = container.NewVScroll(gs.defsLabel)
 	defsText := func() string { return gs.defsLabel.Text }
-	enableTouchScroll(gs.defsScroll, defsText, onCopied)
+	enableTouchScroll(gs.defsScroll, defsText, onCopied, gs.panPage)
 	// The definitions lookup worker is started from App.showGame (not here), so tests
 	// that build a screen directly do not spawn it or load the definitions asset.
 
@@ -435,11 +448,14 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 				aiRackBox,
 				histWrap,
 			)
-			return newPhoneColumnScroll(column, board, histWrap)
+			gs.page = newPhoneColumnScroll(column, board, histWrap, &gs.gesture)
+			return gs.page
 		}
 		// The action buttons stretch across the full width of the left pane: the grid
 		// sits in the full-width bottom block, so each button is a 1/len(buttons) slice
 		// of the pane width.
+		// The wide arrangement has no page-level scroll: the split's panes scroll individually.
+		gs.page = nil
 		controls := container.NewGridWithColumns(len(buttons), buttons...)
 		// The board fills the left pane above the status/rack/control stack; boardLayout
 		// centres the board square within that space.
@@ -1075,6 +1091,18 @@ func (gs *gameScreen) onRackDragEnd(fromIdx int, abs fyne.Position) {
 	}
 	// Released over the rack (or off both): the live drag already applied the reorder.
 	gs.refresh()
+}
+
+// panPage scrolls the whole page by a drag that no other handler could use: one on the AI's rack
+// row, which has nothing to move, or on a panel too short to scroll. Without this such a gesture is
+// absorbed by the widget the driver happened to hand it to, making that area a dead zone.
+//
+// It does nothing in an arrangement with no page scroll, or while the page fits its viewport.
+func (gs *gameScreen) panPage(e *fyne.DragEvent) {
+	if gs.page == nil {
+		return
+	}
+	gs.page.panPage(e)
 }
 
 // onBoardDoubleTap recalls a tile the player staged this turn; committed tiles (played

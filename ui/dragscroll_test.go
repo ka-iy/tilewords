@@ -18,7 +18,7 @@ func TestDragScrollerLongPressCopiesAll(t *testing.T) {
 	app := test.NewApp()
 	copied := 0
 	scroll := container.NewVScroll(widget.NewLabel("x"))
-	d := newDragScroller(scroll, func() string { return "full history text" }, func() { copied++ })
+	d := newDragScroller(scroll, func() string { return "full history text" }, func() { copied++ }, nil)
 
 	d.TappedSecondary(&fyne.PointEvent{})
 
@@ -36,7 +36,7 @@ func TestDragScrollerLongPressEmptyIsNoOp(t *testing.T) {
 	app.Clipboard().SetContent("sentinel")
 	copied := 0
 	scroll := container.NewVScroll(widget.NewLabel("x"))
-	d := newDragScroller(scroll, func() string { return "" }, func() { copied++ })
+	d := newDragScroller(scroll, func() string { return "" }, func() { copied++ }, nil)
 
 	d.TappedSecondary(&fyne.PointEvent{})
 

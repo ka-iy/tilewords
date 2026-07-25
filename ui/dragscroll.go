@@ -31,13 +31,18 @@ import (
 // word / triple-tap line selection never fires. Copying is therefore via the long press
 // here and the tab bar's Copy button, not by selecting text.
 //
+// onExhausted receives any drag the scroll has no room for at all; see dragScroller.Dragged. Pass
+// nil where there is nothing behind the panel to pan.
+//
 // On desktop it is a no-op: the mouse wheel already scrolls, click-drag selects, and the
 // tab bar's Copy button copies the whole panel.
-func enableTouchScroll(s *container.Scroll, copyText func() string, onCopied func()) {
+func enableTouchScroll(s *container.Scroll, copyText func() string, onCopied func(),
+	onExhausted func(e *fyne.DragEvent),
+) {
 	if !fyne.CurrentDevice().IsMobile() {
 		return
 	}
-	s.Content = container.NewStack(s.Content, newDragScroller(s, copyText, onCopied))
+	s.Content = container.NewStack(s.Content, newDragScroller(s, copyText, onCopied, onExhausted))
 	s.Refresh()
 }
 
@@ -59,11 +64,18 @@ type dragScroller struct {
 	copyText func() string
 	// onCopied, when set, is invoked after a long press copies text (for user feedback).
 	onCopied func()
+	// onExhausted receives a drag when the target cannot scroll at all — its content shorter than
+	// its viewport, so there is no travel in either axis. The controller pans the page with it,
+	// since the driver delivers the whole gesture here once it has latched on and absorbing it
+	// would leave a swipe that began on the panel unable to move the page behind it. May be nil.
+	onExhausted func(e *fyne.DragEvent)
 }
 
 // newDragScroller returns a catcher that pans target and copies copyText() on a long press.
-func newDragScroller(target *container.Scroll, copyText func() string, onCopied func()) *dragScroller {
-	d := &dragScroller{target: target, copyText: copyText, onCopied: onCopied}
+func newDragScroller(target *container.Scroll, copyText func() string, onCopied func(),
+	onExhausted func(e *fyne.DragEvent),
+) *dragScroller {
+	d := &dragScroller{target: target, copyText: copyText, onCopied: onCopied, onExhausted: onExhausted}
 	d.ExtendBaseWidget(d)
 	return d
 }
@@ -80,6 +92,16 @@ func (d *dragScroller) Dragged(e *fyne.DragEvent) {
 	s := d.target
 	outer := s.Size()
 	inner := s.Content.MinSize()
+
+	// A panel with no travel in either axis can do nothing with this drag; hand it to the page.
+	// A panel merely sitting at an end of its travel still absorbs it: forwarding there would let
+	// one gesture run the panel to its limit and then carry on panning the page.
+	if inner.Width <= outer.Width && inner.Height <= outer.Height {
+		if d.onExhausted != nil {
+			d.onExhausted(e)
+		}
+		return
+	}
 	// Pre-clamping keeps ScrollToOffset's "offset unchanged" early return effective once a
 	// fling reaches the end of the travel, so the replayed events stop costing anything.
 	s.ScrollToOffset(fyne.NewPos(

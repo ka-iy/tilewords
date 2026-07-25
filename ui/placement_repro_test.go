@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 
 	"tilewords/dictionary"
@@ -23,7 +24,11 @@ func firstNonBlankSlot(gs *gameScreen) int {
 	return -1
 }
 
-// newPlacementHarness builds a real gameScreen forced to the human's turn.
+// newPlacementHarness builds a real gameScreen forced to the human's turn, laid out at a
+// phone-like size.
+//
+// The layout matters: a widget that was never sized occupies no space, which no widget does on
+// screen, and the page scroll only exists once the column knows it overflows its viewport.
 func newPlacementHarness(t *testing.T) *gameScreen {
 	t.Helper()
 	_ = test.NewApp()
@@ -34,7 +39,7 @@ func newPlacementHarness(t *testing.T) *gameScreen {
 	state := engine.New(dict.Name(), 5, rand.New(rand.NewSource(1)))
 	state.CurrentTurn = engine.HumanTurn
 	gs := newGameScreen(nil, state, dict)
-	gs.build()
+	gs.build().Resize(fyne.NewSize(400, 800))
 	return gs
 }
 

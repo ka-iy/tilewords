@@ -7,6 +7,8 @@ package ui
 import (
 	"unicode/utf8"
 
+	"fyne.io/fyne/v2/driver/mobile"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
@@ -34,6 +36,10 @@ type cellWidget struct {
 	// repeatedly with the live pointer position, onDragEnd once at release.
 	onDrag    func(row, col int, abs fyne.Position)
 	onDragEnd func(row, col int, abs fyne.Position)
+
+	// gesture is the shared record of which widget a touch gesture began on; see gestureOwner.
+	// Nil outside the game screen.
+	gesture *gestureOwner
 
 	dragging bool
 	dragAbs  fyne.Position
@@ -84,6 +90,13 @@ func (c *cellWidget) Tapped(_ *fyne.PointEvent) {
 // drag only for a staged tile; for any other cell this lets a slightly-moving tap
 // (which Fyne classifies as a drag) still resolve as a tap on DragEnd.
 func (c *cellWidget) Dragged(e *fyne.DragEvent) {
+	// A drag belonging to a gesture that began on another widget is delivered there instead.
+	if c.gesture != nil {
+		if owner := c.gesture.deliverTo(c); owner != nil {
+			owner.Dragged(e)
+			return
+		}
+	}
 	// AbsolutePosition is (0,0) during a drag on mobile; track the pointer via the delta.
 	c.dragAbs = dragAbsPosition(c, c.dragging, c.dragAbs, e)
 	c.dragging = true
@@ -105,11 +118,34 @@ func (c *cellWidget) cancelDrag() {
 // DragEnd reports the gesture's final pointer position; the controller moves a staged
 // tile, recalls it (released off the board), or treats the gesture as a tap.
 func (c *cellWidget) DragEnd() {
+	if c.gesture != nil {
+		if owner := c.gesture.deliverTo(c); owner != nil {
+			owner.DragEnd()
+			return
+		}
+	}
 	if c.dragging && c.onDragEnd != nil {
 		c.onDragEnd(c.row, c.col, c.dragAbs)
 	}
 	c.dragging = false
 }
+
+// TouchDown claims the gesture for this cell; see rackSlotWidget.TouchDown.
+func (c *cellWidget) TouchDown(*mobile.TouchEvent) {
+	if c.gesture != nil {
+		c.gesture.claim(c)
+	}
+}
+
+// TouchUp ends this cell's claim on the gesture.
+func (c *cellWidget) TouchUp(*mobile.TouchEvent) {
+	if c.gesture != nil {
+		c.gesture.release()
+	}
+}
+
+// TouchCancel deliberately keeps the claim; see rackSlotWidget.TouchCancel.
+func (c *cellWidget) TouchCancel(*mobile.TouchEvent) {}
 
 func (c *cellWidget) CreateRenderer() fyne.WidgetRenderer {
 	bg, letter, points := newTileObjects()

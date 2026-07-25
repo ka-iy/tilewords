@@ -59,7 +59,7 @@ func TestPhoneColumnScroll_HistorySizing(t *testing.T) {
 		phoneColumnLayout{board: board, minBoard: minBoardPx},
 		board, status, rack, controls, ai, histWrap,
 	)
-	p := newPhoneColumnScroll(column, board, histWrap)
+	p := newPhoneColumnScroll(column, board, histWrap, &gestureOwner{})
 
 	// nonHistory = board(=width) + the four sections + a phoneColGap after each of the five
 	// non-history children (matching phoneColumnScroll.nonHistoryHeight).

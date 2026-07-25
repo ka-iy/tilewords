@@ -7,6 +7,7 @@ package ui
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/mobile"
 	"fyne.io/fyne/v2/widget"
 
 	"tilewords/engine"
@@ -31,6 +32,16 @@ type rackSlotWidget struct {
 	// the final pointer position so the controller can hit-test the drop target.
 	onDrag    func(idx int, abs fyne.Position)
 	onDragEnd func(idx int, abs fyne.Position)
+
+	// onUnusableDrag receives a drag this slot cannot act on, which is any drag when neither drag
+	// handler is wired — a slot that shows a tile without offering to move it, i.e. the AI's rack.
+	// The controller pans the page with it, so that row is not a dead zone for scrolling.
+	onUnusableDrag func(e *fyne.DragEvent)
+
+	// gesture is the shared record of which widget a touch gesture began on; see gestureOwner. A
+	// slot claims it when a touch lands on the slot, so a drag the driver later hands to another
+	// widget still reaches this one. Nil outside the game screen.
+	gesture *gestureOwner
 
 	dragging bool
 	dragAbs  fyne.Position // most recent absolute pointer position during a drag
@@ -71,6 +82,22 @@ func (s *rackSlotWidget) Tapped(_ *fyne.PointEvent) {
 // slightly-moving tap (which Fyne classifies as a drag) is no longer discarded — it
 // arrives here and then as DragEnd, which the controller resolves like a tap.
 func (s *rackSlotWidget) Dragged(e *fyne.DragEvent) {
+	// A drag belonging to a gesture that began on another widget is delivered there instead.
+	if s.gesture != nil {
+		if owner := s.gesture.deliverTo(s); owner != nil {
+			owner.Dragged(e)
+			return
+		}
+	}
+	// A slot with no drag handlers has no use for the gesture, so it goes to the page rather than
+	// being absorbed here. The slot stays not tracking a drag, so the rest of the gesture, and its
+	// DragEnd, take this path too.
+	if s.onDrag == nil && s.onDragEnd == nil {
+		if s.onUnusableDrag != nil {
+			s.onUnusableDrag(e)
+		}
+		return
+	}
 	// AbsolutePosition is (0,0) during a drag on mobile; track the pointer via the delta.
 	s.dragAbs = dragAbsPosition(s, s.dragging, s.dragAbs, e)
 	s.dragging = true
@@ -90,11 +117,40 @@ func (s *rackSlotWidget) cancelDrag() {
 // decides whether it lands on a board cell (place), another rack slot (reorder), or
 // nowhere meaningful (treated as a tap).
 func (s *rackSlotWidget) DragEnd() {
+	if s.gesture != nil {
+		if owner := s.gesture.deliverTo(s); owner != nil {
+			owner.DragEnd()
+			return
+		}
+	}
 	if s.dragging && s.onDragEnd != nil {
 		s.onDragEnd(s.idx, s.dragAbs)
 	}
 	s.dragging = false
 }
+
+// TouchDown claims the gesture for this slot. It is the whole point of implementing
+// mobile.Touchable here: TouchDown fires on the widget the touch actually went down on, which is
+// the one fact that identifies where a gesture started. See gestureOwner for why inferring it from
+// the drag events instead does not work.
+func (s *rackSlotWidget) TouchDown(*mobile.TouchEvent) {
+	// Only a slot that handles drags claims the gesture; the AI's rack does not.
+	if s.gesture != nil && (s.onDrag != nil || s.onDragEnd != nil) {
+		s.gesture.claim(s)
+	}
+}
+
+// TouchUp ends this slot's claim on the gesture.
+func (s *rackSlotWidget) TouchUp(*mobile.TouchEvent) {
+	if s.gesture != nil {
+		s.gesture.release()
+	}
+}
+
+// TouchCancel deliberately keeps the claim. The driver cancels the touch as soon as the pointer
+// leaves this slot — about 100 ms into every drag, successful ones included — which is exactly
+// while the gesture is still running and the claim still matters.
+func (s *rackSlotWidget) TouchCancel(*mobile.TouchEvent) {}
 
 func (s *rackSlotWidget) CreateRenderer() fyne.WidgetRenderer {
 	bg, letter, points := newTileObjects()

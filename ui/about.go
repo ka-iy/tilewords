@@ -110,7 +110,8 @@ func (a *App) showAbout() {
 	// the long press are the ways to take the text. This mirrors the move-history panel
 	// (see dragscroll.go). On desktop it is a no-op — the wheel scrolls, click-drag
 	// selects, and the button copies.
-	enableTouchScroll(scroll, func() string { return fullText }, showCopied)
+	// The dialog has nothing behind it to pan, so a drag it cannot use has nowhere to go.
+	enableTouchScroll(scroll, func() string { return fullText }, showCopied, nil)
 
 	content := container.NewBorder(copyBtn, nil, nil, nil, scroll)
 
