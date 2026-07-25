@@ -1,6 +1,6 @@
 # TileWords
 
-A Scrabble®-like offline crossword tile game, written in Go with [Fyne](https://fyne.io/).
+A free, fully open-source, fully offline Scrabble®-like crossword tile game, written in Go with [Fyne](https://fyne.io/).
 
 See the note at the very bottom for why I felt the need to make this. And yes, this was built using AI. The note explains that too.
 
@@ -45,6 +45,12 @@ sections below are only needed to refresh or regenerate that data.
 
 - **Go 1.25 or newer** (see `go.mod`). If your distribution ships an older Go, install a current release from <https://go.dev/dl/>.
 - A **C toolchain** and **OpenGL / X11 development headers** (required by Fyne).
+- The **fyne CLI**, which every build target in the Makefile drives:
+
+  ```bash
+  go install fyne.io/tools/cmd/fyne@latest
+  ```
+
 - `make`, `git`, `curl`, `gzip`, and `tar`.
 
 Debian / Ubuntu:
@@ -143,17 +149,82 @@ make defs-audit
 ### Build and run
 
 ```bash
-make          # (or: make build) compiles the ./tilewords desktop binary
-make run      # build and launch the app
+make              # (or: make build) debug build of the desktop binary
+make build-prod   # production build: stamped as production, stripped, -trimpath
 ```
+
+Binaries are named for the platform they were built for, `tilewords-<goos>-<goarch>`, with
+`-debug` appended for a debug build — so on 64-bit Linux:
+
+```bash
+./tilewords-linux-amd64-debug     # launch the debug build
+./tilewords-linux-amd64           # launch the production build
+```
+
+A debug and a production build therefore sit side by side rather than overwriting each
+other. Every binary reports which it is on startup and in its About dialog, so there is
+no need to guess.
 
 Other useful targets:
 
 ```bash
-make test     # run all tests with the race detector
-make vet      # run go vet
-make help     # list every target with a description
+make test                    # run all tests with the race detector
+make vet                     # run go vet
+make clean                   # remove built binaries and packages
+make clean-all-the-things    # the above plus every generated asset (needs re-downloads)
+make debug-all               # debug build for desktop + Windows + Android
+make release-all             # release build for desktop + Windows + Android
+make help                    # list every target with a description
 ```
+
+### Windows builds (optional)
+
+A Windows `.exe` can be cross-compiled from Linux. Fyne's GUI is C-backed (GLFW/OpenGL), so
+this needs cgo and a **mingw-w64** cross compiler — but nothing more than that: the Windows
+libraries the GUI links against (`opengl32`, `gdi32`, `user32`) ship with mingw-w64, so
+unlike a Linux build there are no separate development headers to install.
+
+Debian / Ubuntu:
+
+```bash
+sudo apt-get install -y gcc-mingw-w64-x86-64
+```
+
+Fedora:
+
+```bash
+sudo dnf install -y mingw64-gcc
+```
+
+Arch:
+
+```bash
+sudo pacman -S --needed mingw-w64-gcc
+```
+
+Then build:
+
+```bash
+make windows-debug      # → ./tilewords-windows-amd64-debug.exe
+make windows-release    # → ./tilewords-windows-amd64.exe  (stripped)
+```
+
+The result is a single self-contained executable: it imports only DLLs that are part of
+Windows itself, so nothing has to be shipped alongside it. It is linked as a GUI binary, so
+Windows does not open a console window behind the app, and `ui/Icon.png` is embedded as the
+executable's own icon.
+
+For a 32-bit build, install the 32-bit compiler and point the build at it — the architecture
+is part of the artifact's name, so both can coexist:
+
+```bash
+sudo apt-get install -y gcc-mingw-w64-i686
+make windows-debug WINDOWS_CC=i686-w64-mingw32-gcc WINDOWS_GOARCH=386
+```
+
+Note that a cross-compiled binary cannot be run or tested on the Linux host — `make test`
+only exercises the native build, so the Windows `.exe` is verified as compiling, not as
+running. Launch it on Windows to confirm behaviour.
 
 ### Android builds (optional)
 
@@ -225,10 +296,10 @@ This project was started as an experiment in using the [AWS AI-DLC framework](ht
 
 My takeaways thus far (as of July 2026):
 - Agentic coding is definitely a development accelerator **provided that** the AI is constantly hand-held, stopped from going down senseless paths, steered in the correct direction, and generally treated like a precocious idiot-savant tween.
-   - Thorough testing of _ALL THE THINGS_, followed by follow-up prompts to fix things, is pretty much _de rigeur_ for getting workable stuff out of an AI. And this wasn't even that complicated a project. OK, the UI was, since I'm not a UI guy - it actually did a decent job of the initial layout. Well, decent to a non-GUI guy, anyway.
-   - It is, however,really good at typing much quicker than one would be able to even if one were able to code telepathically, plus grok (kinda) large wodges of code and come up with a halfway-sensible meaning of it all. Also see below.
+   - Thorough testing of _ALL THE THINGS_, followed by follow-up prompts to fix things, is pretty much _de rigeur_ for getting workable stuff out of an AI. And this wasn't even that complicated a project. OK, the UI was, since I'm not a UI guy - it actually did a decent job _(well, decent to a non-GUI guy, anyway)_ of coming with a rough initial layout which I could then use as a base to tweak.
+   - It is, however,really good at typing much quicker than one would be able to even if one were able to code telepathically, plus (kinda) grok large wodges of code and come up with a halfway-sensible meaning of it all. It shaved literal months off the dev timeline as compared to my going at it alone. Also see below.
+- Claude Sonnet _(whatever the version of it was that was available to Pro subscriptions before Opus 4.8 landed)_ did an **absolute shite** job of writing unsupervised code - buggy, non-functional, and generally quite useless.
+  - Opus 4.8 (at effort level `high`) - the current avatar of Anthropic's offering available to folks without deep pockets -  was/is **much** better at everything, but _man_ does it eat up one's token/usage allotment like a starving Great White Shark let loose in a(n aquatic) pet store. It ate my 5-hour session allotment at roughly 1% per minute, getting about two hours' worth of work before it sat down on its hands and refused to do anything until the session usage reset. I shudder to think what Fable would have done to my usage rate - probably blown through it in about five minutes flat, for no appreciable improvement over Opus 4.8 (this last bit isn't conjecture - I tried Fable at work; suffice to say that I was less than impressed by it).
 - AI-DLC is alright, but perhaps needs a bit more time to mature. Also, it is verbose as all hell, which is probably OK for Enterprise(tm) Development.
   - I think I'll follow the [BMAD](https://docs.bmad-method.org/) AI SLDC framework for future development especially since that lends itself well to collaborative efforts. I'll leave the `aidlc-docs` directory in the sources as a historical record of shenanigans perpetrated.
-- Claude Sonnet _(whatever the version of it was that was available to Pro subscriptions before Opus 4.8 landed)_ did a **horrible** job of writing code - buggy, non-functional, and generally quite useless.
-  - Opus 4.8 (at effort level `high`) - the current avatar of Anthropic's offering available to folks without deep pockets -  was/is **much** better at everything, but _man_ does it eat up one's token/usage allotment like a starving Great White Shark let loose in a(n aquatic) pet store. It ate my 5-hour session allotment at roughly 1% per minute, getting about two hours' worth of work before it sat down on its hands and refused to do anything until the session usage reset. I shudder to think what Fable would have done to my usage rate - probably blown through it in about five minutes flat, for no appreciable improvement over Opus 4.8 (this last bit isn't conjecture - I tried Fable at work; suffice to say that I was less than impressed by it).
 

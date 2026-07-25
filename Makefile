@@ -12,7 +12,9 @@
 # First-time mobile setup:
 #   make install-mobile-tools     # then set ANDROID_HOME and ANDROID_NDK_HOME
 
-.PHONY: all build build-prod run test vet clean gaddag gaddag-free download-wordlists defs help \
+.PHONY: all build build-prod test vet clean clean-all-the-things gaddag gaddag-free download-wordlists defs help \
+        debug-all release-all \
+        windows-debug windows-release \
         android android-arm64-v8a android-x86_64 android-armeabi-v7a android-universal \
         android-release android-release-arm64-v8a android-release-x86_64 \
         android-release-armeabi-v7a android-release-universal \
@@ -48,18 +50,16 @@ BUILD_VERSION := $(shell git describe --tags --long --dirty --always)
 # qualified starting from the main module name. See:
 #   https://stackoverflow.com/questions/47509272
 #
-# The "-w" and "-s" ldflags directives in BUILD_INFO_LDFLAGS_PROD are:
-#     -s : omit symbol table
-#     -w : omit DWARF debugging info
+# None of these carry -s (omit symbol table) or -w (omit DWARF debugging info): fyne adds
+# what a release build needs itself, as the GOFLAGS forms below explain.
 BUILD_INFO_LDFLAGS_COMMON := -X '$(MODNAME)/buildinfo.buildVersion=$(BUILD_VERSION)' -X '$(MODNAME)/buildinfo.buildTimestamp=$(BUILD_TIMESTAMP)'
-BUILD_INFO_LDFLAGS_PROD_DESKTOP := $(BUILD_INFO_LDFLAGS_COMMON) -X '$(MODNAME)/buildinfo.buildType=production' -w -s
-BUILD_INFO_LDFLAGS_PROD_MOBILE := $(BUILD_INFO_LDFLAGS_COMMON) -X '$(MODNAME)/buildinfo.buildType=production'
+BUILD_INFO_LDFLAGS_PROD := $(BUILD_INFO_LDFLAGS_COMMON) -X '$(MODNAME)/buildinfo.buildType=production'
 BUILD_INFO_LDFLAGS_DEBUG := $(BUILD_INFO_LDFLAGS_COMMON) -X '$(MODNAME)/buildinfo.buildType=debug'
 
-# GOFLAGS forms of the same directives, for the builds fyne drives: install-desktop and
-# every Android target. The BUILD_INFO_LDFLAGS_* forms above go straight to `go build`,
-# but the fyne CLI has no --ldflags option — it reads the linker flags out of GOFLAGS and
-# forwards them to the build it runs, the Android/gomobile build included.
+# GOFLAGS forms of the same directives, which is how every build target here passes them:
+# all of them go through the fyne CLI, and it has no --ldflags option — it reads the linker
+# flags out of GOFLAGS and forwards them to the build it runs, the Android/gomobile build
+# included.
 #
 # GOFLAGS holds a list of entries, and a quoted run counts as a single entry. The whole
 # space-separated '-ldflags=<value>' therefore has to be wrapped in one quoted run, or only
@@ -76,7 +76,7 @@ BUILD_INFO_LDFLAGS_DEBUG := $(BUILD_INFO_LDFLAGS_COMMON) -X '$(MODNAME)/buildinf
 #   - an Android build cannot use -s at all (its packaging step reads the symbol table, so
 #     fyne appends '-s=false' to undo one).
 BUILD_INFO_GOFLAGS_DEBUG := \"-ldflags=$(BUILD_INFO_LDFLAGS_DEBUG)\"
-BUILD_INFO_GOFLAGS_PROD  := \"-ldflags=$(BUILD_INFO_LDFLAGS_PROD_MOBILE)\"
+BUILD_INFO_GOFLAGS_PROD  := \"-ldflags=$(BUILD_INFO_LDFLAGS_PROD)\"
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -84,6 +84,13 @@ BUILD_INFO_GOFLAGS_PROD  := \"-ldflags=$(BUILD_INFO_LDFLAGS_PROD_MOBILE)\"
 BINARY  := tilewords
 CMD     := ./cmd/tilewords
 MODULE  := tilewords
+
+# Host platform, used to label the native desktop artifacts and as the default architecture
+# for the Windows cross build. Both come from one `go env` call, which prints one value per
+# line — $(shell) turns those into a space-separated pair.
+HOST_PLATFORM := $(shell go env GOOS GOARCH)
+HOST_GOOS     := $(word 1,$(HOST_PLATFORM))
+HOST_GOARCH   := $(word 2,$(HOST_PLATFORM))
 
 # The GADDAG builder is normally invoked with `go run` (see BUILDGADDAG below), but a
 # manual `go build ./tools/buildgaddag` leaves this binary in the repo root; clean it.
@@ -161,6 +168,21 @@ help: ## Show this help (targets grouped by section)
 				if (kind[i] == "s") printf "\n\033[1m%s\033[0m\n", text[i]; \
 				else printf fmt, name[i], desc[i]}' \
 		$(MAKEFILE_LIST)
+
+# ── Build everything ──────────────────────────────────────────────────────────
+#
+# One artifact per platform in a single run: the native desktop binary, the Windows .exe and
+# the Android package. The Android leg is the arm64-v8a build (the `android`/`android-release`
+# aliases), not the universal one, so a run does not pay for four ABIs.
+#
+# Each leg needs its platform's toolchain — the mingw-w64 cross compiler for Windows, the
+# Android SDK/NDK for Android, and a release keystore for release-all. make stops at the
+# first leg that fails, leaving the later ones unbuilt, so build a single target directly
+# when it is one platform you care about.
+
+debug-all: build windows-debug android ## Build every debug artifact (desktop, Windows, Android)
+
+release-all: build-prod windows-release android-release ## Build every release artifact (desktop, Windows, Android)
 
 # ── GADDAG assets ─────────────────────────────────────────────────────────────
 #
@@ -313,28 +335,40 @@ defs-audit: ## Report per-list definition coverage and the deduplicated set of u
 
 all: build ## Build the native desktop binary (default target)
 
+# Artifact names. The desktop binaries carry the platform they were built for, and every
+# debug artifact ends in -debug, so a debug and a release build (and builds for different
+# platforms) sit side by side instead of overwriting each other.
+DESKTOP_BIN       := $(BINARY)-$(HOST_GOOS)-$(HOST_GOARCH)
+DESKTOP_BIN_DEBUG := $(DESKTOP_BIN)-debug
+
+# These use the fyne CLI, as the Windows and Android targets do, so every artifact in this
+# Makefile is produced the same way. `fyne build` compiles a plain executable (unlike
+# `fyne package -os linux`, which wraps it in a .tar.xz); it takes the build-info linker
+# flags from GOFLAGS, and for --release strips the binary and builds it with -trimpath — so
+# the GOFLAGS forms deliberately carry no -s/-w of their own.
+#
+# -o is absolute because fyne runs the compiler from the source directory, which would
+# otherwise be what a relative path is written next to.
+#
 # The migrated_fynedo build tag opts this binary into Fyne's fyne.Do threading model at
 # compile time, so the standalone desktop binary is self-contained: it suppresses the
 # launch-time "not migrated" warning without depending on FyneApp.toml being present on
 # disk at runtime (plain `go build`/`go run` read that file from the filesystem, they do
-# not embed it). The Android build gets the same tag automatically because `fyne release`
-# translates FyneApp.toml's [Migrations] fyneDo=true into this tag.
-build: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary
-	go build -tags migrated_fynedo -ldflags "$(BUILD_INFO_LDFLAGS_DEBUG)" -o $(BINARY) $(CMD)
+# not embed it). It is passed explicitly rather than relying on fyne to translate
+# FyneApp.toml's [Migrations] fyneDo=true, which requires that file to be found from the
+# main-package directory being built.
+build: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary (debug)
+	GOFLAGS="$(BUILD_INFO_GOFLAGS_DEBUG)" fyne build \
+		--src $(CMD) --tags migrated_fynedo -o $(CURDIR)/$(DESKTOP_BIN_DEBUG)
 
-# build-prod differs from build only in the linker flags: it stamps the binary as a
-# production build and drops the symbol table and DWARF data (see
-# BUILD_INFO_LDFLAGS_PROD_DESKTOP). It writes the same $(BINARY) path, so the two targets
-# overwrite each other — which build you are holding is not guesswork, since the binary
-# reports its own type (buildinfo.BuildType, shown in the startup log and the About box).
+# build-prod differs from build in stamping the binary as a production build and having fyne
+# strip it (-s -w) and build it with -trimpath.
 #
 # Code that branches on buildinfo.IsProductionBuild() only takes its production path in a
 # binary built this way, so this is the target to use when testing that behavior.
-build-prod: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary as a production build (stripped)
-	go build -tags migrated_fynedo -ldflags "$(BUILD_INFO_LDFLAGS_PROD_DESKTOP)" -o $(BINARY) $(CMD)
-
-run: build ## Build and launch the desktop app
-	./$(BINARY)
+build-prod: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary (production, stripped)
+	GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne build \
+		--src $(CMD) --tags migrated_fynedo --release -o $(CURDIR)/$(DESKTOP_BIN)
 
 # install-desktop registers the app with the local desktop environment so its icon shows
 # in the taskbar/dock. This is separate from the window's own icon: Linux desktops
@@ -349,22 +383,111 @@ install-desktop: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Install the
 	-cd $(CMD) && GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne install --release --icon $(ICON) --app-id $(APP_ID)
 	rm -f $(CMD)/FyneApp.toml
 
+# ── Windows (cross-compiled) ──────────────────────────────────────────────────
+##@ Windows (cross-compiled)
+#
+# Builds a Windows .exe on any host the fyne CLI runs on, Linux included. Fyne's GUI is
+# C-backed (GLFW/OpenGL), so this needs cgo and a mingw-w64 cross compiler — but nothing
+# beyond it, because the Windows libraries the GUI links (opengl32, gdi32, user32) ship with
+# mingw-w64. Install it with, e.g.:
+#   sudo apt install gcc-mingw-w64-x86-64       # Debian/Ubuntu
+#
+# Two things come from packaging with the fyne CLI rather than a bare `go build`: it links
+# the binary with -H=windowsgui, so Windows does not open a console window behind the GUI,
+# and it embeds $(ICON) as the executable's own icon resource.
+#
+# `fyne package` has no -o flag, so the build runs from $(CMD) and writes $(APP_NAME).exe
+# there; we move it into place. App metadata is passed explicitly because FyneApp.toml is
+# not in that directory (as for the Android targets).
+
+# Cross compiler for the Windows target. Override for a different toolchain or a 32-bit
+# build, which needs WINDOWS_GOARCH=386 and its own compiler (i686-w64-mingw32-gcc).
+WINDOWS_CC ?= x86_64-w64-mingw32-gcc
+
+# Architecture for the Windows build. fyne sets GOOS for the target it is given but leaves
+# GOARCH alone, so this is passed explicitly — that keeps the artifact's name honest about
+# what is inside it. Must match what $(WINDOWS_CC) emits.
+WINDOWS_GOARCH ?= $(HOST_GOARCH)
+
+WINDOWS_BIN       := $(BINARY)-windows-$(WINDOWS_GOARCH).exe
+WINDOWS_BIN_DEBUG := $(BINARY)-windows-$(WINDOWS_GOARCH)-debug.exe
+
+# fyne-package-windows: cross-compile a Windows .exe.
+#   $(1) = extra `fyne package` flags (--release for a production build, empty otherwise)
+#   $(2) = GOFLAGS value carrying the build-info linker flags
+#   $(3) = name to give the finished .exe
+# The compiler is checked first, so a missing toolchain reports what to install instead of
+# failing partway through a cgo build.
+define fyne-package-windows
+@command -v $(WINDOWS_CC) >/dev/null 2>&1 || { \
+	echo "windows build: cross compiler '$(WINDOWS_CC)' not found on PATH."; \
+	echo "  Install it (Debian/Ubuntu: sudo apt install gcc-mingw-w64-x86-64),"; \
+	echo "  or point WINDOWS_CC at your own toolchain."; \
+	exit 1; }
+cd $(CMD) && \
+CGO_ENABLED=1 \
+CC=$(WINDOWS_CC) \
+GOARCH=$(WINDOWS_GOARCH) \
+GOFLAGS="$(2)" \
+fyne package \
+	-os windows \
+	--name $(APP_NAME) \
+	--app-id $(APP_ID) \
+	--app-version $(APP_VERSION) \
+	--app-build $(APP_BUILD) \
+	--icon $(ICON) \
+	$(1)
+mv $(CMD)/$(APP_NAME).exe $(3)
+endef
+
+windows-debug: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Cross-compile a Windows .exe (debug)
+	$(call fyne-package-windows,,$(BUILD_INFO_GOFLAGS_DEBUG),$(WINDOWS_BIN_DEBUG))
+
+# --release has fyne strip the binary (-s -w) and build it with -trimpath. It does not sign
+# the .exe: signing is what `fyne release -os windows` does, and that wants a Microsoft
+# Store developer identity and certificate.
+windows-release: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Cross-compile a Windows .exe (production, stripped)
+	$(call fyne-package-windows,--release,$(BUILD_INFO_GOFLAGS_PROD),$(WINDOWS_BIN))
+
 # ── Development ───────────────────────────────────────────────────────────────
 ##@ Development
 
-test: ## Run all tests with the race detector
+# These carry the same asset prerequisites as the build targets because the assets are a
+# compile-time dependency, not just a runtime one: ui, dictionary and defs reach them with
+# //go:embed, and an embed pattern that matches no file fails the build of every package
+# that imports them. Without these, `make test` and `make vet` break after
+# clean-all-the-things rather than regenerating what they need.
+test: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Run all tests with the race detector
 	go test -race ./...
 
-vet: ## Run go vet
+vet: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Run go vet
 	go vet ./...
 
-clean: ## Remove build artefacts and generated GADDAG assets
+# clean removes only what a build produces from source that is already on disk, so
+# everything it deletes can be rebuilt with no downloads. The generated assets are left
+# alone — see clean-all-the-things for those.
+clean: ## Remove built binaries and packages (cheap to rebuild)
 	rm -f $(BINARY) $(BUILDGADDAG_BIN) $(BINARY).apk $(BINARY)-*.apk $(BINARY)-*.apk.idsig
+# Desktop binaries for this host, plus every Windows .exe (any architecture, either type).
+	rm -f $(DESKTOP_BIN) $(DESKTOP_BIN_DEBUG) $(BINARY)-windows-*.exe
 # Release bundles, plus the APK Set intermediate a failed bundletool run can leave.
 	rm -f $(BINARY)-release*.aab $(BINARY)-release*.apks
+
+# clean-all-the-things additionally drops the generated assets: every GADDAG, the
+# definitions asset and the About text. Those are NOT cheap to restore — rebuilding them
+# needs the source word lists and the multi-gigabyte Wiktionary extract to still be on disk,
+# and anything missing has to be fetched again. Use plain `clean` unless the assets
+# themselves are what you need to rebuild.
+clean-all-the-things: clean ## Remove the above PLUS every generated asset (needs re-downloads)
 	rm -f $(DICT_DIR)/*.gob $(DICT_DIR)/*.gob.tmp
 	rm -f $(DEFS_ASSET) $(DEFS_ASSET).tmp
 	rm -f $(ABOUT_ASSET)
+	@echo ''
+	@echo '>> WARNING: every generated asset is now gone. The next build recompiles a GADDAG'
+	@echo '>>   for each wordlists/*.txt, and `make defs` rebuilds the definitions asset from'
+	@echo '>>   the Wiktionary extract ($(KAIKKI_EXTRACT)). Both need their sources present, so'
+	@echo '>>   whatever is no longer on disk must be downloaded again — the extract alone is'
+	@echo '>>   several GB. See the GADDAG and definitions sections of this Makefile.'
 
 # ── Mobile tooling ────────────────────────────────────────────────────────────
 ##@ Mobile tooling
@@ -435,20 +558,20 @@ fyne package \
 	--app-version $(APP_VERSION) \
 	--app-build $(APP_BUILD) \
 	--icon $(ICON)
-mv $(CMD)/$(APP_NAME).apk $(BINARY)-$(2).apk
+mv $(CMD)/$(APP_NAME).apk $(BINARY)-$(2)-debug.apk
 if [ -f "$(CMD)/$(APP_NAME).apk.idsig" ]; then \
-	mv $(CMD)/$(APP_NAME).apk.idsig $(BINARY)-$(2).apk.idsig; \
+	mv $(CMD)/$(APP_NAME).apk.idsig $(BINARY)-$(2)-debug.apk.idsig; \
 else \
 	echo ">> no v4 signature sidecar emitted — 'adb install' will use its normal path"; \
-	rm -f $(BINARY)-$(2).apk.idsig; \
+	rm -f $(BINARY)-$(2)-debug.apk.idsig; \
 fi
 if [ -f "$(DEBUG_KEYSTORE)" ]; then \
-	echo ">> re-signing $(BINARY)-$(2).apk with $(DEBUG_KEYSTORE)"; \
+	echo ">> re-signing $(BINARY)-$(2)-debug.apk with $(DEBUG_KEYSTORE)"; \
 	"$(APKSIGNER)" $(APKSIGNER_JVM_OPTS) sign --ks "$(DEBUG_KEYSTORE)" --ks-pass pass:$(DEBUG_KEYSTORE_PASS) \
 		--ks-key-alias $(DEBUG_KEY_ALIAS) --key-pass pass:$(DEBUG_KEYSTORE_PASS) \
-		--v4-signing-enabled true "$(BINARY)-$(2).apk"; \
+		--v4-signing-enabled true "$(BINARY)-$(2)-debug.apk"; \
 else \
-	echo ">> $(DEBUG_KEYSTORE) not found — keeping the fyne debug key/cert signature on $(BINARY)-$(2).apk"; \
+	echo ">> $(DEBUG_KEYSTORE) not found — keeping the fyne debug key/cert signature on $(BINARY)-$(2)-debug.apk"; \
 fi
 endef
 
