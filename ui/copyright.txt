@@ -1,0 +1,9 @@
+Copyright © 2026 Kartikeya IYER.
+TileWords source code is licensed under the GNU GPLv3.
+https://www.gnu.org/licenses/gpl-3.0.html
+
+Source code available at:
+https://github.com/ka-iy/tilewords
+
+Assets are licensed separately; see:
+https://github.com/ka-iy/tilewords/ASSET-LICENSES.md

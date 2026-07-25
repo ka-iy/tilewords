@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package ui is documented in doc.go.
 package ui
 
@@ -76,9 +79,6 @@ func (s *rackSlotWidget) Dragged(e *fyne.DragEvent) {
 	}
 }
 
-// DragEnd reports the gesture's final pointer position to the controller, which
-// decides whether it lands on a board cell (place), another rack slot (reorder), or
-// nowhere meaningful (treated as a tap).
 // cancelDrag discards the widget's in-progress drag tracking; see cellWidget.cancelDrag for
 // why the controller must reset this alongside its own drag source.
 func (s *rackSlotWidget) cancelDrag() {
@@ -86,6 +86,9 @@ func (s *rackSlotWidget) cancelDrag() {
 	s.dragAbs = fyne.Position{}
 }
 
+// DragEnd reports the gesture's final pointer position to the controller, which
+// decides whether it lands on a board cell (place), another rack slot (reorder), or
+// nowhere meaningful (treated as a tap).
 func (s *rackSlotWidget) DragEnd() {
 	if s.dragging && s.onDragEnd != nil {
 		s.onDragEnd(s.idx, s.dragAbs)

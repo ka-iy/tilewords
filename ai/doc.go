@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package ai implements the computer player for TileWords.
 //
 // Move generation uses the GADDAG left-extension algorithm described in:

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package ui is documented in doc.go.
 package ui
 
@@ -23,6 +26,12 @@ func (a *App) buildMainMenu(errMsg string) fyne.CanvasObject {
 			"Company That Sounds Like It Has A Male Sibling.'\n\nPress the 'About' button for details.",
 		fyne.TextAlignCenter, fyne.TextStyle{Italic: true})
 	subtitle.Wrapping = fyne.TextWrapWord
+
+	// Copyright notice under the subtitle. The full licence terms are in the About dialog,
+	// which opens on the same three lines; see COPYRIGHT.txt.
+	copyright := widget.NewLabelWithStyle(
+		"Copyright © 2026 Kartikeya IYER.", fyne.TextAlignCenter, fyne.TextStyle{})
+	copyright.Wrapping = fyne.TextWrapWord
 
 	status := widget.NewLabel("")
 	status.Alignment = fyne.TextAlignCenter
@@ -110,6 +119,7 @@ func (a *App) buildMainMenu(errMsg string) fyne.CanvasObject {
 		layout.NewSpacer(),
 		title,
 		subtitle,
+		copyright,
 		layout.NewSpacer(),
 		buttonCol,
 		status,

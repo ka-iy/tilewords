@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package dictionary implements the GADDAG word-graph data structure and provides
 // word validation and AI traversal support for the TileWords crossword board game.
 //
@@ -33,5 +36,4 @@
 //
 //	g := dict.GADDAG()
 //	node, ok := g.Successor(g.Root(), 'Q')
-//
 package dictionary

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package engine implements all game rules, board state management, tile handling,
 // scoring, and the command/undo system for the TileWords crossword board game.
 //

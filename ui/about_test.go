@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package ui
 
 import (
@@ -8,8 +11,8 @@ import (
 )
 
 // TestAboutTextGenerated guards the build-time generation + embed wiring: the About
-// dialog text must carry both file-named sections and their content, so a missing or
-// stale ui/about.txt (which would otherwise fail silently at runtime) is caught.
+// dialog text must carry each source file's content under its own section header, so a
+// missing or stale ui/about.txt (which would otherwise fail silently at runtime) is caught.
 func TestAboutTextGenerated(t *testing.T) {
 	for _, want := range []string{
 		"ABOUT",                               // section header from ABOUT.txt
@@ -24,12 +27,12 @@ func TestAboutTextGenerated(t *testing.T) {
 		}
 	}
 
-	// Sections must appear in assembly order: ABOUT, then FEATURES, then LEXICON.
+	// Sources must appear in assembly order: ABOUT.txt, then FEATURES, then LEXICON.
 	iAbout := strings.Index(aboutText, "\n  ABOUT")
 	iFeatures := strings.Index(aboutText, "\n  FEATURES")
 	iLexicon := strings.Index(aboutText, "\n  LEXICON")
 	if !(iAbout < iFeatures && iFeatures < iLexicon) {
-		t.Errorf("sections out of order: ABOUT@%d FEATURES@%d LEXICON@%d", iAbout, iFeatures, iLexicon)
+		t.Errorf("sources out of order: ABOUT@%d FEATURES@%d LEXICON@%d", iAbout, iFeatures, iLexicon)
 	}
 }
 
@@ -47,18 +50,22 @@ func TestAboutDialogTextBuildInfo(t *testing.T) {
 	}
 
 	if buildinfo.BuildVersion() != "" {
-		// The section must carry the metadata, and lead the text so it reads first.
+		// The section must carry the metadata.
 		if !strings.Contains(text, buildinfo.BuildVersion()) {
 			t.Errorf("BUILD INFO section is missing the build version %q", buildinfo.BuildVersion())
 		}
-		if i := strings.Index(text, "BUILD INFO"); i > strings.Index(text, "\n  ABOUT") {
-			t.Errorf("BUILD INFO@%d must precede the embedded ABOUT section@%d",
-				i, strings.Index(text, "\n  ABOUT"))
+		// It sits between the licence notice, which leads the dialog, and the sectioned
+		// text that the notice must not be buried inside.
+		iNotice := strings.Index(text, "Copyright ©")
+		iBuild := strings.Index(text, "BUILD INFO")
+		iAbout := strings.Index(text, "\n  ABOUT")
+		if !(iNotice < iBuild && iBuild < iAbout) {
+			t.Errorf("sections out of order: notice@%d BUILD INFO@%d ABOUT@%d", iNotice, iBuild, iAbout)
 		}
 	}
 
 	// The embedded text is always present, section skipped or not.
-	if !strings.Contains(text, "\n  ABOUT") {
-		t.Error("aboutDialogText is missing the embedded ABOUT section")
+	if !strings.Contains(text, "github.com/ka-iy/tilewords") {
+		t.Error("aboutDialogText is missing the embedded ABOUT.txt content")
 	}
 }

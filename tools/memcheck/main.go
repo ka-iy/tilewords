@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Command memcheck reports the retained heap of the game's loadable data
 // structures — the definitions DB and each dictionary GADDAG — so their runtime
 // memory cost can be tracked as the word lists and definitions grow.

@@ -409,22 +409,36 @@ $(DEFS_ASSET): $(WORDLIST_SRCS) $(SUPP_GLOSSARY) $(KAIKKI_EXTRACT) $(WEBSTER_JSO
 
 # ── About-dialog text ─────────────────────────────────────────────────────────
 #
-# The About dialog's text is generated from the top-level ABOUT.txt and LEXICON.txt
-# (in that order) so those files stay the single source of truth. Each becomes a
-# section headed by its upper-cased file name. The result is written into the ui
-# package where it is embedded (a Go //go:embed directive cannot reach a parent
-# directory, so the generated copy must live alongside the code that embeds it).
+# The About dialog's text is generated from the top-level ABOUT.txt, FEATURES.txt and
+# LEXICON.txt (in that order) so those files stay the single source of truth. Each becomes
+# a section headed by its upper-cased file name. The results are written into the ui
+# package where they are embedded (a Go //go:embed directive cannot reach a parent
+# directory, so the generated copies must live alongside the code that embeds them).
 ABOUT_SRCS  := ABOUT.txt FEATURES.txt LEXICON.txt
 ABOUT_ASSET := ui/about.txt
+
+# The copyright and licence notice is generated separately from the sectioned text because
+# the dialog shows it above the runtime-composed BUILD INFO section, which the Makefile
+# cannot emit; see aboutDialogText.
+COPYRIGHT_SRC   := COPYRIGHT.txt
+COPYRIGHT_ASSET := ui/copyright.txt
+
+# TEXT_ASSETS is what the build targets depend on: both generated text assets are embedded
+# in the ui package, so a build needs each one present.
+TEXT_ASSETS := $(COPYRIGHT_ASSET) $(ABOUT_ASSET)
 
 $(ABOUT_ASSET): $(ABOUT_SRCS)
 	@: > $@
 	@for f in $(ABOUT_SRCS); do \
 	  name=$$(basename "$$f" .txt | tr '[:lower:]' '[:upper:]'); \
-	  { printf '==============================\n  %s\n==============================\n\n' "$$name"; \
-	    cat "$$f"; printf '\n\n'; } >> $@; \
+	  printf '==============================\n  %s\n==============================\n\n' "$$name" >> $@; \
+	  { cat "$$f"; printf '\n\n'; } >> $@; \
 	done
 	@echo "generated $@ from $(ABOUT_SRCS)"
+
+$(COPYRIGHT_ASSET): $(COPYRIGHT_SRC)
+	cp $< $@
+	@echo "generated $@ from $(COPYRIGHT_SRC)"
 
 .PHONY: defs-audit
 defs-audit: ## Report per-list definition coverage and the deduplicated set of undefined words
@@ -469,7 +483,7 @@ DESKTOP_BIN_DEBUG := $(DESKTOP_BIN)-debug
 # not embed it). It is passed explicitly rather than relying on fyne to translate
 # FyneApp.toml's [Migrations] fyneDo=true, which requires that file to be found from the
 # main-package directory being built.
-build: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary (debug)
+build: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Build the native desktop binary (debug)
 	GOFLAGS="$(BUILD_INFO_GOFLAGS_DEBUG)" fyne build \
 		--src $(CMD) --tags migrated_fynedo -o $(CURDIR)/$(DESKTOP_BIN_DEBUG)
 
@@ -478,7 +492,7 @@ build: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native des
 #
 # Code that branches on buildinfo.IsProductionBuild() only takes its production path in a
 # binary built this way, so this is the target to use when testing that behavior.
-build-prod: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary (production, stripped)
+build-prod: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Build the native desktop binary (production, stripped)
 	GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne build \
 		--src $(CMD) --tags migrated_fynedo --release -o $(CURDIR)/$(DESKTOP_BIN)
 
@@ -490,7 +504,7 @@ build-prod: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the nativ
 #
 # 'fyne install' reads the app name from FyneApp.toml, which lives at the repo root rather
 # than in $(CMD), so we stage a copy there for the build (removed afterwards even on failure).
-install-desktop: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Install the desktop app + .desktop entry (taskbar icon)
+install-desktop: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Install the desktop app + .desktop entry (taskbar icon)
 	cp FyneApp.toml $(CMD)/FyneApp.toml
 	-cd $(CMD) && GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne install --release --icon $(ICON) --app-id $(APP_ID)
 	rm -f $(CMD)/FyneApp.toml
@@ -552,13 +566,13 @@ fyne package \
 mv $(CMD)/$(APP_NAME).exe $(3)
 endef
 
-windows-debug: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Cross-compile a Windows .exe (debug)
+windows-debug: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Cross-compile a Windows .exe (debug)
 	$(call fyne-package-windows,,$(BUILD_INFO_GOFLAGS_DEBUG),$(WINDOWS_BIN_DEBUG))
 
 # --release has fyne strip the binary (-s -w) and build it with -trimpath. It does not sign
 # the .exe: signing is what 'fyne release -os windows' does, and that wants a Microsoft
 # Store developer identity and certificate.
-windows-release: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Cross-compile a Windows .exe (production, stripped)
+windows-release: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Cross-compile a Windows .exe (production, stripped)
 	$(call fyne-package-windows,--release,$(BUILD_INFO_GOFLAGS_PROD),$(WINDOWS_BIN))
 
 # ── Development ───────────────────────────────────────────────────────────────
@@ -569,10 +583,10 @@ windows-release: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Cross-comp
 # //go:embed, and an embed pattern that matches no file fails the build of every package
 # that imports them. Without these, 'make test' and 'make vet' break after
 # clean-all-the-things rather than regenerating what they need.
-test: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Run all tests with the race detector
+test: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Run all tests with the race detector
 	go test -race ./...
 
-vet: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Run go vet
+vet: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Run go vet
 	go vet ./...
 
 # The 32-bit ABIs (armeabi-v7a, and any 386 Windows build) have a 32-bit int, so a constant
@@ -611,7 +625,7 @@ clean-all-the-things: clean clean-defs-sources ## Remove the above PLUS every ge
 # Every download temporary under wordlists/, whichever fetch left it: the word lists stage
 # through .part too, and a .part is never a source in its own right.
 	rm -f $(WORDLISTS_DIR)/*.part
-	rm -f $(ABOUT_ASSET)
+	rm -f $(TEXT_ASSETS)
 	@echo ''
 	@echo '>> WARNING: every generated asset is now gone, along with the downloaded definition'
 	@echo '>>   sources. The next build recompiles a GADDAG for each wordlists/*.txt, and'
@@ -773,37 +787,37 @@ endef
 
 ##@ Android — debug APKs
 # Signed with $(DEBUG_KEYSTORE) if present, else the fyne debug key/cert. 'adb install'-able.
-android-arm64-v8a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for arm64-v8a (modern phones)
+android-arm64-v8a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Debug APK for arm64-v8a (modern phones)
 	$(call fyne-package-apk,android/arm64,arm64-v8a)
 
-android-x86_64: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for x86_64 (emulators / x86 devices)
+android-x86_64: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Debug APK for x86_64 (emulators / x86 devices)
 	$(call fyne-package-apk,android/amd64,x86_64)
 
 # vet32 runs first on every target that includes the 32-bit ABI: a constant or size
 # computation that only fits a 64-bit int fails to compile for android/arm and nowhere else,
 # and catching that in a two-second type-check beats discovering it part-way through an APK
 # build that needs the NDK.
-android-armeabi-v7a: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for armeabi-v7a (old 32-bit devices)
+android-armeabi-v7a: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Debug APK for armeabi-v7a (old 32-bit devices)
 	$(call fyne-package-apk,android/arm,armeabi-v7a)
 
 # Universal bundles include android/arm, so they need the 32-bit check too.
-android-universal: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for all ABIs (universal, ~4x size)
+android-universal: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Debug APK for all ABIs (universal, ~4x size)
 	$(call fyne-package-apk,android,universal)
 
 android: android-arm64-v8a ## Debug APK for arm64-v8a (alias for android-arm64-v8a)
 
 ##@ Android — signed release App Bundles (.aab)
 # Need KEYSTORE / KEYSTORE_PASS / KEY_ALIAS (see the release-signing config above).
-android-release-arm64-v8a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for arm64-v8a
+android-release-arm64-v8a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Signed release .aab for arm64-v8a
 	$(call fyne-release-aab,android/arm64,arm64-v8a)
 
-android-release-x86_64: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for x86_64
+android-release-x86_64: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Signed release .aab for x86_64
 	$(call fyne-release-aab,android/amd64,x86_64)
 
-android-release-armeabi-v7a: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for armeabi-v7a
+android-release-armeabi-v7a: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Signed release .aab for armeabi-v7a
 	$(call fyne-release-aab,android/arm,armeabi-v7a)
 
-android-release-universal: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for all ABIs (universal)
+android-release-universal: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Signed release .aab for all ABIs (universal)
 	$(call fyne-release-aab,android,universal)
 
 android-release: android-release-universal ## Signed release .aab for all ABIs (alias for android-release-universal)

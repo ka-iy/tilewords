@@ -46,3 +46,6 @@ buildgaddag
 # signing keystores (never commit signing keys)
 *.keystore
 *.jks
+
+# .claude dir - let users use their own customizations
+.claude

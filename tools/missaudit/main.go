@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Command missaudit reports the words that have no definition in a definitions
 // DB, aggregated and deduplicated across one or more word lists. It is the
 // counterpart to defslookup's -audit (which inspects words that DO resolve): its

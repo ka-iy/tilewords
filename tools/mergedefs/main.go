@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Command mergedefs augments a definitions .gob with glosses from secondary
 // public-domain / permissively-licensed dictionaries, closing part of the coverage
 // gap for words the primary source (Wiktionary, via builddefs) does not define.

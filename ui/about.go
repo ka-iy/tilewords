@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package ui is documented in doc.go.
 package ui
 
@@ -15,13 +18,21 @@ import (
 	"tilewords/buildinfo"
 )
 
-// aboutText is the About dialog's content. It is generated at build time from the
-// top-level ABOUT.txt and LEXICON.txt (see the Makefile 'ui/about.txt' target), so
-// those files remain the single source of truth. A //go:embed directive cannot
+// aboutText is the sectioned body of the About dialog. It is generated at build time from
+// the top-level ABOUT.txt, FEATURES.txt and LEXICON.txt (see the Makefile 'ui/about.txt'
+// target), so those files remain the single source of truth. A //go:embed directive cannot
 // reach a parent directory, which is why the generated copy lives in this package.
 //
 //go:embed about.txt
 var aboutText string
+
+// copyrightText is the copyright and licence notice the About dialog opens with, generated
+// at build time from the top-level COPYRIGHT.txt (see the Makefile 'ui/copyright.txt'
+// target). It is embedded separately from aboutText because it is shown above the BUILD INFO
+// section, which aboutDialogText composes at runtime.
+//
+//go:embed copyright.txt
+var copyrightText string
 
 // copyResetDelay is how long the copy button shows its confirmation label before
 // reverting, so a tap gives visible feedback without lingering.
@@ -41,19 +52,28 @@ func aboutSection(title, body string) string {
 	return rule + "\n  " + title + "\n" + rule + "\n\n" + body + "\n\n"
 }
 
-// aboutDialogText returns the full text the About dialog shows: the embedded aboutText,
-// led by a BUILD INFO section. Unlike aboutText (embedded at build time), the build
-// metadata is injected at link time, so it is composed here at runtime.
+// aboutDialogText returns the full text the About dialog shows, in reading order: the
+// copyright and licence notice, then a BUILD INFO section, then the sectioned aboutText.
+//
+// The notice leads and is deliberately given no section banner, so the licence terms are the
+// first thing a player sees — GPLv3 section 4 requires the notice to be kept intact, and this
+// is where it is surfaced. Unlike the two embedded texts, the build metadata is injected at
+// link time, so its section is composed here at runtime.
 //
 // A build with no version injected — a plain `go build` rather than one of the Makefile
 // targets — leaves it blank, and has no metadata worth reporting, so the section is
 // dropped entirely instead of showing empty values.
 func aboutDialogText() string {
+	// copyrightText ends in a newline, so one more separates it from what follows.
+	notice := copyrightText + "\n"
+
 	if buildinfo.BuildVersion() == "" {
-		return aboutText
+		return notice + aboutText
 	}
 
-	return aboutSection("BUILD INFO", strings.Join(buildinfo.BuildInfoAsStringSlice(), "\n")) + aboutText
+	return notice +
+		aboutSection("BUILD INFO", strings.Join(buildinfo.BuildInfoAsStringSlice(), "\n")) +
+		aboutText
 }
 
 // showAbout pops a scrollable dialog with the app's About and Lexicon text. The body

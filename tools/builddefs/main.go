@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Command builddefs filters a Wiktionary extract down to the definitions reachable
 // from one or more word lists and writes the gob-encoded result.
 //

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package ui implements the TileWords user interface using the Fyne toolkit.
 //
 // Fyne is a retained-mode, event-driven GUI toolkit. Unlike the previous

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package ui is documented in doc.go.
 package ui
 
@@ -89,8 +92,6 @@ func (c *cellWidget) Dragged(e *fyne.DragEvent) {
 	}
 }
 
-// DragEnd reports the gesture's final pointer position; the controller moves a staged
-// tile, recalls it (released off the board), or treats the gesture as a tap.
 // cancelDrag discards the widget's in-progress drag tracking. The controller calls it when it
 // abandons a gesture that never delivered its DragEnd, so the next gesture is seeded afresh:
 // on touch the pointer position is accumulated from deltas starting at the gesture's origin,
@@ -101,6 +102,8 @@ func (c *cellWidget) cancelDrag() {
 	c.dragAbs = fyne.Position{}
 }
 
+// DragEnd reports the gesture's final pointer position; the controller moves a staged
+// tile, recalls it (released off the board), or treats the gesture as a tap.
 func (c *cellWidget) DragEnd() {
 	if c.dragging && c.onDragEnd != nil {
 		c.onDragEnd(c.row, c.col, c.dragAbs)

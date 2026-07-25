@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Kartikeya IYER
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Command defslookup inspects a definitions .gob: it resolves individual words to
 // their definitions and can audit the fuzzy-matched words in a word list, so the
 // quality of the weakest resolution layer can be checked by eye.
