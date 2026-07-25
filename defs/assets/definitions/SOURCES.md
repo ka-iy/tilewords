@@ -1,9 +1,10 @@
 # Definitions asset — sources and licenses
 
-The embedded `definitions.gob.gz` is a build artifact (gitignored) assembled from
-several dictionaries. This file records each source, its license, and how to
-regenerate the asset. Attribution below is a redistribution requirement of the
-respective sources.
+The embedded `definitions.gob.gz` is a build artifact assembled from several
+dictionaries. It is committed, so building and running the game needs none of the
+sources below — they are only required to regenerate it. This file records each source,
+its license, and how to regenerate the asset. Attribution below is a redistribution
+requirement of the respective sources.
 
 ## Sources
 
@@ -60,11 +61,37 @@ respective sources.
 ## Regenerating the asset
 
 ```bash
-make defs           # base asset from Wiktionary (needs KAIKKI_EXTRACT)
-make defs-augment   # fold in Webster's 1913 + WordNet (needs WEBSTER_JSON, WORDNET_DICT)
-                    # and the committed defs/supplemental-glossary.tsv
-make defs-audit     # report per-list coverage and the remaining undefined words
+make defs        # build the complete asset from every source above
+make defs-audit  # report per-list coverage and the remaining undefined words
 ```
 
-The supplemental sources are external downloads (not committed); the download URLs
-are documented in the `Makefile` next to the `defs-augment` target.
+`make defs` does the whole job in one pass: it fetches any source it does not already
+have, builds the base asset from the Wiktionary extract, then folds in Webster's 1913,
+WordNet and the committed glossary. The downloaded sources are third-party data and are
+NOT committed (they are git-ignored); each is fetched only when absent, so point
+`KAIKKI_EXTRACT`, `WEBSTER_JSON` or `WORDNET_DICT` at copies you already have to reuse
+them. Expect the first run to take a long time — the Wiktionary extract alone is
+several GB.
+
+The download URLs are the ones listed under each source above, and are defined next to
+the `defs` target in the `Makefile`.
+
+`make defs` regenerates the asset from the sources as they stand on disk; it does not
+add to the existing asset. A rebuild therefore tracks its sources — if any has been
+revised since the last build, the coverage changes with it. Only when the sources are
+unchanged does a rebuild reproduce the same coverage.
+
+Because sources are fetched only when absent, an upstream revision is not picked up on
+its own. Delete the local copy, or point `KAIKKI_EXTRACT` / `WEBSTER_JSON` /
+`WORDNET_DICT` at a newer one, to rebuild against current data.
+
+Two consequences of that worth knowing, since this asset is committed:
+
+- A rebuilt asset always differs byte-for-byte from the committed one, even when the
+  sources have not changed at all: the content is deterministic but the exact bytes are
+  not (gob map ordering, gzip framing — see `defs.DB.Encode`). Git will always report
+  the file as modified after a rebuild, so compare coverage with `make defs-audit`
+  rather than reading anything into the diff.
+- Re-running the merge step alone over an already-augmented asset does add nothing, as a
+  supplement can only fill a gap the primary source leaves. That is a property of the
+  merge, not of `make defs` as a whole.

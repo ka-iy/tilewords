@@ -6,11 +6,15 @@ https://github.com/ka-iy/tilewords
 TileWords uses public-domain and libre/freely available word lists and definitions.
 No proprietary lexicons were harmed during the making of this game.
 
+While it is currently a fully offline game, if there is sufficient interest in adding Player-vs-Player functionality, network access (and hence permissions on mobile platforms) will of course be required when it is implemented.
+
 ==============================
-DISCLAIMER
+LEGAL GUFF
 (AKA "Please don't sue me")
 ==============================
 
 SCRABBLE® is a registered trademark. All intellectual property rights in and to SCRABBLE® are owned in the U.S.A. by Hasbro Inc., in Canada by Hasbro Canada Inc. and throughout the rest of the world by J.W. Spear & Sons Ltd. of England, a subsidiary of Mattel Inc.
+
+All other external-entity trademarks, names, logos, and service marks (collectively "trademarks") in this product are the registered and unregistered trademarks of their respective owners.
 
 TILEWORDS IS NOT AFFILIATED WITH ANY OF THE ABOVE-MENTIONED PRODUCTS OR ENTITIES.

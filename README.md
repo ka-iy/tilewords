@@ -10,9 +10,13 @@ TileWords is a Scrabble®-like offline crossword tile game in which you play aga
 
 TileWords uses public-domain and libre/freely available word lists and definitions. No proprietary lexicons were harmed during the making of this game.
 
-### Disclaimer (a.k.a. "Please don't sue me")
+While it is currently a fully offline game, if there is sufficient interest in adding Player-vs-Player functionality, network access (and hence the requisite permissions on mobile platforms) will of course be required when it is implemented.
+
+### Legal Guff (a.k.a. "Please don't sue me")
 
 SCRABBLE® is a registered trademark. All intellectual property rights in and to SCRABBLE® are owned in the U.S.A. by Hasbro Inc., in Canada by Hasbro Canada Inc. and throughout the rest of the world by J.W. Spear & Sons Ltd. of England, a subsidiary of Mattel Inc.
+
+All other external-entity trademarks, names, logos, and service marks (collectively "trademarks") in this product are the registered and unregistered trademarks of their respective owners.
 
 **TileWords is NOT affiliated with any of the above-mentioned products or entities.**
 
@@ -84,60 +88,72 @@ cd tilewords
 ### Fetch the word lists (Optional)
 
 The word lists are already committed, so this step is optional. Each
-`wordlists/<name>.txt` is compiled into a GADDAG automatically at build time. To
-refresh them from their upstream sources:
+`wordlists/<name>.txt` is compiled into a GADDAG automatically at build time. One target
+fetches all three from their upstream sources:
 
-- **ENABLE2K** (public domain) - downloaded and decompressed automatically:
+```bash
+make download-wordlists
+```
 
-  ```bash
-  make download-wordlists
-  ```
+- **ENABLE2K** (public domain) - fetched and decompressed.
+- **Wordnik word list** (MIT) - fetched, with upstream's surrounding quotes stripped.
+- **atebits "Words"** (CC0) - fetched as-is.
 
-- **Wordnik word list** (MIT) - the upstream file is quoted, so strip the quotes:
+Only a list that is **missing** is fetched, so this never silently replaces a committed
+copy. To refresh one from upstream, delete it first:
 
-  ```bash
-  curl -fsSL https://raw.githubusercontent.com/wordnik/wordlist/main/wordlist-20210729.txt \
-    | tr -d '"' > wordlists/wordnik.txt
-  ```
+```bash
+rm wordlists/wordnik.txt && make download-wordlists
+```
 
-- **atebits "Words"** (CC0):
-
-  ```bash
-  curl -fsSL https://raw.githubusercontent.com/atebits/Words/master/Words/en.txt \
-    > wordlists/atebits-letterpress.txt
-  ```
+Adding a fourth list is just a matter of dropping `wordlists/<name>.txt` in place - it is
+discovered and compiled automatically - and registering `<name>` in
+`dictionary.AllDictNames` so the game offers it in the setup menu.
 
 ### Fetch and build the definitions (Optional)
 
-The definitions asset is committed, so this step is optional too. It is only needed
-to rebuild the in-game word definitions from scratch. The asset is assembled in two
-stages; run them in order (a fresh `make defs` overwrites the committed asset, and
-`make defs-augment` then folds the extra sources back in).
-
-**1. Base definitions from Wiktionary.** Download the kaikki wiktextract English
-extract (large, ~3 GB) to the default path, then build. `builddefs` filters it down
-to just the words the committed lists can form:
+The definitions asset is committed, so this step is optional too. It is only needed to
+rebuild the in-game word definitions from scratch. One target does the whole job -
+fetching every source it does not already have, building the base asset, and folding in
+the supplements:
 
 ```bash
-curl -fsSL -o wordlists/kaikki-en.jsonl \
-  https://kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl
 make defs
 ```
 
-**2. Augment with the supplemental sources.** Fetch Webster's 1913 and WordNet to
-their default paths, then fold them (plus the committed Scots/Spenser glossary in
-`defs/supplemental-glossary.tsv`) into the asset for words Wiktionary does not define:
+That assembles the asset from four sources, each with its own format and licence (all
+recorded in [`defs/assets/definitions/SOURCES.md`](defs/assets/definitions/SOURCES.md)):
+
+- **Wiktionary**, via the kaikki.org wiktextract JSONL extract (CC BY-SA 4.0) - the
+  primary source, providing most headwords and every inflection edge.
+- **Webster's Revised Unabridged Dictionary, 1913** (public domain) - archaic and
+  technical headwords Wiktionary does not define.
+- **Princeton WordNet 3.1** (WordNet licence) - headwords neither source above covers.
+- **Curated public-domain glossaries**, committed as `defs/supplemental-glossary.tsv`
+  (Jamieson's Scots dictionary and a Spenser glossary). Hand-checked, so it lives in the
+  repository rather than being scraped at build time.
+
+The first three are downloaded on demand and are git-ignored rather than committed. Be
+aware that the Wiktionary extract alone is several GB, so a run that has to fetch it takes
+a long time. Each source is fetched only when missing, so set `KAIKKI_EXTRACT`,
+`WEBSTER_JSON` or `WORDNET_DICT` to reuse copies you already have:
 
 ```bash
-# Webster's 1913 (public domain)
-curl -fsSL -o wordlists/webster1913.json \
-  https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary_compact.json
+make defs KAIKKI_EXTRACT=/path/to/kaikki-en.jsonl
+```
 
-# WordNet 3.1 (extract so that wordlists/wordnet/dict/ exists)
-curl -fsSL -o /tmp/wn31.tar.gz https://wordnetcode.princeton.edu/wn3.1.dict.tar.gz
-mkdir -p wordlists/wordnet && tar -xzf /tmp/wn31.tar.gz -C wordlists/wordnet
+A supplement only ever adds a word the primary source cannot resolve, and only when that
+word is itself a headword in the supplement - no definition is inferred from a
+near-spelling.
 
-make defs-augment
+`make defs` regenerates the asset from whatever the sources on disk hold at that moment
+rather than adding to the existing asset, so a rebuild tracks its sources: if any of them
+has been revised since the last build, the new asset reflects that. Note that a source is
+only downloaded when it is **missing**, so a re-run does not pick up an upstream revision
+by itself - delete the local copy (or point the variable at a new one) to refresh it:
+
+```bash
+rm wordlists/kaikki-en.jsonl && make defs   # rebuild against a current Wiktionary extract
 ```
 
 Report per-list coverage and the words that still have no definition:
@@ -171,6 +187,7 @@ Other useful targets:
 make test                    # run all tests with the race detector
 make vet                     # run go vet
 make clean                   # remove built binaries and packages
+make clean-defs-sources      # remove the downloaded definition sources (frees GBs)
 make clean-all-the-things    # the above plus every generated asset (needs re-downloads)
 make debug-all               # debug build for desktop + Windows + Android
 make release-all             # release build for desktop + Windows + Android
@@ -292,7 +309,7 @@ While (almost) every effort has been made to fill the gaps in the definitions, g
 
 ## A note from the original developer
 
-This project was started as an experiment in using the [AWS AI-DLC framework](https://github.com/awslabs/aidlc-workflows) and Claude Code to build a word game with the features I always wanted _("What the hell does ZAX mean??")(It's a construction tool)_ but which I had not found in comparable projects. As an addendum to the experiment, I wanted to see whether I could do this without firing up my editor or manually changing stuff. I almost succeeded at that. Almost.
+This project was started as an experiment in using the [AWS AI-DLC framework](https://github.com/awslabs/aidlc-workflows) and Claude Code to build a word game with all the features I always wanted in my ideal word-game project _("What the hell does ZAX mean??")(It's a construction tool)_ but which I had not been able to find consolidated in one single project. As an addendum to the experiment, I wanted to see whether I could do this without firing up my editor or manually changing stuff. I almost succeeded in that endeavor. Almost.
 
 My takeaways thus far (as of July 2026):
 - Agentic coding is definitely a development accelerator **provided that** the AI is constantly hand-held, stopped from going down senseless paths, steered in the correct direction, and generally treated like a precocious idiot-savant tween.
@@ -303,3 +320,4 @@ My takeaways thus far (as of July 2026):
 - AI-DLC is alright, but perhaps needs a bit more time to mature. Also, it is verbose as all hell, which is probably OK for Enterprise(tm) Development.
   - I think I'll follow the [BMAD](https://docs.bmad-method.org/) AI SLDC framework for future development especially since that lends itself well to collaborative efforts. I'll leave the `aidlc-docs` directory in the sources as a historical record of shenanigans perpetrated.
 
+I also had fun getting the AI to write a pseudoacademic "paper" on the optimization strategies used to reduce the size of the lexicon/glossary assets.

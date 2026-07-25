@@ -31,6 +31,17 @@ Thumbs.db
 buildgaddag
 /tilewords*
 
+# raw definition sources fetched on demand by `make defs` (see
+# defs/assets/definitions/SOURCES.md). Large third-party data, not ours to redistribute
+# here; the committed wordlists/*.txt are unaffected.
+/wordlists/kaikki-en.jsonl
+/wordlists/webster1913.json
+/wordlists/wordnet/
+
+# partially downloaded definitions sources, moved into place only once complete
+*.part
+*.stage*
+
 # signing keystores (never commit signing keys)
 *.keystore
 *.jks

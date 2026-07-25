@@ -1,6 +1,6 @@
 # TileWords — top-level build rules.
 #
-# Run `make help` to list every target with a one-line description.
+# Run 'make help' to list every target with a one-line description.
 #
 # Quick start (no licensed word lists required):
 #   make gaddag-free && make   → downloads ENABLE (public domain) then builds
@@ -12,7 +12,8 @@
 # First-time mobile setup:
 #   make install-mobile-tools     # then set ANDROID_HOME and ANDROID_NDK_HOME
 
-.PHONY: all build build-prod test vet clean clean-all-the-things gaddag gaddag-free download-wordlists defs help \
+.PHONY: all build build-prod test vet clean clean-all-the-things clean-defs-sources \
+        gaddag gaddag-free download-wordlists defs help \
         debug-all release-all \
         windows-debug windows-release \
         android android-arm64-v8a android-x86_64 android-armeabi-v7a android-universal \
@@ -86,14 +87,14 @@ CMD     := ./cmd/tilewords
 MODULE  := tilewords
 
 # Host platform, used to label the native desktop artifacts and as the default architecture
-# for the Windows cross build. Both come from one `go env` call, which prints one value per
+# for the Windows cross build. Both come from one 'go env' call, which prints one value per
 # line — $(shell) turns those into a space-separated pair.
 HOST_PLATFORM := $(shell go env GOOS GOARCH)
 HOST_GOOS     := $(word 1,$(HOST_PLATFORM))
 HOST_GOARCH   := $(word 2,$(HOST_PLATFORM))
 
-# The GADDAG builder is normally invoked with `go run` (see BUILDGADDAG below), but a
-# manual `go build ./tools/buildgaddag` leaves this binary in the repo root; clean it.
+# The GADDAG builder is normally invoked with 'go run' (see BUILDGADDAG below), but a
+# manual 'go build ./tools/buildgaddag' leaves this binary in the repo root; clean it.
 BUILDGADDAG_BIN := buildgaddag
 
 # Android SDK/NDK roots — override on the command line or export in your shell.
@@ -109,20 +110,20 @@ APKSIGNER            = $(ANDROID_BUILD_TOOLS)/apksigner
 # org.conscrypt … apksigner.jar"): apksigner's Conscrypt provider loads a native library the
 # JVM warns about unless native access is granted. This affects apksigner however it is
 # launched — the Makefile's own re-signing call below, and (the usual source of the warning)
-# the apksigner that `fyne package`/`fyne release` and `bundletool` spawn internally. The same
+# the apksigner that 'fyne package'/'fyne release' and 'bundletool' spawn internally. The same
 # flag is applied in two forms:
 #   - APKSIGNER_JVM_OPTS: the apksigner wrapper forwards a leading -J<opt> to the JVM adding
 #     one dash, so -J-enable-native-access=ALL-UNNAMED reaches it as
 #     --enable-native-access=ALL-UNNAMED. It must precede the apksigner subcommand.
 #   - JVM_NATIVE_ACCESS: the plain flag, exported via JAVA_TOOL_OPTIONS to fyne and bundletool
-#     (bare `java -jar` wrappers with no -J hook) so the signer they spawn inherits it. The JVM
+#     (bare 'java -jar' wrappers with no -J hook) so the signer they spawn inherits it. The JVM
 #     prints one benign "Picked up JAVA_TOOL_OPTIONS: …" line per spawned tool in exchange.
 # Override either to empty on a JDK that does not recognise the flag.
 APKSIGNER_JVM_OPTS ?= -J-enable-native-access=ALL-UNNAMED
 JVM_NATIVE_ACCESS  ?= --enable-native-access=ALL-UNNAMED
 
 # bundletool — required by the android-release* (.aab) and android-release-apk* targets.
-# Expected on PATH (e.g. `brew install bundletool`); override if it lives elsewhere.
+# Expected on PATH (e.g. 'brew install bundletool'); override if it lives elsewhere.
 BUNDLETOOL ?= bundletool
 
 # Debug keystore for the android-* debug APKs. If $(DEBUG_KEYSTORE) exists, those targets
@@ -172,7 +173,7 @@ help: ## Show this help (targets grouped by section)
 # ── Build everything ──────────────────────────────────────────────────────────
 #
 # One artifact per platform in a single run: the native desktop binary, the Windows .exe and
-# the Android package. The Android leg is the arm64-v8a build (the `android`/`android-release`
+# the Android package. The Android leg is the arm64-v8a build (the 'android'/'android-release'
 # aliases), not the universal one, so a run does not pay for four ABIs.
 #
 # Each leg needs its platform's toolchain — the mingw-w64 cross compiler for Windows, the
@@ -183,6 +184,16 @@ help: ## Show this help (targets grouped by section)
 debug-all: build windows-debug android ## Build every debug artifact (desktop, Windows, Android)
 
 release-all: build-prod windows-release android-release ## Build every release artifact (desktop, Windows, Android)
+
+# ── Assets ────────────────────────────────────────────────────────────────────
+##@ Assets
+#
+# Everything the game embeds, and the sources it is built from. Three assets, each with its
+# own subsection below: the GADDAG dictionaries, the definitions asset, and the About text.
+#
+# The word lists and the definitions asset are committed, so none of these targets is needed
+# for an ordinary build — they exist to fetch sources and regenerate. Anything a build does
+# need is a prerequisite of the build targets themselves, so it is produced on demand.
 
 # ── GADDAG assets ─────────────────────────────────────────────────────────────
 #
@@ -196,35 +207,72 @@ WORDLISTS_DIR ?= wordlists
 DICT_DIR      := dictionary/assets/dictionaries
 BUILDGADDAG   := go run ./tools/buildgaddag
 
-# ENABLE2K — public domain word list (Alan Beale and others), the 2K edition.
-# Downloaded automatically (and decompressed) when its source is absent; every other
-# list must be supplied by placing it under wordlists/.
+# The three shipped word lists, each openly licensed and each fetchable from upstream. All
+# three are committed, so these rules normally do nothing: a rule fires only when its list
+# is missing, which means a fetch never silently replaces the committed copy. Any other list
+# must still be supplied by placing it under wordlists/.
+#
+# ENABLE2K — public domain (Alan Beale and others), the 2K edition. Distributed gzipped.
 WL_ENABLE_URL := https://raw.githubusercontent.com/BartMassey/wordlists/main/enable2k.txt.gz
 WL_ENABLE     ?= $(WORDLISTS_DIR)/enable.txt
+
+# Wordnik word list — MIT. Upstream quotes every word, so the quotes are stripped out.
+WL_WORDNIK_URL := https://raw.githubusercontent.com/wordnik/wordlist/main/wordlist-20210729.txt
+WL_WORDNIK     ?= $(WORDLISTS_DIR)/wordnik.txt
+
+# atebits "Words" — CC0. The list behind Letterpress, taken as-is.
+WL_ATEBITS_URL := https://raw.githubusercontent.com/atebits/Words/master/Words/en.txt
+WL_ATEBITS     ?= $(WORDLISTS_DIR)/atebits-letterpress.txt
+
+WORDLIST_DOWNLOADS := $(WL_ENABLE) $(WL_WORDNIK) $(WL_ATEBITS)
 
 # Discover every word list currently present and map each to its GADDAG asset:
 #   wordlists/<name>.txt  →  dictionary/assets/dictionaries/<name>.gob
 WORDLIST_SRCS := $(wildcard $(WORDLISTS_DIR)/*.txt)
 GADDAG_ASSETS := $(patsubst $(WORDLISTS_DIR)/%.txt,$(DICT_DIR)/%.gob,$(WORDLIST_SRCS))
 
-# ENABLE's asset, named explicitly so gaddag-free/gaddag can request it even before
-# its source has been downloaded (it is absent at wildcard-expansion time).
-GADDAG_ENABLE := $(DICT_DIR)/enable.gob
+# The three shipped lists' assets, named explicitly rather than left to $(GADDAG_ASSETS).
+# That wildcard is expanded when make parses this file, so it cannot see a list that is
+# still to be downloaded; naming these means one `make` on a checkout missing a list fetches
+# it, compiles its GADDAG and builds, instead of quietly producing a binary without it.
+# Anything else under wordlists/ is picked up by $(GADDAG_ASSETS) as before.
+GADDAG_ENABLE  := $(DICT_DIR)/enable.gob
+GADDAG_WORDNIK := $(DICT_DIR)/wordnik.gob
+GADDAG_ATEBITS := $(DICT_DIR)/atebits-letterpress.gob
 
-gaddag: $(GADDAG_ENABLE) $(GADDAG_ASSETS) ## Build a GADDAG for every wordlists/*.txt (plus ENABLE)
+GADDAG_SHIPPED := $(GADDAG_ENABLE) $(GADDAG_WORDNIK) $(GADDAG_ATEBITS)
+
+gaddag: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) ## Build a GADDAG for every wordlists/*.txt (plus the shipped lists)
 
 gaddag-free: $(GADDAG_ENABLE) ## Download ENABLE and build only its GADDAG asset
 
-download-wordlists: $(WL_ENABLE) ## Download the free (ENABLE) word list
+download-wordlists: $(WORDLIST_DOWNLOADS) ## Download any missing shipped word list (ENABLE, Wordnik, atebits)
 
 # Ensure the source and output directories exist before they are written to.
 $(WORDLISTS_DIR) $(DICT_DIR):
 	mkdir -p $@
 
-# Download ENABLE2K from GitHub (a gzip-compressed public-domain distribution) and
-# decompress it into the plain-text word list the build consumes.
+# Each list is fetched, transformed if it needs it, and only then moved into place, so an
+# interrupted transfer cannot leave a half a word list that later builds would compile as if
+# it were whole. Each step is its own recipe line so make stops on the first one to fail —
+# piping curl straight into gunzip or tr would hide a truncated transfer behind the exit
+# status of the last command in the pipeline. Every temporary ends in .part, which
+# .gitignore covers.
 $(WL_ENABLE): | $(WORDLISTS_DIR)
-	curl -fsSL $(WL_ENABLE_URL) | gunzip -c > $@
+	curl -fsSL -o $@.gz.part $(WL_ENABLE_URL)
+	gunzip -c $@.gz.part > $@.part
+	mv $@.part $@
+	rm -f $@.gz.part
+
+$(WL_WORDNIK): | $(WORDLISTS_DIR)
+	curl -fsSL -o $@.raw.part $(WL_WORDNIK_URL)
+	tr -d '"' < $@.raw.part > $@.part
+	mv $@.part $@
+	rm -f $@.raw.part
+
+$(WL_ATEBITS): | $(WORDLISTS_DIR)
+	curl -fsSL -o $@.part $(WL_ATEBITS_URL)
+	mv $@.part $@
 
 # Compile any word list into its GADDAG asset. The stem ($*) is the dictionary name.
 $(DICT_DIR)/%.gob: $(WORDLISTS_DIR)/%.txt | $(DICT_DIR)
@@ -232,20 +280,62 @@ $(DICT_DIR)/%.gob: $(WORDLISTS_DIR)/%.txt | $(DICT_DIR)
 
 # ── Definitions asset ─────────────────────────────────────────────────────────
 #
-# The definitions asset holds the word meanings shown during gameplay, filtered
-# from a Wiktionary extract down to just the words the shipped lists can form.
-# The extract is ~3 GB and is NOT committed; download it once and point
-# KAIKKI_EXTRACT at it:
+# The definitions asset holds the word meanings shown during gameplay, filtered down to
+# just the words the shipped lists can form. 'make defs' builds the complete asset in one
+# pass from every source recorded in $(DEFS_DIR)/SOURCES.md, which is the authoritative
+# record of what goes in and under which licence:
+#   - Wiktionary, via the kaikki.org wiktextract JSONL extract (CC BY-SA 4.0). The primary
+#     source: most headwords, and every inflection edge.
+#   - Webster's Revised Unabridged Dictionary, 1913 (public domain). Archaic and technical
+#     headwords Wiktionary does not define.
+#   - Princeton WordNet 3.1 (WordNet licence). Headwords neither source above covers.
+#   - $(SUPP_GLOSSARY): curated public-domain glosses (Jamieson's Scots dictionary, a
+#     Spenser glossary). Hand-checked and reviewable, so it is committed to the repository
+#     rather than scraped from Gutenberg/Wikisource at build time.
 #
-#   https://kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl
+# The first three are downloaded on demand and are NOT committed. Each is its own rule, so
+# a source already present is never re-fetched; point KAIKKI_EXTRACT / WEBSTER_JSON /
+# WORDNET_DICT at existing copies to reuse them. The kaikki extract alone is several GB, so
+# a build that has to fetch it takes a long while.
 #
-# `make defs` is opt-in: the game builds and runs without it (definitions are
-# simply unavailable), so `build` does not depend on it.
+# Two tools split the work, each parsing the formats it knows: builddefs reads the kaikki
+# JSONL into the base asset, then mergedefs folds in the three supplements (JSON, the
+# WordNet data files, and TSV respectively). A supplement only ever ADDS a word the primary
+# source cannot resolve, and only when the word is itself a headword there, so no gloss is
+# inferred from a near-spelling — see the precedence notes in SOURCES.md.
+#
+# 'make defs' is opt-in: the game builds and runs without it (definitions are simply
+# unavailable), so 'build' does not depend on it.
 
-DEFS_DIR       := defs/assets/definitions
-DEFS_ASSET     := $(DEFS_DIR)/definitions.gob.gz
-BUILDDEFS      := go run ./tools/builddefs
-KAIKKI_EXTRACT ?= wordlists/kaikki-en.jsonl
+DEFS_DIR   := defs/assets/definitions
+DEFS_ASSET := $(DEFS_DIR)/definitions.gob.gz
+BUILDDEFS  := go run ./tools/builddefs
+MERGEDEFS  := go run ./tools/mergedefs
+MISSAUDIT  := go run ./tools/missaudit
+
+# Staging path for the asset while it is built. Both stages write here and it is moved into
+# place only once all of them have succeeded (see the $(DEFS_ASSET) rule).
+DEFS_STAGE := $(DEFS_ASSET).stage
+
+# Where a download puts each source when the variables below are left at their defaults.
+# clean-defs-sources deletes these paths and only these: they are what this Makefile
+# fetched, so they are its to remove. A KAIKKI_EXTRACT / WEBSTER_JSON / WORDNET_DICT
+# pointed somewhere else is a copy you supplied, and is never deleted.
+DEFS_SRC_KAIKKI  := $(WORDLISTS_DIR)/kaikki-en.jsonl
+DEFS_SRC_WEBSTER := $(WORDLISTS_DIR)/webster1913.json
+DEFS_SRC_WORDNET := $(WORDLISTS_DIR)/wordnet
+
+# Source locations. Override any of these to point at a copy you already have.
+KAIKKI_EXTRACT ?= $(DEFS_SRC_KAIKKI)
+WEBSTER_JSON   ?= $(DEFS_SRC_WEBSTER)
+WORDNET_DICT   ?= $(DEFS_SRC_WORDNET)/dict
+
+# Committed, reviewable glossary of the smaller curated public-domain sources.
+SUPP_GLOSSARY := defs/supplemental-glossary.tsv
+
+KAIKKI_URL  := https://kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl
+WEBSTER_URL := https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary_compact.json
+WORDNET_URL := https://wordnetcode.princeton.edu/wn3.1.dict.tar.gz
 
 # comma/space let the space-separated $(WORDLIST_SRCS) be passed as one
 # comma-separated -input argument.
@@ -255,6 +345,45 @@ space := $(empty) $(empty)
 
 $(DEFS_DIR):
 	mkdir -p $@
+
+# Source downloads. Each writes to a temporary file and moves it into place only on
+# success, so an interrupted transfer cannot leave a truncated source that the next build
+# would treat as complete and quietly parse.
+$(KAIKKI_EXTRACT): | $(WORDLISTS_DIR)
+	@echo ">> fetching the Wiktionary (kaikki) extract — several GB, this will take a while"
+	curl -fsSL -o $@.part $(KAIKKI_URL) && mv $@.part $@
+
+$(WEBSTER_JSON): | $(WORDLISTS_DIR)
+	curl -fsSL -o $@.part $(WEBSTER_URL) && mv $@.part $@
+
+# The archive holds a top-level dict/ directory, so it is extracted into the parent of
+# $(WORDNET_DICT).
+$(WORDNET_DICT):
+	mkdir -p $(dir $@)
+	curl -fsSL $(WORDNET_URL) | tar -xz -C $(dir $@)
+
+defs: $(DEFS_ASSET) ## Build the complete definitions asset, fetching each source if absent
+
+# Both stages write to $(DEFS_STAGE), which is moved into place only once every stage has
+# succeeded — a failure part-way through must not leave a partial asset that make would
+# then consider up to date.
+#
+# Every source is a real prerequisite, so fetching one is what makes the asset out of date
+# and triggers this rule. They are deliberately NOT order-only: order-only prerequisites are
+# still built, but do not mark the target stale, which would mean a first run downloading
+# gigabytes and then rebuilding nothing.
+#
+# Note that $(DEFS_ASSET) is committed, so this rule is normally already satisfied. It fires
+# when a source or word list is newer than the asset, or when the asset has been removed
+# (clean-all-the-things), which is the point at which regenerating is actually wanted.
+$(DEFS_ASSET): $(WORDLIST_SRCS) $(SUPP_GLOSSARY) $(KAIKKI_EXTRACT) $(WEBSTER_JSON) $(WORDNET_DICT) | $(DEFS_DIR)
+	$(BUILDDEFS) -kaikki "$(KAIKKI_EXTRACT)" \
+	  -input "$(subst $(space),$(comma),$(WORDLIST_SRCS))" -output $(DEFS_STAGE)
+	$(MERGEDEFS) -db $(DEFS_STAGE) \
+	  -webster "$(WEBSTER_JSON)" -wordnet "$(WORDNET_DICT)" \
+	  -glossary "$(SUPP_GLOSSARY)" \
+	  -lists "$(subst $(space),$(comma),$(WORDLIST_SRCS))" -output $(DEFS_STAGE)
+	mv $(DEFS_STAGE) $@
 
 # ── About-dialog text ─────────────────────────────────────────────────────────
 #
@@ -275,60 +404,21 @@ $(ABOUT_ASSET): $(ABOUT_SRCS)
 	done
 	@echo "generated $@ from $(ABOUT_SRCS)"
 
-defs: $(DEFS_ASSET) ## Build the definitions asset from KAIKKI_EXTRACT (Wiktionary extract)
-
-# Rebuild when any word list changes. Fails with guidance if the extract is absent.
-$(DEFS_ASSET): $(WORDLIST_SRCS) | $(DEFS_DIR)
-	@test -f "$(KAIKKI_EXTRACT)" || { \
-	  echo "make defs: Wiktionary extract not found at '$(KAIKKI_EXTRACT)'."; \
-	  echo "  Download it from https://kaikki.org/dictionary/English/ and set KAIKKI_EXTRACT=<path>."; \
-	  exit 1; }
-	$(BUILDDEFS) -kaikki "$(KAIKKI_EXTRACT)" \
-	  -input "$(subst $(space),$(comma),$(WORDLIST_SRCS))" -output $@
-
-# ── Definitions augmentation (secondary public-domain sources) ─────────────────
-#
-# `make defs` builds the base asset from Wiktionary. `make defs-augment` then folds
-# in glosses from Webster's 1913 (public domain) and WordNet (permissive) for the
-# words Wiktionary does not define, closing part of the coverage gap. It edits
-# $(DEFS_ASSET) in place and is idempotent: existing (Wiktionary) definitions always
-# win, and only a word that is itself a headword in a source is added, so no
-# definition is invented from a near-spelling.
-#
-# Run it after `make defs` (a fresh `make defs` drops the supplements, so re-run
-# this to fold them back in). Both sources are external downloads and NOT committed:
-#   - Webster's 1913 JSON:
-#       https://raw.githubusercontent.com/matthewreagan/WebstersEnglishDictionary/master/dictionary_compact.json
-#   - WordNet 3.1 dict (extract the archive; point WORDNET_DICT at its 'dict' folder):
-#       https://wordnetcode.princeton.edu/wn3.1.dict.tar.gz
-MERGEDEFS    := go run ./tools/mergedefs
-MISSAUDIT    := go run ./tools/missaudit
-WEBSTER_JSON ?= wordlists/webster1913.json
-WORDNET_DICT ?= wordlists/wordnet/dict
-# Committed, reviewable glossary of smaller curated public-domain sources (Jamieson's
-# Scots dictionary, Spenser glossaries). See defs/assets/definitions/SOURCES.md.
-SUPP_GLOSSARY := defs/supplemental-glossary.tsv
-
-.PHONY: defs-augment
-defs-augment: ## Fold Webster's 1913 + WordNet + the supplemental glossary into the defs asset for uncovered words
-	@test -f "$(DEFS_ASSET)" || { echo "make defs-augment: $(DEFS_ASSET) not found; run 'make defs' first."; exit 1; }
-	@test -f "$(WEBSTER_JSON)" || { \
-	  echo "make defs-augment: Webster's 1913 JSON not found at '$(WEBSTER_JSON)'."; \
-	  echo "  Download it (see the Makefile comment above defs-augment) and set WEBSTER_JSON=<path>."; \
-	  exit 1; }
-	@test -d "$(WORDNET_DICT)" || { \
-	  echo "make defs-augment: WordNet dict directory not found at '$(WORDNET_DICT)'."; \
-	  echo "  Download+extract wn3.1.dict.tar.gz and set WORDNET_DICT=<path-to-dict>."; \
-	  exit 1; }
-	$(MERGEDEFS) -db $(DEFS_ASSET) \
-	  -webster "$(WEBSTER_JSON)" -wordnet "$(WORDNET_DICT)" \
-	  -glossary "$(SUPP_GLOSSARY)" \
-	  -lists "$(subst $(space),$(comma),$(WORDLIST_SRCS))" -output $(DEFS_ASSET)
-
 .PHONY: defs-audit
 defs-audit: ## Report per-list definition coverage and the deduplicated set of undefined words
 	@test -f "$(DEFS_ASSET)" || { echo "make defs-audit: $(DEFS_ASSET) not found; run 'make defs' first."; exit 1; }
 	$(MISSAUDIT) -db $(DEFS_ASSET) $(WORDLIST_SRCS)
+
+# clean-defs-sources drops the definition sources this Makefile downloaded, at the default
+# locations recorded in DEFS_SRC_* — several GB, the Wiktionary extract being nearly all of
+# it. The next 'make defs' fetches them again, so run this to reclaim the space rather than
+# as part of an ordinary rebuild. The committed word lists and glossary are untouched: they
+# are repository content, not downloads. The generated assets are not touched either — that
+# is clean-all-the-things, under Development, which folds this target in.
+clean-defs-sources: ## Remove the downloaded definition sources (frees GBs; 'make defs' re-fetches)
+	rm -f $(DEFS_SRC_KAIKKI) $(DEFS_SRC_KAIKKI).part
+	rm -f $(DEFS_SRC_WEBSTER) $(DEFS_SRC_WEBSTER).part
+	rm -rf $(DEFS_SRC_WORDNET)
 
 # ── Native desktop ────────────────────────────────────────────────────────────
 ##@ Native desktop
@@ -342,8 +432,8 @@ DESKTOP_BIN       := $(BINARY)-$(HOST_GOOS)-$(HOST_GOARCH)
 DESKTOP_BIN_DEBUG := $(DESKTOP_BIN)-debug
 
 # These use the fyne CLI, as the Windows and Android targets do, so every artifact in this
-# Makefile is produced the same way. `fyne build` compiles a plain executable (unlike
-# `fyne package -os linux`, which wraps it in a .tar.xz); it takes the build-info linker
+# Makefile is produced the same way. 'fyne build' compiles a plain executable (unlike
+# 'fyne package -os linux', which wraps it in a .tar.xz); it takes the build-info linker
 # flags from GOFLAGS, and for --release strips the binary and builds it with -trimpath — so
 # the GOFLAGS forms deliberately carry no -s/-w of their own.
 #
@@ -353,11 +443,11 @@ DESKTOP_BIN_DEBUG := $(DESKTOP_BIN)-debug
 # The migrated_fynedo build tag opts this binary into Fyne's fyne.Do threading model at
 # compile time, so the standalone desktop binary is self-contained: it suppresses the
 # launch-time "not migrated" warning without depending on FyneApp.toml being present on
-# disk at runtime (plain `go build`/`go run` read that file from the filesystem, they do
+# disk at runtime (plain 'go build'/'go run' read that file from the filesystem, they do
 # not embed it). It is passed explicitly rather than relying on fyne to translate
 # FyneApp.toml's [Migrations] fyneDo=true, which requires that file to be found from the
 # main-package directory being built.
-build: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary (debug)
+build: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary (debug)
 	GOFLAGS="$(BUILD_INFO_GOFLAGS_DEBUG)" fyne build \
 		--src $(CMD) --tags migrated_fynedo -o $(CURDIR)/$(DESKTOP_BIN_DEBUG)
 
@@ -366,7 +456,7 @@ build: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desk
 #
 # Code that branches on buildinfo.IsProductionBuild() only takes its production path in a
 # binary built this way, so this is the target to use when testing that behavior.
-build-prod: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary (production, stripped)
+build-prod: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native desktop binary (production, stripped)
 	GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne build \
 		--src $(CMD) --tags migrated_fynedo --release -o $(CURDIR)/$(DESKTOP_BIN)
 
@@ -374,11 +464,11 @@ build-prod: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Build the native
 # in the taskbar/dock. This is separate from the window's own icon: Linux desktops
 # (notably GNOME/Wayland) take the taskbar/dock icon from an installed .desktop entry
 # matched to the window via StartupWMClass, NOT from the icon the app sets at runtime — so
-# a bare `make run` binary shows a generic taskbar icon until the app is installed.
+# a bare 'make run' binary shows a generic taskbar icon until the app is installed.
 #
-# `fyne install` reads the app name from FyneApp.toml, which lives at the repo root rather
+# 'fyne install' reads the app name from FyneApp.toml, which lives at the repo root rather
 # than in $(CMD), so we stage a copy there for the build (removed afterwards even on failure).
-install-desktop: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Install the desktop app + .desktop entry (taskbar icon)
+install-desktop: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Install the desktop app + .desktop entry (taskbar icon)
 	cp FyneApp.toml $(CMD)/FyneApp.toml
 	-cd $(CMD) && GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne install --release --icon $(ICON) --app-id $(APP_ID)
 	rm -f $(CMD)/FyneApp.toml
@@ -392,11 +482,11 @@ install-desktop: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Install the
 # mingw-w64. Install it with, e.g.:
 #   sudo apt install gcc-mingw-w64-x86-64       # Debian/Ubuntu
 #
-# Two things come from packaging with the fyne CLI rather than a bare `go build`: it links
+# Two things come from packaging with the fyne CLI rather than a bare 'go build': it links
 # the binary with -H=windowsgui, so Windows does not open a console window behind the GUI,
 # and it embeds $(ICON) as the executable's own icon resource.
 #
-# `fyne package` has no -o flag, so the build runs from $(CMD) and writes $(APP_NAME).exe
+# 'fyne package' has no -o flag, so the build runs from $(CMD) and writes $(APP_NAME).exe
 # there; we move it into place. App metadata is passed explicitly because FyneApp.toml is
 # not in that directory (as for the Android targets).
 
@@ -413,7 +503,7 @@ WINDOWS_BIN       := $(BINARY)-windows-$(WINDOWS_GOARCH).exe
 WINDOWS_BIN_DEBUG := $(BINARY)-windows-$(WINDOWS_GOARCH)-debug.exe
 
 # fyne-package-windows: cross-compile a Windows .exe.
-#   $(1) = extra `fyne package` flags (--release for a production build, empty otherwise)
+#   $(1) = extra 'fyne package' flags (--release for a production build, empty otherwise)
 #   $(2) = GOFLAGS value carrying the build-info linker flags
 #   $(3) = name to give the finished .exe
 # The compiler is checked first, so a missing toolchain reports what to install instead of
@@ -440,13 +530,13 @@ fyne package \
 mv $(CMD)/$(APP_NAME).exe $(3)
 endef
 
-windows-debug: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Cross-compile a Windows .exe (debug)
+windows-debug: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Cross-compile a Windows .exe (debug)
 	$(call fyne-package-windows,,$(BUILD_INFO_GOFLAGS_DEBUG),$(WINDOWS_BIN_DEBUG))
 
 # --release has fyne strip the binary (-s -w) and build it with -trimpath. It does not sign
-# the .exe: signing is what `fyne release -os windows` does, and that wants a Microsoft
+# the .exe: signing is what 'fyne release -os windows' does, and that wants a Microsoft
 # Store developer identity and certificate.
-windows-release: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Cross-compile a Windows .exe (production, stripped)
+windows-release: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Cross-compile a Windows .exe (production, stripped)
 	$(call fyne-package-windows,--release,$(BUILD_INFO_GOFLAGS_PROD),$(WINDOWS_BIN))
 
 # ── Development ───────────────────────────────────────────────────────────────
@@ -455,12 +545,12 @@ windows-release: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Cross-compi
 # These carry the same asset prerequisites as the build targets because the assets are a
 # compile-time dependency, not just a runtime one: ui, dictionary and defs reach them with
 # //go:embed, and an embed pattern that matches no file fails the build of every package
-# that imports them. Without these, `make test` and `make vet` break after
+# that imports them. Without these, 'make test' and 'make vet' break after
 # clean-all-the-things rather than regenerating what they need.
-test: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Run all tests with the race detector
+test: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Run all tests with the race detector
 	go test -race ./...
 
-vet: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Run go vet
+vet: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Run go vet
 	go vet ./...
 
 # clean removes only what a build produces from source that is already on disk, so
@@ -473,21 +563,31 @@ clean: ## Remove built binaries and packages (cheap to rebuild)
 # Release bundles, plus the APK Set intermediate a failed bundletool run can leave.
 	rm -f $(BINARY)-release*.aab $(BINARY)-release*.apks
 
-# clean-all-the-things additionally drops the generated assets: every GADDAG, the
-# definitions asset and the About text. Those are NOT cheap to restore — rebuilding them
-# needs the source word lists and the multi-gigabyte Wiktionary extract to still be on disk,
-# and anything missing has to be fetched again. Use plain `clean` unless the assets
-# themselves are what you need to rebuild.
-clean-all-the-things: clean ## Remove the above PLUS every generated asset (needs re-downloads)
+# clean-all-the-things additionally drops the generated assets — every GADDAG, the
+# definitions asset and the About text — and, via clean-defs-sources, the downloaded
+# definition sources. Nothing here is cheap to restore: the next 'make defs' re-downloads
+# several GB and reprocesses it. Use plain 'clean' unless the assets themselves are what you
+# need to rebuild.
+clean-all-the-things: clean clean-defs-sources ## Remove the above PLUS every generated asset and downloaded source
 	rm -f $(DICT_DIR)/*.gob $(DICT_DIR)/*.gob.tmp
-	rm -f $(DEFS_ASSET) $(DEFS_ASSET).tmp
+# The asset, plus the staging file and the temporaries the tools write beside it.
+	rm -f $(DEFS_ASSET) $(DEFS_ASSET).tmp $(DEFS_STAGE) $(DEFS_STAGE).tmp
+# Partial downloads beside a source kept elsewhere: clean-defs-sources handles the default
+# locations, but an overridden KAIKKI_EXTRACT / WEBSTER_JSON can have left a .part of its
+# own. A .part is always this Makefile's temporary, wherever it sits, so removing it cannot
+# touch a source you supplied.
+	rm -f $(KAIKKI_EXTRACT).part $(WEBSTER_JSON).part
+# Every download temporary under wordlists/, whichever fetch left it: the word lists stage
+# through .part too, and a .part is never a source in its own right.
+	rm -f $(WORDLISTS_DIR)/*.part
 	rm -f $(ABOUT_ASSET)
 	@echo ''
-	@echo '>> WARNING: every generated asset is now gone. The next build recompiles a GADDAG'
-	@echo '>>   for each wordlists/*.txt, and `make defs` rebuilds the definitions asset from'
-	@echo '>>   the Wiktionary extract ($(KAIKKI_EXTRACT)). Both need their sources present, so'
-	@echo '>>   whatever is no longer on disk must be downloaded again — the extract alone is'
-	@echo '>>   several GB. See the GADDAG and definitions sections of this Makefile.'
+	@echo '>> WARNING: every generated asset is now gone, along with the downloaded definition'
+	@echo '>>   sources. The next build recompiles a GADDAG for each wordlists/*.txt, and'
+	@echo '>>   'make defs' re-downloads the Wiktionary extract, Webster'"'"'s 1913 and WordNet'
+	@echo '>>   before reprocessing them — several GB of transfer, the extract being nearly all'
+	@echo '>>   of it. A source you supplied yourself (an overridden KAIKKI_EXTRACT,'
+	@echo '>>   WEBSTER_JSON or WORDNET_DICT) has been left alone and is reused as-is.'
 
 # ── Mobile tooling ────────────────────────────────────────────────────────────
 ##@ Mobile tooling
@@ -508,14 +608,14 @@ install-mobile-tools: ## Install the fyne + gomobile CLIs for mobile builds
 #   • Android SDK platform-tools + NDK installed; ANDROID_HOME / ANDROID_NDK_HOME set.
 #   • The (patched) fyne CLI and gomobile in PATH (see install-mobile-tools).
 #
-# `fyne package` has no -o flag, so each build runs from $(CMD) and writes $(APP_NAME).apk
+# 'fyne package' has no -o flag, so each build runs from $(CMD) and writes $(APP_NAME).apk
 # there; we move it into place, labelled by ABI. App metadata is passed explicitly because
 # FyneApp.toml is not in that directory.
 #
-# `fyne -os android/<goarch>` restricts a build to one ABI; `-os android` bundles all ABIs
+# 'fyne -os android/<goarch>' restricts a build to one ABI; '-os android' bundles all ABIs
 # into one (universal) artifact (~4x the size). The patched fyne signs debug APKs (v1/v2/v3,
 # required for targetSdk>=30) and emits an <apk>.idsig (v4); keeping that sidecar next to the
-# APK makes `adb install` use the incremental path, which installs cleanly across images.
+# APK makes 'adb install' use the incremental path, which installs cleanly across images.
 # Only a fyne carrying that work emits one, so the sidecar is treated as optional: it is
 # moved alongside the APK when present, and a stale one is removed when it is not (an .idsig
 # that does not match the APK next to it would fail the install it is meant to speed up).
@@ -528,7 +628,7 @@ install-mobile-tools: ## Install the fyne + gomobile CLIs for mobile builds
 # only from there. This does not depend on a patched CLI, which is why GOFLAGS is set
 # unconditionally: the whole -ldflags value is one quoted GOFLAGS entry, so a fyne that
 # forwards it hands it to the build, and a fyne that ignores GOFLAGS still leaves it in the
-# environment for the `go build` that gomobile runs, where the go command applies it itself.
+# environment for the 'go build' that gomobile runs, where the go command applies it itself.
 #
 # A fyne that consumes GOFLAGS without forwarding it does lose the metadata, and only for
 # the release artifact: measured against an upstream CLI, the debug APKs came out with the
@@ -537,7 +637,7 @@ install-mobile-tools: ## Install the fyne + gomobile CLIs for mobile builds
 # no version to report.
 #
 # To check an artifact, look for the injected values themselves (e.g. the version string) in
-# its lib/*/*.so, NOT for an -ldflags entry in `go version -m` output: the release build
+# its lib/*/*.so, NOT for an -ldflags entry in 'go version -m' output: the release build
 # passes -trimpath, which suppresses that entry whether or not linker flags were applied.
 
 # fyne-package-apk: build a debug APK. $(1)=fyne -os value, $(2)=ABI label for the output.
@@ -615,33 +715,33 @@ rm -f $(BINARY)-release-$(1).apks
 endef
 
 ##@ Android — debug APKs
-# Signed with $(DEBUG_KEYSTORE) if present, else the fyne debug key/cert. `adb install`-able.
-android-arm64-v8a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for arm64-v8a (modern phones)
+# Signed with $(DEBUG_KEYSTORE) if present, else the fyne debug key/cert. 'adb install'-able.
+android-arm64-v8a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for arm64-v8a (modern phones)
 	$(call fyne-package-apk,android/arm64,arm64-v8a)
 
-android-x86_64: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for x86_64 (emulators / x86 devices)
+android-x86_64: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for x86_64 (emulators / x86 devices)
 	$(call fyne-package-apk,android/amd64,x86_64)
 
-android-armeabi-v7a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for armeabi-v7a (old 32-bit devices)
+android-armeabi-v7a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for armeabi-v7a (old 32-bit devices)
 	$(call fyne-package-apk,android/arm,armeabi-v7a)
 
-android-universal: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for all ABIs (universal, ~4x size)
+android-universal: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Debug APK for all ABIs (universal, ~4x size)
 	$(call fyne-package-apk,android,universal)
 
 android: android-arm64-v8a ## Debug APK for arm64-v8a (alias for android-arm64-v8a)
 
 ##@ Android — signed release App Bundles (.aab)
 # Need KEYSTORE / KEYSTORE_PASS / KEY_ALIAS (see the release-signing config above).
-android-release-arm64-v8a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for arm64-v8a
+android-release-arm64-v8a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for arm64-v8a
 	$(call fyne-release-aab,android/arm64,arm64-v8a)
 
-android-release-x86_64: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for x86_64
+android-release-x86_64: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for x86_64
 	$(call fyne-release-aab,android/amd64,x86_64)
 
-android-release-armeabi-v7a: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for armeabi-v7a
+android-release-armeabi-v7a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for armeabi-v7a
 	$(call fyne-release-aab,android/arm,armeabi-v7a)
 
-android-release-universal: $(GADDAG_ENABLE) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for all ABIs (universal)
+android-release-universal: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(ABOUT_ASSET) ## Signed release .aab for all ABIs (universal)
 	$(call fyne-release-aab,android,universal)
 
 android-release: android-release-universal ## Signed release .aab for all ABIs (alias for android-release-universal)
@@ -655,7 +755,7 @@ android-release: android-release-universal ## Signed release .aab for all ABIs (
 # release build (symbols stripped), not a debug build re-signed.
 #
 # REQUIRES bundletool on PATH (https://github.com/google/bundletool), e.g.
-# `brew install bundletool`; override with BUNDLETOOL=/path/to/bundletool. bundletool is
+# 'brew install bundletool'; override with BUNDLETOOL=/path/to/bundletool. bundletool is
 # needed by the android-release-* .aab targets themselves too, so it is not an extra
 # dependency for this section alone.
 #
