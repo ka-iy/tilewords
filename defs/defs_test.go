@@ -2,6 +2,9 @@ package defs
 
 import (
 	"bytes"
+	"compress/gzip"
+	"encoding/binary"
+	"strings"
 	"testing"
 )
 
@@ -228,6 +231,196 @@ func TestEncodeDecodeRoundTrip(t *testing.T) {
 	res, ok := got.Lookup("children")
 	if !ok || res.Headword != "child" || res.Kind != MatchFormOf {
 		t.Errorf("decoded Lookup(children) = %+v,%v", res, ok)
+	}
+}
+
+// TestEncodeIsDeterministic guards a property the committed asset depends on: encoding
+// an unchanged DB reproduces the same bytes, so regenerating an asset whose sources have
+// not moved leaves no diff behind, and a diff therefore means the inputs really changed.
+// The flat layout has a fixed order, unlike the map-based format it replaced.
+func TestEncodeIsDeterministic(t *testing.T) {
+	db := NewDB(map[string]*Entry{
+		"cat":   {Word: "cat", Senses: []Sense{{POS: "noun", Gloss: "a small feline"}}},
+		"child": {Word: "child", Senses: []Sense{{POS: "noun", Gloss: "a young human"}}},
+		"dog":   {Word: "dog", Senses: []Sense{{POS: "noun", Gloss: "a canine"}, {POS: "verb", Gloss: "to follow"}}},
+	}, map[string]string{"children": "child", "dogs": "dog"})
+
+	var first, second bytes.Buffer
+	if err := db.Encode(&first); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	if err := db.Encode(&second); err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+	if !bytes.Equal(first.Bytes(), second.Bytes()) {
+		t.Errorf("re-encoding the same DB produced different bytes (%d vs %d)", first.Len(), second.Len())
+	}
+}
+
+// TestNewDBDropsUnresolvableEdge verifies that an inflection edge whose lemma is not a
+// headword is dropped: Lookup could never report such an edge, since it needs the lemma's
+// entry to answer with, so keeping it would only inflate FormCount.
+func TestNewDBDropsUnresolvableEdge(t *testing.T) {
+	db := NewDB(
+		map[string]*Entry{"child": {Word: "child", Senses: []Sense{{POS: "noun", Gloss: "a young human"}}}},
+		map[string]string{"children": "child", "geese": "goose"},
+	)
+
+	if got, want := db.FormCount(), 1; got != want {
+		t.Errorf("FormCount = %d, want %d (the edge to the absent lemma must be dropped)", got, want)
+	}
+	if _, ok := db.FormLemma("geese"); ok {
+		t.Error("FormLemma(geese) resolved, but its lemma goose is not a headword")
+	}
+	if lemma, ok := db.FormLemma("children"); !ok || lemma != "child" {
+		t.Errorf("FormLemma(children) = %q,%v; want child,true", lemma, ok)
+	}
+}
+
+// rawAsset is a hand-built asset stream, mirroring the layout Encode writes so a test can
+// corrupt one field at a time. Every field is what Decode validates against the others.
+type rawAsset struct {
+	magic      string
+	nHead      uint64
+	nSense     uint64
+	nForm      uint64
+	posTable   []string
+	headBlob   string
+	headLens   []uint64
+	senseCount []uint64
+	glossBlob  string
+	glossLens  []uint64
+	sensePOS   []uint64
+	formBlob   string
+	formLens   []uint64
+	formLemma  []uint64
+}
+
+// validAsset describes a two-headword, one-edge asset that Decode must accept.
+func validAsset() rawAsset {
+	return rawAsset{
+		magic:      assetMagic,
+		nHead:      2,
+		nSense:     2,
+		nForm:      1,
+		posTable:   []string{"noun"},
+		headBlob:   "catchild",
+		headLens:   []uint64{3, 5},
+		senseCount: []uint64{1, 1},
+		glossBlob:  "felinehuman",
+		glossLens:  []uint64{6, 5},
+		sensePOS:   []uint64{0, 0},
+		formBlob:   "children",
+		formLens:   []uint64{8},
+		formLemma:  []uint64{1},
+	}
+}
+
+// encode serialises the asset exactly as Encode would, without validating anything.
+func (a rawAsset) encode(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	scratch := make([]byte, binary.MaxVarintLen64)
+	put := func(v uint64) {
+		n := binary.PutUvarint(scratch, v)
+		if _, err := gz.Write(scratch[:n]); err != nil {
+			t.Fatalf("write varint: %v", err)
+		}
+	}
+	putAll := func(vs []uint64) {
+		for _, v := range vs {
+			put(v)
+		}
+	}
+	if _, err := gz.Write([]byte(a.magic)); err != nil {
+		t.Fatalf("write magic: %v", err)
+	}
+	put(a.nHead)
+	put(a.nSense)
+	put(a.nForm)
+	put(uint64(len(a.posTable)))
+	put(uint64(len(a.headBlob)))
+	put(uint64(len(a.glossBlob)))
+	put(uint64(len(a.formBlob)))
+	for _, pos := range a.posTable {
+		put(uint64(len(pos)))
+		if _, err := gz.Write([]byte(pos)); err != nil {
+			t.Fatalf("write pos: %v", err)
+		}
+	}
+	write := func(s string) {
+		if _, err := gz.Write([]byte(s)); err != nil {
+			t.Fatalf("write blob: %v", err)
+		}
+	}
+	write(a.headBlob)
+	putAll(a.headLens)
+	putAll(a.senseCount)
+	write(a.glossBlob)
+	putAll(a.glossLens)
+	putAll(a.sensePOS)
+	write(a.formBlob)
+	putAll(a.formLens)
+	putAll(a.formLemma)
+	if err := gz.Close(); err != nil {
+		t.Fatalf("close fixture: %v", err)
+	}
+	return &buf
+}
+
+// TestDecodeAcceptsValidAsset checks the fixture the corruption cases are derived from is
+// itself valid, so those cases fail for the reason intended rather than a broken fixture.
+func TestDecodeAcceptsValidAsset(t *testing.T) {
+	db, err := Decode(validAsset().encode(t))
+	if err != nil {
+		t.Fatalf("Decode rejected the valid fixture: %v", err)
+	}
+	if db.Len() != 2 || db.FormCount() != 1 {
+		t.Errorf("decoded (%d headwords, %d forms), want (2, 1)", db.Len(), db.FormCount())
+	}
+	if res, ok := db.Lookup("children"); !ok || res.Headword != "child" || res.Kind != MatchFormOf {
+		t.Errorf("Lookup(children) = %+v,%v", res, ok)
+	}
+	if res, ok := db.Lookup("cat"); !ok || len(res.Entry.Senses) != 1 || res.Entry.Senses[0].Gloss != "feline" {
+		t.Errorf("Lookup(cat) = %+v,%v", res, ok)
+	}
+}
+
+// TestDecodeRejectsMalformedAsset covers the checks Decode performs while reading. The
+// flat form indexes blobs by offset, so a corrupt or truncated asset must be reported as
+// an error at load rather than panicking on an out-of-range slice at first lookup.
+func TestDecodeRejectsMalformedAsset(t *testing.T) {
+	cases := []struct {
+		name    string
+		corrupt func(*rawAsset)
+		want    string
+	}{
+		{"wrong magic", func(a *rawAsset) { a.magic = "TWDEFS\x00\n" }, "not a definitions asset"},
+		{"headword lengths overrun", func(a *rawAsset) { a.headLens = []uint64{3, 99} }, "headword lengths overrun"},
+		{"headword lengths short", func(a *rawAsset) { a.headLens = []uint64{3, 2} }, "headword lengths cover"},
+		{"gloss lengths overrun", func(a *rawAsset) { a.glossLens = []uint64{6, 99} }, "gloss lengths overrun"},
+		{"sense counts exceed senses", func(a *rawAsset) { a.senseCount = []uint64{1, 9} }, "sense lengths overrun"},
+		{"sense counts short", func(a *rawAsset) { a.senseCount = []uint64{1, 0} }, "sense lengths cover"},
+		{"form lengths overrun", func(a *rawAsset) { a.formLens = []uint64{99} }, "form lengths overrun"},
+		{"pos index out of range", func(a *rawAsset) { a.sensePOS = []uint64{0, 7} }, "part-of-speech index"},
+		{"form lemma out of range", func(a *rawAsset) { a.formLemma = []uint64{9} }, "form lemma"},
+		{"truncated mid-stream", func(a *rawAsset) { a.formLemma = nil }, "form lemma"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := validAsset()
+			tc.corrupt(&a)
+
+			_, err := Decode(a.encode(t))
+			if err == nil {
+				t.Fatalf("Decode accepted a malformed asset")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("Decode error = %q, want it to mention %q", err, tc.want)
+			}
+		})
 	}
 }
 

@@ -6,7 +6,7 @@
 //	go run ./tools/builddefs \
 //	    -kaikki path/to/kaikki-en.jsonl \
 //	    -input wordlists/enable.txt,wordlists/wordnik.txt,wordlists/atebits-letterpress.txt \
-//	    -output defs/assets/definitions/definitions.gob.gz
+//	    -output defs/assets/definitions/definitions.bin.gz
 //
 // Each -input file is measured for coverage independently (its name is the file
 // stem). The shipped DB is the union of definitions all lists can reach, resolved

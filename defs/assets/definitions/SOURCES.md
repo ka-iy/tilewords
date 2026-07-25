@@ -1,6 +1,6 @@
 # Definitions asset — sources and licenses
 
-The embedded `definitions.gob.gz` is a build artifact assembled from several
+The embedded `definitions.bin.gz` is a build artifact assembled from several
 dictionaries. It is committed, so building and running the game needs none of the
 sources below — they are only required to regenerate it. This file records each source,
 its license, and how to regenerate the asset. Attribution below is a redistribution
@@ -87,11 +87,11 @@ its own. Delete the local copy, or point `KAIKKI_EXTRACT` / `WEBSTER_JSON` /
 
 Two consequences of that worth knowing, since this asset is committed:
 
-- A rebuilt asset always differs byte-for-byte from the committed one, even when the
-  sources have not changed at all: the content is deterministic but the exact bytes are
-  not (gob map ordering, gzip framing — see `defs.DB.Encode`). Git will always report
-  the file as modified after a rebuild, so compare coverage with `make defs-audit`
-  rather than reading anything into the diff.
+- Rebuilding is reproducible: the asset is written from flat arrays in a fixed order, so
+  the same inputs produce byte-identical output (guarded by
+  `defs.TestEncodeIsDeterministic`). A rebuild that leaves a diff in git therefore means
+  the sources genuinely changed — worth reading, rather than the noise a rebuild used to
+  produce. `make defs-audit` reports what the change did to coverage.
 - Re-running the merge step alone over an already-augmented asset does add nothing, as a
   supplement can only fill a gap the primary source leaves. That is a property of the
   merge, not of `make defs` as a whole.

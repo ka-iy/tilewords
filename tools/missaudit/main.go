@@ -13,12 +13,12 @@
 // Usage:
 //
 //	# Deduplicated misses across every bundled list, to a file:
-//	go run ./tools/missaudit -db defs/assets/definitions/definitions.gob.gz \
+//	go run ./tools/missaudit -db defs/assets/definitions/definitions.bin.gz \
 //	  -out missing-words.txt \
 //	  wordlists/enable.txt wordlists/wordnik.txt wordlists/atebits-letterpress.txt
 //
 //	# Same, annotating each miss with the lists it came from:
-//	go run ./tools/missaudit -db defs/assets/definitions/definitions.gob.gz -tag \
+//	go run ./tools/missaudit -db defs/assets/definitions/definitions.bin.gz -tag \
 //	  wordlists/enable.txt wordlists/wordnik.txt wordlists/atebits-letterpress.txt
 //
 // missaudit is a developer diagnostic and is not part of the shipped app.

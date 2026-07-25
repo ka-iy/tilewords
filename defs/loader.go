@@ -9,14 +9,15 @@ import (
 
 // embeddedDefs holds the definitions asset compiled into the binary. The "all:"
 // prefix embeds the directory even when it contains only .gitkeep, so the package
-// builds whether or not 'make defs' has produced the .gob; a missing asset surfaces
+// builds whether or not 'make defs' has produced the asset; a missing asset surfaces
 // at Load time rather than as a compile error.
 //
 //go:embed all:assets/definitions
 var embeddedDefs embed.FS
 
-// defsAssetPath is the embedded path of the definitions asset (gzip-compressed gob).
-const defsAssetPath = "assets/definitions/definitions.gob.gz"
+// defsAssetPath is the embedded path of the definitions asset: the gzipped flat layout
+// described on defs.DB, written and read by DB.Encode and Decode.
+const defsAssetPath = "assets/definitions/definitions.bin.gz"
 
 // loadOnce guards the one-time decode of the embedded DB.
 var loadOnce sync.Once

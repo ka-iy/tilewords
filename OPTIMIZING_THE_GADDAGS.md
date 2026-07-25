@@ -7,7 +7,7 @@ automaton, and why automaton minimization subsumes cross-dictionary deduplicatio
 **Status of measurements:** taken on Go 1.26.4, linux/amd64; figures are indicative of
 this hardware and toolchain. The Android failure is from a `fyi.tilewords.game` low-memory
 kill on an emulator.
-**Word lists:** the current, refreshed figures below are for the three shipped
+**Word lists:** the figures below are for the three shipped
 openly-licensed lists — `enable` (ENABLE2K), `wordnik`, and `atebits-letterpress`. The
 investigation was originally run with a fourth (tournament) list that has since been
 removed; its rows have been dropped and the per-list numbers refreshed for the current
@@ -18,7 +18,9 @@ tolerance.
 **Implementation status:** Strategies I (CSR), II (load cache), and **V (minimization)**
 are implemented in the codebase; III (deduplication) and IV (runtime merge) were
 investigated and rejected. The figures for V in §8–§9 are the measured results *after*
-implementation, not projections.
+implementation, not projections. **Appendix A** carries the same representation change over
+to the *definitions* asset — the heap's largest consumer once the dictionaries were
+minimized — and is measured on the Android emulator rather than on the desktop.
 
 ---
 
@@ -27,7 +29,7 @@ implementation, not projections.
 TileWords embeds large word-list dictionaries as GADDAG automata for its AI move
 generator. On Android, loading a second dictionary (the "load saved game" flow) crashed
 the app: the process was terminated by the low-memory killer at ~2.4 GB resident. We
-trace the failure to two independent causes — a memory-profligate in-memory representation
+trace the failure to two independent causes — a memory-heavy in-memory representation
 (nested hash maps) and the absence of a load cache — and then investigate three further
 strategies to reduce dictionary footprint: cross-dictionary word-set deduplication,
 runtime composition of a shared "common" automaton with per-dictionary "unique"
@@ -43,14 +45,15 @@ Our central findings are:
    *runtime-memory-neutral*, because only one dictionary is resident at a time.
 3. Composing the common and unique automata into a single graph at load time is
    **provably correct and reproduces the monolithic automaton exactly**, but costs a
-   multi-second merge and a ~0.96 GB transient allocation — reintroducing the very memory
-   pressure we set out to remove.
+   multi-second merge and a ~0.96 GB transient allocation — reintroducing the memory
+   pressure §4 removed.
 4. The reason the composition reproduces the monolithic graph *exactly* is that our
    automata are **un-minimized prefix tries**. Classical minimization (suffix sharing)
-   shrinks each dictionary ~10× in both disk and RAM, requires no change to the traversal
-   API or the AI, and adds no load-time cost.
+   shrinks each dictionary ~10× in nodes and edges — ~7× on disk and ~8× resident, the
+   difference being that minimized graphs carry more edges per node — requires no change to
+   the traversal API or the AI, and adds no load-time cost.
 
-The practical conclusion is that **automaton minimization strictly dominates
+**Automaton minimization strictly dominates
 cross-dictionary deduplication** for this workload: set-level word overlap is a special
 case of the sub-automaton redundancy that minimization eliminates globally. Combined with
 CSR, minimization takes the largest dictionary from 843 MB to ~8.4 MB resident — a ~100×
@@ -74,7 +77,7 @@ Lexicon):
 
 Each is compiled offline into a `.gob`-serialized GADDAG and embedded in the binary via
 `//go:embed`. The AI move generator (`ai/generate.go`, `ai/traverse.go`) consumes a
-dictionary purely through three methods:
+dictionary only through three methods:
 
 ```
 Root() NodeID
@@ -84,13 +87,13 @@ IsTerminal(node NodeID) bool
 
 Cross-word validation (`ai/crosscheck.go`) and candidate validation
 (`engine.ValidatePlacement`) go through `Dictionary.Validate`, which is itself a GADDAG
-walk. This narrow interface is important: it means the *representation* of the automaton
+walk. The narrow interface means the *representation* of the automaton
 can change freely as long as those three methods are preserved.
 
 ### 1.1 The precipitating failure
 
 On Android, the sequence *new game → play → save → main menu → load saved game* crashed.
-The `logcat` evidence is unambiguous — this is not a Go panic but an OS kill:
+The `logcat` line records an OS kill, not a Go panic:
 
 ```
 lowmemorykiller: Kill 'fyi.tilewords.game' (…) to free 2459784kB anon rss …
@@ -101,8 +104,6 @@ Loading the saved game re-decodes the dictionary. With no cache and a
 memory-heavy representation, a *second* live copy is briefly held alongside the first,
 and the peak exceeds the device watermark. The ~2.4 GB anon RSS in the kill log matches
 two live copies of the largest dictionary under the original representation (see §4).
-
-This report documents the investigation that followed.
 
 ---
 
@@ -123,9 +124,8 @@ leading sequence reuse nodes — but it never shares **suffixes**. The result is
 (prefix tree), not the minimized directed acyclic word graph (DAWG) the literature assumes.
 
 The signature of an un-minimized trie is visible in the raw counts: the edge/node ratio is
-essentially 1.0 (every node has, on average, a single out-edge), i.e. the graph is
-dominated by long non-branching chains — exactly the suffix chains that minimization would
-collapse:
+1.00 (every node has, on average, a single out-edge), so the graph is dominated by long
+non-branching chains — the suffix chains minimization collapses:
 
 | Dictionary | Trie nodes | Trie edges | Edges/node |
 | --- | ---: | ---: | ---: |
@@ -146,10 +146,14 @@ are distinct, and the strategies below trade against them differently.
 
 ## 3. Method
 
-All figures are measured, not estimated, except where explicitly labelled *(structural
+All figures are measured, not estimated, except where labelled *(structural
 estimate)* or *(projected)*. Resident memory is Go `runtime.MemStats` `HeapAlloc` after a
 forced GC; peak/transient figures are `HeapSys`. Structural size estimates use the CSR
-byte layout of §4: `(nodes+1)·4 + edges·5 + nodes/8` bytes. Correctness is checked by
+byte layout of §4: `(nodes+1)·4 + edges·5 + nodes/8` bytes. Units follow the tool that
+produced them: heap figures are MiB (2²⁰ B), as `runtime.MemStats` reports them, while
+on-disk and structural-estimate figures are decimal MB (10⁶ B). The two coincide for the
+largest minimized dictionary — 8.83 MB structural, 8.41 MB on disk, 8.4 MiB resident are
+the same object measured three ways. Correctness is checked by
 replaying every word in a source list and comparing acceptance against the monolithic
 automaton, plus negative controls.
 
@@ -166,9 +170,9 @@ edges     map[NodeID]map[byte]NodeID
 terminals map[NodeID]bool
 ```
 
-A map-of-maps carries enormous per-entry overhead: every node allocates an inner map with
-its own bucket array, header, and load-factor slack. With ~6.5M nodes each holding a tiny
-inner map, the overhead dwarfs the ~5 bytes of actual edge data per edge.
+A map-of-maps carries per-entry overhead: every node allocates an inner map with its own
+bucket array, header, and load-factor slack. The 843 MB of §4.3 spans 6.47M edges — over
+100 bytes per edge, against the ~5 bytes of edge data an edge holds.
 
 ### 4.2 The CSR layout
 
@@ -184,8 +188,10 @@ terminal    []uint64  // bitset: node id terminal iff bit (id&63) of terminal[id
 
 `Successor` becomes a binary search over a node's sorted edge range (≤ 27 entries);
 `IsTerminal` becomes a bitset probe. The gob wire format stores these flat slices directly,
-so decoding hands its slices straight into the live structure with no post-decode copy —
-minimizing peak memory during load. The graph is validated on load (offsets monotonic and
+so decoding hands its slices straight into the live structure with no post-decode copy. Peak
+during load is nonetheless several times the resident structure (§4.3), because gob buffers
+a whole message before decoding it; Appendix A.4 measures that cost on the definitions asset
+and removes it there by streaming. The graph is validated on load (offsets monotonic and
 in range, parallel arrays equal length) so a corrupt asset errors rather than indexing out
 of bounds during a traversal.
 
@@ -204,7 +210,7 @@ current list:
 
 This ~12× resident reduction is a pure representation change; the automaton, the API, the
 AI, and word acceptance are all identical. It **independently eliminates the OOM**: even an
-uncached double-load is now ~136 MB, far below any device watermark.
+uncached double-load is ~136 MB, well below the watermark of §1.1.
 
 ---
 
@@ -216,9 +222,9 @@ entry when a different dictionary is requested — makes re-loading the same dic
 (exactly the save/load flow that crashed) a no-op that returns the existing instance. The
 `Dictionary` is immutable after load and documented safe for concurrent use, so sharing the
 pointer is sound. This bounds resident memory to a single dictionary and removes the second
-decode entirely.
+decode.
 
-CSR (§4) and caching (§5) together fully resolve the reported crash. Everything that
+CSR (§4) and caching (§5) together resolve the reported crash. Everything that
 follows targets the *remaining* cost: ~136 MB of embedded assets (CSR trie) and ~68 MB
 resident.
 
@@ -228,7 +234,7 @@ resident.
 
 ### 6.1 The overlap is large
 
-The three lists overlap heavily. Of a 275,412-word union, **169,126 words (61.4%) are
+Of a 275,412-word union, **169,126 words (61.4%) are
 common to all three**:
 
 | Dictionary | Unique after extracting common-to-all |
@@ -355,7 +361,7 @@ embedded size for load latency and a load-time memory spike.
 
 ## 8. Optimization V — automaton minimization *(implemented)*
 
-§2.2 and §7.3 point to the actual problem: the automata are un-minimized. Classical
+§2.2 and §7.3 identify the problem: the automata are un-minimized. Classical
 minimization of an acyclic DFA [Revuz 1992] merges all equivalent sub-automata — nodes are
 equivalent iff they have the same terminal flag and the same set of `(letter → equivalent
 child)` edges. Because our builder assigns every child a higher id than its parent,
@@ -447,7 +453,7 @@ no change to the traversal API or the AI. These are the final implemented figure
 
 ## 10. Discussion
 
-Three ideas organize the whole investigation:
+Three ideas organize the investigation:
 
 - **Separate the two costs.** Embedded size and resident memory are different budgets.
   Deduplication (§6) helps the first and not the second; representation (§4) and
@@ -483,7 +489,7 @@ complicates the AI) or the runtime merge (reintroduces a load-time memory spike)
 minimization dominates both.
 
 **This has been done.** Minimization is implemented in `minimizeTrie` and the assets are
-regenerated (§8.2). The change was contained and low-risk as predicted:
+regenerated (§8.2). The change was contained:
 
 - The load path, the `Root`/`Successor`/`IsTerminal` API, `Validate`, and the entire AI are
   unchanged — a minimized automaton is simply a smaller CSR graph.
@@ -513,9 +519,9 @@ can read the unexported CSR fields) plus a Python overlap script over `wordlists
   and the on-disk and resident figures from rebuilding the assets (`make gaddag`) and
   loading them.
 
-Except for `minimizeTrie` (committed), these harnesses are not committed (they touch
-unexported internals and load multi-hundred-MB assets); they are described here so the
-numbers can be regenerated on demand.
+`minimizeTrie` is production code; the harnesses are not retained (they touch unexported
+internals and load multi-hundred-MB assets), and are described here so the numbers can be
+regenerated on demand.
 
 ---
 
@@ -523,7 +529,7 @@ numbers can be regenerated on demand.
 
 The Kurnia Word Graph (KWG), used by Andy Kurnia's *wolges* engine (and by MAGPIE and the
 Woogles stack), is a minimized acyclic GADDAG stored in a flat array — the same structure as
-Strategy V, with a denser encoding. This section compares the two.
+Strategy V, with a denser encoding.
 
 ### 13.1 What KWG is
 
@@ -653,7 +659,7 @@ so there is no dense node-to-index mapping.
   locality for the follow-edge step.
 
 - **This project.** Strategy V is implemented, tested, and brings atebits-letterpress to
-  8.4 MB, below any relevant watermark. KWG's byte and mmap gains do not change that outcome,
+  8.4 MB, below the watermark of §1.1. KWG's byte and mmap gains do not change that outcome,
   so for TileWords the operative advantage is an existing, verified implementation with no
   migration.
 
@@ -680,6 +686,193 @@ why KWG is the better format for that task in isolation.
 
 ---
 
+## Appendix A. The same treatment for the definitions asset *(implemented)*
+
+Everything above concerns the GADDAG dictionaries. Once minimization (§8) had taken the
+largest of those to 8.4 MB resident, the dominant consumer of the process heap was no longer
+a dictionary at all — it was the *definitions* database, at 51.9 MB. The same exercise
+follows: the representation change of §4 in a setting that is not a graph, plus a load-path
+change with no counterpart in the main body.
+
+The figures in §4–§9 were taken on `linux/amd64`. The figures here were taken **on-device**,
+on the Android x86_64 emulator, by cross-compiling `tools/memcheck` for `android/amd64` and
+running it under `adb`, mobile being the binding constraint.
+
+### A.1 The starting point
+
+The definitions DB held two Go maps:
+
+```go
+entries map[string]*Entry   // lowercase headword -> definitions
+formOf  map[string]string   // inflected form -> lemma headword
+```
+
+with `Entry{Word string; Senses []Sense}` and `Sense{POS, Gloss string}`. For the shipped
+asset that is 146,859 headwords, 251,845 senses and 124,332 inflection edges.
+
+The payload — the text being stored — totals **14.94 MB** (headwords 1.25 MB, glosses
+12.59 MB, forms 1.10 MB). The structure cost **51.9 MB** resident, so 37.0 MB, or 2.5× the
+payload, went on representation: a map bucket slot and a string header per key, an `*Entry`
+allocation and a slice header per headword, and two more string headers per sense.
+
+The pattern is the one §4 identifies — a map of pointers to small objects — but the
+achievable gain is much smaller. §4 cut resident memory 12× because a trie node carries no
+payload, so almost all of the 843 MB was representation. Here 14.94 MB of the 51.9 MB is
+text that any representation must store, which bounds the reduction at 3.5× before any
+design choices are made.
+
+### A.2 The flat layout
+
+The dictionaries' CSR layout (§4.2) generalizes even though there is no automaton here. The
+rows are headwords and the entries within a row are senses, so the same offset-plus-payload
+shape applies:
+
+```go
+headBlob  []byte     // every headword, sorted, concatenated
+headOff   []uint32   // headword i is headBlob[headOff[i]:headOff[i+1]]
+senseOff  []uint32   // headword i's senses are [senseOff[i], senseOff[i+1])
+glossBlob []byte     // every gloss, concatenated
+glossOff  []uint32   // sense j is glossBlob[glossOff[j]:glossOff[j+1]]
+sensePOS  []uint32   // sense j's part of speech, interned into posTable
+posTable  []string   // 20 distinct values for 251,845 senses
+formBlob  []byte     // every inflected form, sorted, concatenated
+formOff   []uint32
+formLemma []uint32   // form k resolves to headword formLemma[k]
+```
+
+Two differences from §4. There is no graph, so lookups cannot follow edges: the blobs are
+sorted and searched by binary search over `headOff`, which replaces hashing. And parts of
+speech are interned — 20 distinct strings serve 251,845 senses, where the map form stored a
+string header for each.
+
+The structural cost is the blobs plus the index arrays,
+`(headwords+1)·8 + (senses+1)·4 + senses·4 + (forms+1)·4 + forms·4` bytes:
+
+| Component | Size |
+| --- | ---: |
+| Text blobs (headwords, glosses, forms) | 14.94 MB |
+| Index arrays (offsets, POS, lemma) | 3.99 MB |
+| **Structural total** | **18.93 MB** |
+| Measured live heap after the change | **19.0 MB** |
+
+The measured live heap is 0.07 MB above the structural total: payload and index arrays
+account for all of it.
+
+### A.3 Choosing the on-disk encoding before implementing
+
+Memory was the target, but embedded size and resident memory are distinct costs (§2.3), and a
+layout can improve one while worsening the other. Four candidate encodings were therefore
+measured by serializing the real asset in each and gzipping the result. The measurement used
+a throwaway in-package test and preceded the implementation:
+
+| Candidate encoding | Gzipped | vs. baseline |
+| --- | ---: | ---: |
+| Map of pointers, `gob` (baseline) | 8.22 MB | — |
+| Flat, absolute `uint32` offsets | 7.62 MB | −7.3% |
+| Flat, per-item lengths, raw binary | 6.20 MB | −24.6% |
+| **Flat, per-item lengths, varint** | **6.15 MB** | **−25.2%** |
+
+The format follows from the third and fourth rows: **store lengths, not offsets.** Absolute
+offsets are large and monotonically increasing, which compresses poorly; the lengths they are
+derived from are small and compress well. Offsets are rebuilt by prefix sum while reading,
+so they cannot drift from the blobs they index. Fixed-width `uint32` fields cost more than
+varints, which spend 1–2 bytes on values a fixed field spends 4 on.
+
+The flat layout therefore reduces both resident memory and on-disk size; it does not trade
+one for the other.
+
+### A.4 Streaming the load: peak is a separate problem from steady state
+
+The first implementation kept `gob` as the container. Steady-state memory fell by more than
+half; peak fell by 8%:
+
+| Metric | Maps + `gob` | Flat + `gob` |
+| --- | ---: | ---: |
+| Live heap, defs DB | 51.9 MB | 22.0 MB |
+| Peak during load (`HeapSys`) | 95.6 MB | 87.6 MB |
+
+Two causes, both inherent to a reflective encoder. `gob` buffers an entire message before
+handing it over, so decoding a single ~19 MB top-level value holds a full copy of the
+encoded stream *and* the decoded result at once. And the per-item length arrays were
+materialized as slices before being converted into the offset arrays, so both existed
+simultaneously.
+
+The fix was to drop reflective encoding. The asset is now a gzip-compressed byte
+stream read field by field: counts first, then each blob into a slice sized exactly from its
+declared length, with offsets accumulated by prefix sum *as the lengths are read*. Nothing
+larger than the DB's own structures is ever allocated, and the only buffers are a 64 KB
+`bufio` window and gzip's own. The lengths arrays now never exist at all, which is where the
+last 3 MB of steady state went.
+
+On mobile the allocation spike at startup, not the resting footprint, is what the low-memory
+killer reacts to — the failure mode of §1.1.
+
+### A.5 Results
+
+| Metric | Maps + `gob` | Flat + `gob` | Flat + streamed | Change |
+| --- | ---: | ---: | ---: | ---: |
+| Live heap, defs DB | 51.9 MB | 22.0 MB | **19.0 MB** | **−63%** |
+| Live heap, defs + one dictionary | 58.2 MB | 28.3 MB | **25.3 MB** | −57% |
+| Heap in use (`HeapInuse`) | 66.1 MB | 28.7 MB | **25.6 MB** | −61% |
+| Peak during load (`HeapSys`) | 95.6 MB | 87.6 MB | **55.7 MB** | **−42%** |
+| Total from OS (`Sys`) | 100.9 MB | 91.2 MB | **59.4 MB** | −41% |
+| On-disk asset | 8.22 MB | 6.15 MB | **6.13 MB** | **−25.4%** |
+
+Lookup results, the `Lookup` API and every consumer are unchanged; only the internals and the
+asset format moved. The asset was renamed `definitions.gob.gz` → `definitions.bin.gz`, since
+it is no longer a gob.
+
+The format also became **byte-deterministic**. The flat arrays have a fixed order, so
+rebuilding from unchanged sources reproduces the asset exactly; the map form's output varied
+between builds, because `gob` serializes map keys in nondeterministic order. And since every
+count, length and index is validated as it is read, a truncated or corrupt asset is reported
+as an error at load rather than panicking on an out-of-range slice at first lookup.
+
+### A.6 What carried over from the main study
+
+- **Representation dominates.** As in §4, the reduction came from the layout, not from
+  storing less: the payload is byte-identical, and 37.0 MB of per-object overhead became
+  3.99 MB of index arrays.
+- **Deduplication applies without an automaton.** There is nothing here to minimize in the
+  §8 sense, but the same principle holds at the string level: 20 interned part-of-speech
+  strings replace 251,845 string headers.
+- **Encoding choices are measurable in advance.** §6–§7 were rejected on measurements taken
+  after implementation; A.3 chose between four encodings before writing any.
+- **Peak and steady state are separate problems.** §4.3 reports both `HeapAlloc` and
+  `HeapSys`; A.4 is the case where the two diverged, and only the second change moved the
+  one that matters on-device.
+
+### A.7 Remaining headroom
+
+Peak is still 55.7 MB against 25.3 MB live. The remainder is Go heap arena growth and the
+GC not returning pages to the OS promptly, not an identifiable buffer, so it is not
+addressable by another encoding change. Reducing it further would mean mapping the blobs
+from a file instead of embedding and decompressing them (`mmap`), which is the same
+memory-mappability argument §13.5 makes for KWG — and it would give up the single
+self-contained binary. Not pursued.
+
+### A.8 Reproducibility
+
+- **Resident and peak memory:** `tools/memcheck`, cross-compiled with
+  `CGO_ENABLED=1 GOOS=android GOARCH=amd64 CC=<ndk>/x86_64-linux-android33-clang`, pushed to
+  the emulator with `adb push` and run there. It loads each structure, forces a GC, and
+  reports the `HeapAlloc` delta, then the process `HeapInuse`/`HeapSys`/`Sys`.
+- **Candidate encoding sizes (A.3):** a throwaway in-package test in `defs` (so it could read
+  the unexported fields) that re-serialized the loaded asset in each candidate layout and
+  gzipped it. Not retained.
+- **On-disk size and coverage:** `make defs` to rebuild, then `make defs-audit` to confirm
+  the rebuild reports identical coverage (146,859 headwords, 124,332 edges).
+- **Correctness:** the `defs` package tests, including a determinism test, a round-trip
+  test, and ten malformed-asset cases — the magic header, all four length-sum checks
+  (headword, gloss, sense, form), both index-range checks (part-of-speech, form lemma), and
+  a mid-stream truncation; plus `tools/defslookup` spot-checks of exact matches, the
+  homograph/inflection path (`mice`→`mouse`, `rose`→`rise`) and supplemental-glossary
+  entries.
+
+---
+
 *This document records the state of the investigation. Strategies I, II, and V are
 implemented in the codebase; III and IV were investigated and rejected. The §8–§9 figures
-for V are measured after implementation, refreshed for the current three shipped word lists.*
+for V are measured after implementation, refreshed for the current three shipped word lists.
+Appendix A applies the same representation change to the definitions asset, measured on the
+Android emulator.*

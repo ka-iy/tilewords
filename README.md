@@ -26,6 +26,7 @@ All other external-entity trademarks, names, logos, and service marks (collectiv
 - **Free and libre word lists:** at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the [Lexicon](#lexicon).
    - The word list artefacts created during the build process are in an optimized form to minimize disk and memory usage on mobile devices.
 - **Word definitions:** the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and public-domain glossaries. Words with no definition are noted rather than silently skipped.
+   - Like the word lists, the definitions artefact is stored in a compact flat form and streamed in at load, so ~147,000 headwords cost about 19 MB of memory rather than the ~52 MB a conventional map of objects would. See the appendix to [OPTIMIZING_THE_GADDAGS.md](OPTIMIZING_THE_GADDAGS.md).
 - **Two game modes:** Classic uses the standard 15x15 premium-square layout and tile economy, while Interesting uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
 - **Selectable AI difficulty:** choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard).
 - **Move history:** a running log of every turn - who played, the words formed, and the score - with an option to show it in standard Scrabble notation.
@@ -40,7 +41,7 @@ All other external-entity trademarks, names, logos, and service marks (collectiv
 ## Building on Linux
 
 The three word lists (`wordlists/*.txt`) and the prebuilt definitions asset
-(`defs/assets/definitions/definitions.gob.gz`) are committed to the repository, so a
+(`defs/assets/definitions/definitions.bin.gz`) are committed to the repository, so a
 from-scratch build is simply: install the [prerequisites](#prerequisites), then run
 `make`. The [word list](#fetch-the-word-lists) and [definitions](#fetch-and-build-the-definitions)
 sections below are only needed to refresh or regenerate that data.

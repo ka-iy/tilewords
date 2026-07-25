@@ -29,16 +29,16 @@
 // Usage:
 //
 //	# Report how much each source would close, writing nothing:
-//	go run ./tools/mergedefs -db defs/assets/definitions/definitions.gob.gz \
+//	go run ./tools/mergedefs -db defs/assets/definitions/definitions.bin.gz \
 //	  -webster webster1913.json -wordnet wn/dict \
 //	  -lists wordlists/enable.txt,wordlists/wordnik.txt,wordlists/atebits-letterpress.txt \
 //	  -dryrun
 //
 //	# Produce an augmented asset:
-//	go run ./tools/mergedefs -db defs/assets/definitions/definitions.gob.gz \
+//	go run ./tools/mergedefs -db defs/assets/definitions/definitions.bin.gz \
 //	  -webster webster1913.json -wordnet wn/dict \
 //	  -lists wordlists/enable.txt,wordlists/wordnik.txt,wordlists/atebits-letterpress.txt \
-//	  -output defs/assets/definitions/definitions.gob.gz
+//	  -output defs/assets/definitions/definitions.bin.gz
 //
 // mergedefs is a developer build tool and is not part of the shipped app.
 package main

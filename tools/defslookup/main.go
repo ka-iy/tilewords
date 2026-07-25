@@ -4,8 +4,8 @@
 //
 // Usage:
 //
-//	go run ./tools/defslookup -db defs/assets/definitions/definitions.gob.gz cats baking qat
-//	go run ./tools/defslookup -db definitions.gob.gz -audit wordlists/atebits-letterpress.txt -kind fuzzy
+//	go run ./tools/defslookup -db defs/assets/definitions/definitions.bin.gz cats baking qat
+//	go run ./tools/defslookup -db definitions.bin.gz -audit wordlists/atebits-letterpress.txt -kind fuzzy
 package main
 
 import (

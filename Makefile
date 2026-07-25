@@ -308,7 +308,7 @@ $(DICT_DIR)/%.gob: $(WORDLISTS_DIR)/%.txt | $(DICT_DIR)
 # unavailable), so 'build' does not depend on it.
 
 DEFS_DIR   := defs/assets/definitions
-DEFS_ASSET := $(DEFS_DIR)/definitions.gob.gz
+DEFS_ASSET := $(DEFS_DIR)/definitions.bin.gz
 BUILDDEFS  := go run ./tools/builddefs
 MERGEDEFS  := go run ./tools/mergedefs
 MISSAUDIT  := go run ./tools/missaudit
