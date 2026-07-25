@@ -112,3 +112,103 @@ func TestAnnotatedMainWord(t *testing.T) {
 		}
 	})
 }
+
+// TestAnnotatedWordsSingleTileAxis covers the one placement whose axis the tiles do not
+// determine: a single tile forming a word in both directions. Notation names the
+// higher-scoring word, falling back to the horizontal one when the scores are equal.
+// Every square these subtests use is premium-free, so each word's score is the plain sum
+// of its tile values.
+func TestAnnotatedWordsSingleTileAxis(t *testing.T) {
+	tile := func(l byte, pts int) Tile { return Tile{Letter: l, Points: pts} }
+
+	// existing commits tiles that were on the board before the play under test.
+	existing := func(t *testing.T, b *Board, tiles []PlacedTile) {
+		t.Helper()
+		for _, pt := range tiles {
+			if err := b.Place(pt.Row, pt.Col, pt.Tile); err != nil {
+				t.Fatalf("place (%d,%d): %v", pt.Row, pt.Col, err)
+			}
+		}
+	}
+
+	t.Run("higher-scoring vertical word is named first", func(t *testing.T) {
+		b := NewBoard()
+		// Vertical C A down column H rows 9-10, and A at G11; playing T at H11 forms
+		// vertical (CA)T for 3 and horizontal (A)T for 2.
+		existing(t, b, []PlacedTile{
+			{Tile: tile('C', 1), Row: 8, Col: 7},
+			{Tile: tile('A', 1), Row: 9, Col: 7},
+			{Tile: tile('A', 1), Row: 10, Col: 6},
+		})
+		m := placeAll(t, b, []PlacedTile{{Tile: tile('T', 1), Row: 10, Col: 7}})
+		words := AnnotatedWords(b, m)
+		want := []string{"H9 (CA)T", "11G (A)T"}
+		if len(words) != len(want) || words[0] != want[0] || words[1] != want[1] {
+			t.Fatalf("AnnotatedWords = %v, want %v", words, want)
+		}
+	})
+
+	t.Run("higher-scoring horizontal word is named first", func(t *testing.T) {
+		b := NewBoard()
+		// Horizontal Q I across row 11 cols F-G, and A at H10; playing S at H11 forms
+		// horizontal (QI)S for 12 and vertical (A)S for 2.
+		existing(t, b, []PlacedTile{
+			{Tile: tile('Q', 10), Row: 10, Col: 5},
+			{Tile: tile('I', 1), Row: 10, Col: 6},
+			{Tile: tile('A', 1), Row: 9, Col: 7},
+		})
+		m := placeAll(t, b, []PlacedTile{{Tile: tile('S', 1), Row: 10, Col: 7}})
+		words := AnnotatedWords(b, m)
+		want := []string{"11F (QI)S", "H10 (A)S"}
+		if len(words) != len(want) || words[0] != want[0] || words[1] != want[1] {
+			t.Fatalf("AnnotatedWords = %v, want %v", words, want)
+		}
+	})
+
+	t.Run("equal scores name the horizontal word first", func(t *testing.T) {
+		b := NewBoard()
+		// A at G11 and A at H10; playing T at H11 forms (A)T horizontally and (A)T
+		// vertically, both for 2.
+		existing(t, b, []PlacedTile{
+			{Tile: tile('A', 1), Row: 10, Col: 6},
+			{Tile: tile('A', 1), Row: 9, Col: 7},
+		})
+		m := placeAll(t, b, []PlacedTile{{Tile: tile('T', 1), Row: 10, Col: 7}})
+		words := AnnotatedWords(b, m)
+		want := []string{"11G (A)T", "H10 (A)T"}
+		if len(words) != len(want) || words[0] != want[0] || words[1] != want[1] {
+			t.Fatalf("AnnotatedWords = %v, want %v", words, want)
+		}
+	})
+
+	t.Run("main word follows the score", func(t *testing.T) {
+		b := NewBoard()
+		// Same board as the higher-scoring-vertical case: the vertical word wins, so it is
+		// the one AnnotatedMainWord reports.
+		existing(t, b, []PlacedTile{
+			{Tile: tile('C', 1), Row: 8, Col: 7},
+			{Tile: tile('A', 1), Row: 9, Col: 7},
+			{Tile: tile('A', 1), Row: 10, Col: 6},
+		})
+		m := placeAll(t, b, []PlacedTile{{Tile: tile('T', 1), Row: 10, Col: 7}})
+		coord, word, ok := AnnotatedMainWord(b, m)
+		if !ok || coord != "H9" || word != "(CA)T" {
+			t.Fatalf("got (%q,%q,%v), want (\"H9\",\"(CA)T\",true)", coord, word, ok)
+		}
+	})
+
+	t.Run("a tile forming one word keeps that word's axis", func(t *testing.T) {
+		b := NewBoard()
+		// A T down column H rows 9-10 with no horizontal neighbour: playing S at H11
+		// forms only the vertical word, so there is no tie to break.
+		existing(t, b, []PlacedTile{
+			{Tile: tile('A', 1), Row: 8, Col: 7},
+			{Tile: tile('T', 1), Row: 9, Col: 7},
+		})
+		m := placeAll(t, b, []PlacedTile{{Tile: tile('S', 1), Row: 10, Col: 7}})
+		words := AnnotatedWords(b, m)
+		if len(words) != 1 || words[0] != "H9 (AT)S" {
+			t.Fatalf("AnnotatedWords = %v, want [\"H9 (AT)S\"]", words)
+		}
+	})
+}

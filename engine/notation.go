@@ -11,7 +11,7 @@ import "fmt"
 //
 // It must be called after the move has been committed to board.
 func AnnotatedWords(board *Board, move *PlayMove) []string {
-	groups := extractWordPositions(board, move)
+	groups := notationGroups(board, move)
 	words := make([]string, 0, len(groups))
 	for _, positions := range groups {
 		if len(positions) < 2 {
@@ -24,9 +24,9 @@ func AnnotatedWords(board *Board, move *PlayMove) []string {
 }
 
 // AnnotatedMainWord returns the Scrabble-notation coordinate and word for the primary word
-// a committed PlayMove forms (the first word in board order — the main word along the play's
-// axis, or, for a single tile that only extends a perpendicular word, that word). It must be
-// called after the move has been committed to board.
+// a committed PlayMove forms — the main word along the play's axis, or, when a single tile
+// leaves that axis ambiguous, the highest-scoring of the words it forms (see
+// notationGroups). It must be called after the move has been committed to board.
 //
 // The coordinate marks the word's starting square using the standard convention: a
 // horizontal word is written row-number then column-letter (e.g. "8D"), a vertical word
@@ -37,12 +37,34 @@ func AnnotatedWords(board *Board, move *PlayMove) []string {
 // was made against — are wrapped in parentheses, e.g. "(DOG)S" or "C(AT)S". Blank tiles are
 // rendered as lowercase letters. ok is false when the move formed no word.
 func AnnotatedMainWord(board *Board, move *PlayMove) (coord, word string, ok bool) {
-	groups := extractWordPositions(board, move)
+	groups := notationGroups(board, move)
 	if len(groups) == 0 || len(groups[0]) < 2 {
 		return "", "", false
 	}
 	coord, word = annotate(board, move, groups[0])
 	return coord, word, true
+}
+
+// notationGroups returns the words a committed move forms, as position groups ordered for
+// notation: the word the play's coordinate names first, then the remaining cross-words.
+//
+// It differs from extractWordPositions only for a single-tile play. One tile lies on both
+// axes at once, so when it forms a word in each direction there is no main axis to read off
+// the placement; extractWordPositions resolves that by always treating the play as
+// horizontal. Notation instead names the word the play scored most from, so the coordinate
+// describes the play the way a player would read it. Equal scores keep the horizontal word
+// first.
+func notationGroups(board *Board, move *PlayMove) [][][2]int {
+	groups := extractWordPositions(board, move)
+	// Only a one-tile play can produce two groups whose order is not fixed by the
+	// placement: groups[0] is then its horizontal word and groups[1] its vertical one.
+	if len(move.Placed) != 1 || len(groups) != 2 {
+		return groups
+	}
+	if wordValue(board, move.Placed, groups[1]) > wordValue(board, move.Placed, groups[0]) {
+		groups[0], groups[1] = groups[1], groups[0]
+	}
+	return groups
 }
 
 // annotate renders one word's coordinate and text: the coordinate of its starting square,

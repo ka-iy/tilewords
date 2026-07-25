@@ -16,6 +16,12 @@ A display formatter for a committed `PlayMove`, used by the UI when the player e
 - **Coordinate convention** (`notationCoord`): a **horizontal** word is written
   row-number-then-column-letter (e.g. `8D`); a **vertical** word is column-letter-then-row-
   number (e.g. `D8`).
+- **Main-word choice for a one-tile play** (`notationGroups`): a single tile lies on both
+  axes, so when it forms a word in each direction the placement names no main axis. Notation
+  puts the **higher-scoring** word first — the word the play's coordinate then describes —
+  and falls back to the horizontal word when the two score the same. Scores come from
+  `wordValue`, the same per-word total `Score` sums, so the choice always matches what the
+  play actually earned.
 - **Word rendering** (`annotate`): tiles already on the board before this move (the existing
   word(s) the play hooks onto) are shown parenthesised in maximal runs; blank tiles are shown
   as lowercase letters.
@@ -23,7 +29,8 @@ A display formatter for a committed `PlayMove`, used by the UI when the player e
 
 ### Business Rules
 - **BR-NOTE-1**: Notation is a pure display transform over committed board state; it changes
-  no rules or scoring.
+  no rules or scoring. It may read scores (to order a one-tile play's words) but never
+  alters them, and it never reorders `PlayMove.WordsFormed`.
 - **BR-NOTE-2**: The plain format (`"UNMIX, CROSS"`) and the Scrabble format
   (`"8D UNMIX +28"`) present the same move; the choice is a UI preference (below).
 

@@ -15,8 +15,7 @@ func Score(board *Board, move *PlayMove) (int, error) {
 
 	total := 0
 	for _, positions := range wordPositions(board, move) {
-		wordScore, wordMult := sumWord(board, move.Placed, positions)
-		total += wordScore * wordMult
+		total += wordValue(board, move.Placed, positions)
 	}
 
 	// Bingo bonus: all 7 tiles played in a single turn (BR-E07).
@@ -68,6 +67,13 @@ func sumWord(board *Board, placed []PlacedTile, positions [][2]int) (wordScore, 
 		wordScore += tile.Points * letterMult
 	}
 	return wordScore, wordMult
+}
+
+// wordValue returns the points one word contributes to a move's total: its raw score times
+// its accumulated word multiplier. Score sums this over every word the play forms.
+func wordValue(board *Board, placed []PlacedTile, positions [][2]int) int {
+	wordScore, wordMult := sumWord(board, placed, positions)
+	return wordScore * wordMult
 }
 
 // extractWords returns all words formed by placing move.Placed on board:
