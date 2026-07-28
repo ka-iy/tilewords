@@ -12,7 +12,7 @@
 # First-time mobile setup:
 #   make install-mobile-tools     # then set ANDROID_HOME and ANDROID_NDK_HOME
 
-.PHONY: all build build-prod test vet vet32 clean clean-all-the-things clean-defs-sources \
+.PHONY: all linux linux-prod test vet vet32 clean clean-all-the-things clean-defs-sources \
         gaddag gaddag-free download-wordlists defs help \
         debug-all release-all \
         windows-debug windows-release \
@@ -86,12 +86,9 @@ BINARY  := tilewords
 CMD     := ./cmd/tilewords
 MODULE  := tilewords
 
-# Host platform, used to label the native desktop artifacts and as the default architecture
-# for the Windows cross build. Both come from one 'go env' call, which prints one value per
-# line — $(shell) turns those into a space-separated pair.
-HOST_PLATFORM := $(shell go env GOOS GOARCH)
-HOST_GOOS     := $(word 1,$(HOST_PLATFORM))
-HOST_GOARCH   := $(word 2,$(HOST_PLATFORM))
+# Host architecture, used as the default for the Windows cross build. The GOOS of every build
+# target is stated by the target itself, so only the architecture is taken from the host.
+HOST_GOARCH := $(shell go env GOARCH)
 
 # The GADDAG builder is normally invoked with 'go run' (see BUILDGADDAG below), but a
 # manual 'go build ./tools/buildgaddag' leaves this binary in the repo root; clean it.
@@ -188,9 +185,9 @@ help: ## Show this help (targets grouped by section)
 # first leg that fails, leaving the later ones unbuilt, so build a single target directly
 # when it is one platform you care about.
 
-debug-all: build windows-debug android ## Build every debug artifact (desktop, Windows, Android)
+debug-all: linux windows-debug android ## Build every debug artifact (desktop, Windows, Android)
 
-release-all: build-prod windows-release android-release ## Build every release artifact (desktop, Windows, Android)
+release-all: linux-prod windows-release android-release ## Build every release artifact (desktop, Windows, Android)
 
 # ── Assets ────────────────────────────────────────────────────────────────────
 ##@ Assets
@@ -456,15 +453,24 @@ clean-defs-sources: ## Remove the downloaded definition sources (frees GBs; 'mak
 	rm -f $(DEFS_SRC_WEBSTER) $(DEFS_SRC_WEBSTER).part
 	rm -rf $(DEFS_SRC_WORDNET)
 
-# ── Native desktop ────────────────────────────────────────────────────────────
-##@ Native desktop
+# ── Linux desktop ─────────────────────────────────────────────────────────────
+##@ Linux desktop
 
-all: build ## Build the native desktop binary (default target)
+all: linux ## Build the Linux desktop binary (default target)
 
 # Artifact names. The desktop binaries carry the platform they were built for, and every
 # debug artifact ends in -debug, so a debug and a release build (and builds for different
 # platforms) sit side by side instead of overwriting each other.
-DESKTOP_BIN       := $(BINARY)-$(HOST_GOOS)-$(HOST_GOARCH)
+# Target platform for these targets. GOOS is pinned because they build for Linux and nothing
+# else: on a Windows or macOS host they cross-compile rather than silently producing a binary
+# for that host, and every target in this Makefile now states the GOOS it builds for. GOARCH
+# defaults to amd64 and is overridable, so an arm64 Linux machine builds for itself with
+# 'make LINUX_GOARCH=arm64 build' — pinning that too would make such a host cross-compile
+# unusably.
+LINUX_GOOS   := linux
+LINUX_GOARCH ?= amd64
+
+DESKTOP_BIN       := $(BINARY)-$(LINUX_GOOS)-$(LINUX_GOARCH)
 DESKTOP_BIN_DEBUG := $(DESKTOP_BIN)-debug
 
 # These use the fyne CLI, as the Windows and Android targets do, so every artifact in this
@@ -483,17 +489,17 @@ DESKTOP_BIN_DEBUG := $(DESKTOP_BIN)-debug
 # not embed it). It is passed explicitly rather than relying on fyne to translate
 # FyneApp.toml's [Migrations] fyneDo=true, which requires that file to be found from the
 # main-package directory being built.
-build: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Build the native desktop binary (debug)
-	GOFLAGS="$(BUILD_INFO_GOFLAGS_DEBUG)" fyne build \
+linux: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Build the Linux desktop binary (debug)
+	GOOS=$(LINUX_GOOS) GOARCH=$(LINUX_GOARCH) GOFLAGS="$(BUILD_INFO_GOFLAGS_DEBUG)" fyne build \
 		--src $(CMD) --tags migrated_fynedo -o $(CURDIR)/$(DESKTOP_BIN_DEBUG)
 
-# build-prod differs from build in stamping the binary as a production build and having fyne
+# linux-prod differs from linux in stamping the binary as a production build and having fyne
 # strip it (-s -w) and build it with -trimpath.
 #
 # Code that branches on buildinfo.IsProductionBuild() only takes its production path in a
 # binary built this way, so this is the target to use when testing that behavior.
-build-prod: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Build the native desktop binary (production, stripped)
-	GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne build \
+linux-prod: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Build the Linux desktop binary (production, stripped)
+	GOOS=$(LINUX_GOOS) GOARCH=$(LINUX_GOARCH) GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne build \
 		--src $(CMD) --tags migrated_fynedo --release -o $(CURDIR)/$(DESKTOP_BIN)
 
 # install-desktop registers the app with the local desktop environment so its icon shows
@@ -504,9 +510,9 @@ build-prod: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Build the nativ
 #
 # 'fyne install' reads the app name from FyneApp.toml, which lives at the repo root rather
 # than in $(CMD), so we stage a copy there for the build (removed afterwards even on failure).
-install-desktop: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Install the desktop app + .desktop entry (taskbar icon)
+install-desktop: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Install the Linux desktop app + .desktop entry (taskbar icon)
 	cp FyneApp.toml $(CMD)/FyneApp.toml
-	-cd $(CMD) && GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne install --release --icon $(ICON) --app-id $(APP_ID)
+	-cd $(CMD) && GOOS=$(LINUX_GOOS) GOARCH=$(LINUX_GOARCH) GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne install --release --icon $(ICON) --app-id $(APP_ID)
 	rm -f $(CMD)/FyneApp.toml
 
 # ── Windows (cross-compiled) ──────────────────────────────────────────────────

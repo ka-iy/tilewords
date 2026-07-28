@@ -74,6 +74,10 @@ func (gs *gameScreen) dropUndoneDefinitions() {
 	gs.defsEntries = kept
 	if gs.defsLabel != nil {
 		gs.defsLabel.SetText(gs.definitionsText())
+		// The panel shrank, so the scroll offset can now point past the end of the text and
+		// show nothing at all. Re-scrolling clamps it back onto the shortened content, so
+		// the remaining entries stay visible without the user having to scroll.
+		gs.scrollDefinitionsToEnd()
 	}
 }
 
@@ -161,9 +165,11 @@ func (gs *gameScreen) definitionsText() string {
 	return strings.Join(texts, "\n\n")
 }
 
-// scrollDefinitionsToEnd keeps the newest definition entry in view after the panel
-// grows, mirroring scrollHistoryToEnd: Refresh re-measures the taller label so
-// ScrollToBottom targets the new bottom.
+// scrollDefinitionsToEnd keeps the last definition entry in view after the panel's text
+// changes, mirroring scrollHistoryToEnd: Refresh re-measures the label so ScrollToBottom
+// targets the new bottom. It is needed in both directions — a grown panel would otherwise
+// hide the newest entry below the fold, and a shrunken one would leave the offset past the
+// end of the text, showing an empty pane.
 func (gs *gameScreen) scrollDefinitionsToEnd() {
 	if gs.defsScroll == nil {
 		return

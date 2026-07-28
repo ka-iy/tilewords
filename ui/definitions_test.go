@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/test"
+
 	"tilewords/defs"
 )
 
@@ -94,6 +97,40 @@ func TestDefinitionsDroppedOnUndo(t *testing.T) {
 	gs.appendDefinition(defsEntry{text: "ZEBRA", turn: 1})
 	if got := gs.definitionsText(); got != "CRANE\n\nZEBRA" {
 		t.Errorf("after replay definitions text = %q, want %q", got, "CRANE\n\nZEBRA")
+	}
+}
+
+// TestDefinitionsScrollClampedOnUndo verifies the Definitions panel still shows its text
+// after an undo shortens it: the offset left over from the taller panel MUST be clamped back
+// onto the remaining entries, otherwise the pane renders blank until the user scrolls it.
+func TestDefinitionsScrollClampedOnUndo(t *testing.T) {
+	gs := newRackHarness(t)
+	// Render the screen so the definitions scroll and label have real sizes.
+	w := test.NewWindow(gs.build())
+	defer w.Close()
+	w.Resize(fyne.NewSize(900, 400))
+
+	// Enough entries that the panel is taller than its viewport and scrolled to the bottom.
+	const turns = 50
+	for i := 0; i < turns; i++ {
+		gs.history = append(gs.history, historyEntry{player: "You"})
+		gs.appendDefinition(defsEntry{text: "CRANE\nnoun - A tall wading bird.", turn: i})
+	}
+	viewH := gs.defsScroll.Size().Height
+	if gs.defsLabel.MinSize().Height <= viewH {
+		t.Fatalf("setup: definitions (%.0f) not taller than the panel (%.0f); cannot verify scrolling",
+			gs.defsLabel.MinSize().Height, viewH)
+	}
+
+	// Undo back to a single turn, leaving one entry — far shorter than the panel.
+	gs.history = gs.history[:1]
+	gs.dropUndoneDefinitions()
+
+	contentH := gs.defsLabel.MinSize().Height
+	maxOffset := fyne.Max(contentH-viewH, 0)
+	if got := gs.defsScroll.Offset.Y; got > maxOffset+1 {
+		t.Errorf("definitions scrolled past the end of its text: offset.Y=%.1f, want <=%.1f (content %.0f, view %.0f)",
+			got, maxOffset, contentH, viewH)
 	}
 }
 

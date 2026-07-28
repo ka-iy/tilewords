@@ -166,8 +166,8 @@ make defs-audit
 ### Build and run
 
 ```bash
-make              # (or: make build) debug build of the desktop binary
-make build-prod   # production build: stamped as production, stripped, -trimpath
+make              # (or: make linux) debug build of the Linux desktop binary
+make linux-prod   # production build: stamped as production, stripped, -trimpath
 ```
 
 Binaries are named for the platform they were built for, `tilewords-<goos>-<goarch>`, with
