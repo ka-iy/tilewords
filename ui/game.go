@@ -433,8 +433,10 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	buildArrangement := func(narrow bool) fyne.CanvasObject {
 		if narrow {
 			// Three buttons per row keeps each one narrower than a half-width two-column
-			// grid; the seventh (Menu) sits alone on the last row.
-			controls := container.NewGridWithColumns(3, buttons...)
+			// grid; the seventh (Menu) sits alone on the last row. The grid is grouped so a
+			// press near a button's top edge runs that button rather than the one above it or
+			// nothing at all; see touchGroup.
+			controls := newTouchGroup(container.NewGridWithColumns(3, buttons...), buttons...)
 			// The board fills the column width (scaling up from its tappable minimum); the
 			// rest stack below at their natural heights. The history/definitions pane
 			// stretches to fill any spare viewport height (down to portraitHistoryMinH), and
@@ -459,7 +461,7 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 		// of the pane width.
 		// The wide arrangement has no page-level scroll: the split's panes scroll individually.
 		gs.page = nil
-		controls := container.NewGridWithColumns(len(buttons), buttons...)
+		controls := newTouchGroup(container.NewGridWithColumns(len(buttons), buttons...), buttons...)
 		// The board fills the left pane above the status/rack/control stack; boardLayout
 		// centres the board square within that space.
 		bottom := container.NewVBox(statusBar, humanRackBox, controls, aiRackBox)

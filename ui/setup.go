@@ -265,7 +265,9 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		notationCheck,
 		saveDefaultsCheck,
 		widget.NewSeparator(),
-		container.NewHBox(layout.NewSpacer(), backBtn, startBtn),
+		// Grouped so a press near either button's top edge runs it instead of landing on the
+		// separator above and being dropped; see touchGroup.
+		newTouchGroup(container.NewHBox(layout.NewSpacer(), backBtn, startBtn), backBtn, startBtn),
 		status,
 	)
 	return container.NewPadded(container.NewVScroll(form))

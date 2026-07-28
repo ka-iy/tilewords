@@ -78,12 +78,30 @@ func (c *cellWidget) setContent(tile *engine.Tile, staged, highlight, pickedUp b
 	c.Refresh()
 }
 
-// Tapped reports the tap to the controller. The position within the cell is not
-// needed — the cell already knows its coordinates.
-func (c *cellWidget) Tapped(_ *fyne.PointEvent) {
-	if c.onTap != nil {
-		c.onTap(c.row, c.col)
+// Tapped reports the tap to the controller, as the square the finger was really on.
+//
+// The board is a grid of squares packed edge to edge, so the touch driver's upward
+// compensation (see touchYCompensation) does not lose a press near a square's top edge — it
+// delivers it to the square above, and the player's tile is placed one row too high. The
+// cell knows its own height, so it can tell that the finger was in fact below it, which on a
+// uniform grid means the next row down. A press whose corrected position falls off the
+// bottom of the board was never on the board and is dropped.
+func (c *cellWidget) Tapped(ev *fyne.PointEvent) {
+	if c.onTap == nil {
+		return
 	}
+	row := c.row
+	if ev != nil && deviceIsMobile() {
+		// Zero height means the cell has never been laid out (a press cannot have reached
+		// it), so there is no geometry to correct against.
+		if h := c.Size().Height; h > 0 && ev.Position.Y+touchYCompensation >= h {
+			row++
+		}
+	}
+	if row >= boardDim {
+		return
+	}
+	c.onTap(row, c.col)
 }
 
 // Dragged records the live pointer position and reports it. The controller starts a
