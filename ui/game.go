@@ -400,6 +400,9 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	gs.defsLabel = widget.NewLabel("")
 	gs.defsLabel.Wrapping = fyne.TextWrapWord
 	gs.defsLabel.Selectable = true
+	// The same fixed-width font as the move history: the two tabs share one panel, so a
+	// switch between them must not change the look of the text.
+	gs.defsLabel.TextStyle = fyne.TextStyle{Monospace: true}
 	gs.defsScroll = container.NewVScroll(gs.defsLabel)
 	defsText := func() string { return gs.defsLabel.Text }
 	enableTouchScroll(gs.defsScroll, defsText, onCopied, gs.panPage)

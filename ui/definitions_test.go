@@ -134,6 +134,19 @@ func TestDefinitionsScrollClampedOnUndo(t *testing.T) {
 	}
 }
 
+// TestDefinitionsLabelMatchesHistoryStyle verifies the two tabs of the shared panel render
+// their text identically, so switching tabs does not change the typeface.
+func TestDefinitionsLabelMatchesHistoryStyle(t *testing.T) {
+	gs := newRackHarness(t)
+	if !gs.defsLabel.TextStyle.Monospace {
+		t.Error("definitions label is not monospace")
+	}
+	if gs.defsLabel.TextStyle != gs.historyLabel.TextStyle {
+		t.Errorf("definitions text style %+v differs from the history panel's %+v",
+			gs.defsLabel.TextStyle, gs.historyLabel.TextStyle)
+	}
+}
+
 func TestDispatchDefinitionsNoChannelIsNoOp(t *testing.T) {
 	// With no definitions asset the channel is nil; dispatch must not panic or block.
 	gs := &gameScreen{}
