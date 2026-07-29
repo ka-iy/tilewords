@@ -15,6 +15,12 @@
 // stem). The shipped DB is the union of definitions all lists can reach, resolved
 // via exact, form-of, stem, and fuzzy matching. A coverage report is printed to
 // stdout.
+//
+// That report covers the Wiktionary layer alone, which is the first of the two stages
+// that produce the shipped asset: mergedefs then folds in Webster, WordNet and the
+// curated glossaries, and reports the coverage the asset actually ships with. The
+// figures here are therefore a floor, and are labelled as such — reading them as final
+// understates the asset by whatever the supplements go on to add.
 package main
 
 import (
@@ -98,10 +104,13 @@ func writeGOB(outPath string, db *defs.DB) error {
 	return nil
 }
 
-// printReport writes the coverage breakdown for every list plus the shipped-asset
-// summary to stdout.
+// printReport writes the coverage breakdown for every list plus the base-asset summary to
+// stdout. The heading names the stage the figures belong to: this is the Wiktionary layer on
+// its own, and mergedefs reports the coverage the shipped asset ends up with.
 func printReport(r *defs.Report, outPath string) {
-	fmt.Printf("\nbuilddefs coverage report\n")
+	fmt.Printf("\nbuilddefs coverage report — Wiktionary layer only, BEFORE supplements\n")
+	fmt.Printf("  (mergedefs reports the final coverage once Webster, WordNet and the\n")
+	fmt.Printf("   curated glossaries are folded in; these figures are a floor)\n")
 	fmt.Printf("  parsed %d English headwords, %d inflection edges\n\n", r.FullHeadwords, r.FullForms)
 
 	fmt.Printf("  %-22s %9s %8s %8s %8s %8s %8s %9s\n",
@@ -115,7 +124,7 @@ func printReport(r *defs.Report, outPath string) {
 			c.Name, c.Total, c.Exact, c.FormOf, c.Stem, c.Fuzzy, c.Miss, pct)
 	}
 
-	fmt.Printf("\n  shipped asset: %d headwords, %d inflection edges -> %s\n",
+	fmt.Printf("\n  base asset: %d headwords, %d inflection edges -> %s\n",
 		r.ShippedHeadwords, r.ShippedForms, outPath)
 
 	for _, c := range r.Lists {

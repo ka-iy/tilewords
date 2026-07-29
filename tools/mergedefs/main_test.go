@@ -221,3 +221,87 @@ func TestLoadGlossaryRejectsMissingTab(t *testing.T) {
 		t.Error("expected an error for a line without a tab")
 	}
 }
+
+// entry is a one-sense definition for a headword, for building test DBs.
+func entry(word, gloss string) *defs.Entry {
+	return &defs.Entry{Word: word, Senses: []defs.Sense{{POS: "noun", Gloss: gloss}}}
+}
+
+// TestMeasureCoverageCountsDistinctWords verifies coverage is reported per list and over the
+// union of the lists: a word two lists carry is one word a player can form, so counting it
+// twice would overstate the aggregate total it is measured against.
+func TestMeasureCoverageCountsDistinctWords(t *testing.T) {
+	db := defs.NewDB(map[string]*defs.Entry{
+		"cat": entry("cat", "A small feline."),
+		"dog": entry("dog", "A canine."),
+	}, nil)
+	lists := []namedList{
+		{Name: "listA", Words: []string{"CAT", "DOG", "EMU"}},
+		{Name: "listB", Words: []string{"CAT", "YAK"}},
+	}
+
+	cov := measureCoverage(db, lists)
+
+	if got, want := cov.Lists[0].Covered, 2; got != want {
+		t.Errorf("listA covered = %d, want %d", got, want)
+	}
+	if got, want := cov.Lists[1].Covered, 1; got != want {
+		t.Errorf("listB covered = %d, want %d", got, want)
+	}
+	// CAT is in both lists: 4 distinct words, of which CAT and DOG are covered.
+	if got, want := cov.UniqueTotal, 4; got != want {
+		t.Errorf("unique total = %d, want %d (a shared word counts once)", got, want)
+	}
+	if got, want := cov.UniqueCovered, 2; got != want {
+		t.Errorf("unique covered = %d, want %d", got, want)
+	}
+}
+
+// TestReportMergeShowsFinalCoverageAboveBase verifies the report states the coverage the
+// shipped asset has, not just the base's. builddefs prints the base figures and stops, which
+// is what made them look final; the final column is the answer to "what will a player see".
+func TestReportMergeShowsFinalCoverageAboveBase(t *testing.T) {
+	base := defs.NewDB(map[string]*defs.Entry{"cat": entry("cat", "A small feline.")}, nil)
+	// A supplement defines one of the two words the base cannot.
+	aug := base.WithSupplement(map[string]*defs.Entry{"emu": entry("emu", "A flightless bird.")}, nil)
+	lists := []namedList{{Name: "listA", Words: []string{"CAT", "EMU", "YAK"}}}
+
+	var buf strings.Builder
+	reportMerge(&buf, mergeReport{
+		Base:         measureCoverage(base, lists),
+		Final:        measureCoverage(aug, lists),
+		UniqueMisses: 2,
+		Resolved:     1,
+		PerSource:    map[string]int{"glossary": 1},
+		AddedEntries: 1,
+	})
+	got := buf.String()
+
+	if !strings.Contains(got, "FINAL") {
+		t.Errorf("report does not announce itself as the final coverage; got:\n%s", got)
+	}
+	// 1 of 3 covered by the base (33.33%), 2 of 3 once the supplement is folded in (66.67%).
+	if !strings.Contains(got, "33.33%") || !strings.Contains(got, "66.67%") {
+		t.Errorf("report does not show base and final coverage separately; got:\n%s", got)
+	}
+	if !strings.Contains(got, "still undefined by any source         : 1") {
+		t.Errorf("report does not state what remains undefined; got:\n%s", got)
+	}
+}
+
+// TestComputeMissesIgnoresIndirectResolution verifies the merge is still driven by the stricter
+// criterion: a word the base explains only through a related word is offered to the supplements,
+// which may be able to define the word itself.
+func TestComputeMissesIgnoresIndirectResolution(t *testing.T) {
+	// "cats" resolves only as a form of "cat", so it is not defined in its own right.
+	db := defs.NewDB(map[string]*defs.Entry{"cat": entry("cat", "A small feline.")},
+		map[string]string{"cats": "cat"})
+
+	misses := computeMisses(db, []namedList{{Name: "l", Words: []string{"cat", "cats"}}})
+
+	for _, m := range misses {
+		if m == "cat" {
+			t.Errorf("a directly-defined word was reported as missing: %v", misses)
+		}
+	}
+}

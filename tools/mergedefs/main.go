@@ -51,6 +51,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -150,10 +151,11 @@ func run() error {
 	// supplemental headword (exact, de-inflection, or orthographic variant).
 	supDB := defs.NewDB(supEntries, nil)
 
-	misses, listTotals, err := computeMisses(base, splitLists(*listsFlag))
+	lists, err := loadLists(splitLists(*listsFlag))
 	if err != nil {
 		return err
 	}
+	misses := computeMisses(base, lists)
 
 	addedEntries := make(map[string]*defs.Entry)
 	addedForms := make(map[string]string)
@@ -187,13 +189,26 @@ func run() error {
 		perSource[srcOf[hw]]++
 	}
 
-	reportMerge(listTotals, len(misses), resolved, perSource, len(addedEntries), len(addedForms))
+	// The augmented asset is built before reporting, not after, because the report's final
+	// column is measured against it: the coverage that ships is a property of the merged
+	// asset, not something inferred from the miss accounting. Under -dryrun it is built and
+	// measured but never written, which is exactly what makes a dry run informative.
+	aug := base.WithSupplement(addedEntries, addedForms)
+
+	reportMerge(os.Stderr, mergeReport{
+		Base:         measureCoverage(base, lists),
+		Final:        measureCoverage(aug, lists),
+		UniqueMisses: len(misses),
+		Resolved:     resolved,
+		PerSource:    perSource,
+		AddedEntries: len(addedEntries),
+		AddedForms:   len(addedForms),
+	})
 
 	if *dryRun {
 		return nil
 	}
 
-	aug := base.WithSupplement(addedEntries, addedForms)
 	if err := writeDB(aug, *outFlag); err != nil {
 		return err
 	}
@@ -212,14 +227,59 @@ func splitLists(csv string) []string {
 	return out
 }
 
-// listTotal is one word list's size and miss count against the base DB.
-type listTotal struct {
+// namedList is one word list read into memory, so the several passes over it — the miss scan
+// that drives the merge, and the coverage measurements before and after — read the file once.
+type namedList struct {
 	// Name is the list's short label (base name without a ".txt" suffix).
 	Name string
-	// Total is the number of non-blank words in the list.
+	// Words are its non-blank words, in file order.
+	Words []string
+}
+
+// listCoverage is one word list measured against a definitions asset.
+type listCoverage struct {
+	// Name is the list's short label.
+	Name string
+	// Total is the number of words in the list.
 	Total int
-	// Missing is how many of those words the base DB cannot define directly (see computeMisses).
-	Missing int
+	// Covered is how many of them the asset resolves to a definition, by the same layered
+	// lookup the game uses — so it is what a player would find defined, not a stricter
+	// internal criterion.
+	Covered int
+}
+
+// assetCoverage is a whole asset's coverage: per list, and over the distinct words across all
+// the lists.
+type assetCoverage struct {
+	// Lists is the per-list coverage, in the order the lists were given.
+	Lists []listCoverage
+	// UniqueTotal is the number of distinct words across every list. A word two lists share
+	// is one word a player can form, so this is the denominator the aggregate uses.
+	UniqueTotal int
+	// UniqueCovered is how many of those distinct words resolve to a definition.
+	UniqueCovered int
+}
+
+// mergeReport is everything reportMerge prints: the coverage of the asset before and after the
+// supplements, and what each supplemental source contributed.
+type mergeReport struct {
+	// Base is the coverage of the asset as builddefs left it.
+	Base assetCoverage
+	// Final is the coverage of the asset the supplements produce — what ships.
+	Final assetCoverage
+	// UniqueMisses is how many distinct words the base does not define directly. This is the
+	// stricter criterion that decides what the supplements are asked to fill: a word explained
+	// only through a stem or variant rewrite is counted here as a gap worth closing, though
+	// the coverage figures above already count it as resolved.
+	UniqueMisses int
+	// Resolved is how many of those the supplements define.
+	Resolved int
+	// PerSource counts the resolutions credited to each supplemental source.
+	PerSource map[string]int
+	// AddedEntries is how many headword entries the supplements add to the asset.
+	AddedEntries int
+	// AddedForms is how many inflection edges they add.
+	AddedForms int
 }
 
 // definedDirectly reports whether a match kind means the DB holds a definition for the queried
@@ -238,30 +298,65 @@ func definedDirectly(k defs.MatchKind) bool {
 // is strictly better and must not be skipped. Treating any resolution as coverage let a
 // broadening of the stem rules silently displace real definitions — "barde", "glace" and
 // "geste" each lost their own Webster gloss to a stem guess at "bard", "glac" and "gest".
-func computeMisses(base *defs.DB, lists []string) ([]string, []listTotal, error) {
+// This is deliberately NOT the criterion the coverage report uses: the report answers "what
+// will a player find defined", so it counts any layer the game resolves through. This answers
+// "what should a supplement be asked to define", which is a stricter question.
+func computeMisses(base *defs.DB, lists []namedList) []string {
 	missing := make(map[string]bool)
-	totals := make([]listTotal, 0, len(lists))
-	for _, path := range lists {
-		words, err := scanWords(path)
-		if err != nil {
-			return nil, nil, err
-		}
-		lt := listTotal{Name: listName(path), Total: len(words)}
-		for _, w := range words {
+	for _, l := range lists {
+		for _, w := range l.Words {
 			if res, ok := base.Lookup(w); ok && definedDirectly(res.Kind) {
 				continue
 			}
-			lt.Missing++
 			missing[strings.ToLower(w)] = true
 		}
-		totals = append(totals, lt)
 	}
 	misses := make([]string, 0, len(missing))
 	for w := range missing {
 		misses = append(misses, w)
 	}
 	sort.Strings(misses)
-	return misses, totals, nil
+	return misses
+}
+
+// loadLists reads every word list into memory once, so the miss scan and the two coverage
+// measurements do not each re-read and re-parse the files.
+func loadLists(paths []string) ([]namedList, error) {
+	lists := make([]namedList, 0, len(paths))
+	for _, path := range paths {
+		words, err := scanWords(path)
+		if err != nil {
+			return nil, err
+		}
+		lists = append(lists, namedList{Name: listName(path), Words: words})
+	}
+	return lists, nil
+}
+
+// measureCoverage reports how much of each list, and of the distinct words across all of them,
+// the given asset defines. Resolution uses the game's own layered lookup, so the figures are
+// what a player would see rather than an internal accounting criterion — which is what makes
+// the base and final columns comparable, and makes the final column agree with missaudit.
+func measureCoverage(db *defs.DB, lists []namedList) assetCoverage {
+	cov := assetCoverage{Lists: make([]listCoverage, 0, len(lists))}
+	seen := make(map[string]bool)
+	covered := make(map[string]bool)
+	for _, l := range lists {
+		lc := listCoverage{Name: l.Name, Total: len(l.Words)}
+		for _, w := range l.Words {
+			key := strings.ToLower(w)
+			seen[key] = true
+			if _, ok := db.Lookup(w); !ok {
+				continue
+			}
+			lc.Covered++
+			covered[key] = true
+		}
+		cov.Lists = append(cov.Lists, lc)
+	}
+	cov.UniqueTotal = len(seen)
+	cov.UniqueCovered = len(covered)
+	return cov
 }
 
 // loadWebster reads a Webster's 1913 JSON ({"word": "definition"}) into entries,
@@ -567,24 +662,60 @@ func cleanGloss(s string) string {
 	return strings.TrimRight(string(r[:cut]), " ,;:") + "…"
 }
 
-// reportMerge prints per-list totals and the aggregate coverage gained to stderr.
-func reportMerge(totals []listTotal, uniqueMisses, resolved int, perSource map[string]int, addedEntries, addedForms int) {
-	fmt.Fprintln(os.Stderr)
-	for _, lt := range totals {
-		fmt.Fprintf(os.Stderr, "%-28s %d words, %d missing\n", lt.Name, lt.Total, lt.Missing)
+// reportMerge writes the coverage of the finished asset: for every list, and for the distinct
+// words across all of them, the share covered by the base alone and the share covered once the
+// supplements are folded in. The final column is the one that describes what ships — builddefs
+// has already printed the base figures, and stopping there is what makes them look final.
+func reportMerge(w io.Writer, r mergeReport) {
+	fmt.Fprintf(w, "\nmergedefs coverage report — FINAL, what the shipped asset covers\n")
+	fmt.Fprintf(w, "  (base = the Wiktionary layer builddefs reported; final = after Webster,\n")
+	fmt.Fprintf(w, "   WordNet and the curated glossaries. Both count a word as covered when the\n")
+	fmt.Fprintf(w, "   game's own lookup finds it a definition.)\n\n")
+
+	fmt.Fprintf(w, "  %-22s %9s %10s %9s %10s %9s\n",
+		"list", "total", "base", "base %", "final", "final %")
+	for i, lc := range r.Final.Lists {
+		base := 0
+		if i < len(r.Base.Lists) {
+			base = r.Base.Lists[i].Covered
+		}
+		fmt.Fprintf(w, "  %-22s %9d %10d %8.2f%% %10d %8.2f%%\n",
+			lc.Name, lc.Total, base, percent(base, lc.Total),
+			lc.Covered, percent(lc.Covered, lc.Total))
 	}
-	fmt.Fprintf(os.Stderr, "\naggregate unique misses : %d\n", uniqueMisses)
-	fmt.Fprintf(os.Stderr, "resolved by supplements : %d", resolved)
-	if uniqueMisses > 0 {
-		fmt.Fprintf(os.Stderr, " (%.1f%% of the gap)", 100*float64(resolved)/float64(uniqueMisses))
+	fmt.Fprintf(w, "  %-22s %9d %10d %8.2f%% %10d %8.2f%%\n",
+		"unique words", r.Final.UniqueTotal,
+		r.Base.UniqueCovered, percent(r.Base.UniqueCovered, r.Base.UniqueTotal),
+		r.Final.UniqueCovered, percent(r.Final.UniqueCovered, r.Final.UniqueTotal))
+
+	// The gap accounting below is on the stricter "defines the word itself" criterion that
+	// decides what the supplements are asked for, so its totals do not match the columns above.
+	fmt.Fprintf(w, "\nwords the base does not define itself : %d\n", r.UniqueMisses)
+	fmt.Fprintf(w, "resolved by supplements               : %d", r.Resolved)
+	if r.UniqueMisses > 0 {
+		fmt.Fprintf(w, " (%.1f%% of that gap)", percent(r.Resolved, r.UniqueMisses))
 	}
-	fmt.Fprintln(os.Stderr)
-	for _, src := range sortedKeys(perSource) {
-		fmt.Fprintf(os.Stderr, "  via %-12s %d\n", src, perSource[src])
+	fmt.Fprintln(w)
+	for _, src := range sortedKeys(r.PerSource) {
+		fmt.Fprintf(w, "  via %-12s %d\n", src, r.PerSource[src])
 	}
-	fmt.Fprintf(os.Stderr, "remaining gap           : %d\n", uniqueMisses-resolved)
-	fmt.Fprintf(os.Stderr, "new headword entries    : %d\n", addedEntries)
-	fmt.Fprintf(os.Stderr, "new inflection edges    : %d\n", addedForms)
+	fmt.Fprintf(w, "still undefined by any source         : %d", r.Final.UniqueTotal-r.Final.UniqueCovered)
+	if r.Final.UniqueTotal > 0 {
+		undefined := r.Final.UniqueTotal - r.Final.UniqueCovered
+		fmt.Fprintf(w, " (%.2f%% of all words)", percent(undefined, r.Final.UniqueTotal))
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "new headword entries                  : %d\n", r.AddedEntries)
+	fmt.Fprintf(w, "new inflection edges                  : %d\n", r.AddedForms)
+}
+
+// percent returns part/total as a percentage, or 0 for an empty total so an empty word list
+// never divides by zero.
+func percent(part, total int) float64 {
+	if total == 0 {
+		return 0
+	}
+	return 100 * float64(part) / float64(total)
 }
 
 // sortedKeys returns the keys of m in sorted order for stable reporting.
