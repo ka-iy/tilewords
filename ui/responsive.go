@@ -68,6 +68,45 @@ func (r *responsiveContainer) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(r.holder)
 }
 
+// endFollowLayout lays out a scrolling panel to fill the space, and puts the panel back on its
+// last entry whenever that space changes shape.
+//
+// The move-history and definitions panels word-wrap, so a new viewport shape — a rotation, a
+// drag of the wide layout's split, the phone column handing the pane a different height —
+// re-wraps their text and moves the last line away from wherever the scroll offset was
+// pointing. The panel is left showing some middle portion of the log with the newest entry off
+// screen. Scrolling again after the resize leaves it where the panels put it themselves as
+// entries arrive: on the end.
+//
+// Only a change of size does this. A container re-runs its layout on every Refresh, and
+// following the end on each of those would drag a player who has scrolled back to read an
+// earlier turn down to the bottom again.
+type endFollowLayout struct {
+	// laidOut is the size the panel was last given, so a Refresh that leaves the panel the same
+	// size can be told apart from a real layout change.
+	laidOut fyne.Size
+}
+
+func (l *endFollowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	resized := size != l.laidOut
+	l.laidOut = size
+	for _, o := range objs {
+		o.Resize(size)
+		o.Move(fyne.NewPos(0, 0))
+		if s, ok := o.(*container.Scroll); ok && resized {
+			s.ScrollToBottom()
+		}
+	}
+}
+
+func (l *endFollowLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	var min fyne.Size
+	for _, o := range objs {
+		min = min.Max(o.MinSize())
+	}
+	return min
+}
+
 // minHeightLayout lays out a single child to fill the space while advertising a
 // fixed minimum height (and the child's minimum width). Used to give the move-history
 // panel a usable height inside the stacked phone layout.

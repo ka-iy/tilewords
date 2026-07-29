@@ -13,6 +13,18 @@
   can also read/write user-visible local storage on legacy devices; they are scoped to
   API 28 and below, since API 29+ uses scoped storage and ignores them.
 
+  Orientation: the activity is locked to portrait. The screen is laid out as one column —
+  board, racks, controls, history — and a phone in landscape is too short for it: the board
+  shrinks to nothing and the panels are a couple of lines tall. Both of a foldable's shapes
+  are portrait (narrow folded, wide unfolded), so the lock does not stop the wide arrangement
+  being used; only landscape is refused.
+
+  The value is userPortrait rather than portrait, so both ways up are allowed and the device
+  is left to follow the player's own rotation setting: with auto-rotate off it stays as it is
+  rather than being forced upright. Note that a device may decline the request either way —
+  large screens running Android 12L and later can be configured to ignore an app's orientation
+  and letterbox it instead, so this is a request, not a guarantee.
+
   Notes for maintainers:
     - android:value for android.app.lib_name MUST be the packager's lib name, which is
       androidPkgName(app name) = "TileWords" (app name from the Makefile name flag). If the
@@ -50,6 +62,7 @@
 			android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round">
 		<activity android:name="org.golang.app.GoNativeActivity"
 			android:label="TileWords"
+			android:screenOrientation="userPortrait"
 			android:configChanges="orientation|keyboardHidden|uiMode"
 			android:exported="true"
 			android:theme="@android:style/Theme">

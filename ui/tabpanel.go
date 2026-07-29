@@ -24,12 +24,23 @@ type tabItem struct {
 	copyText func() string
 }
 
-// tabPanel is a minimal tab switcher used in place of container.AppTabs. AppTabs' tab
-// bar advertises a wide minimum size and its touch handling and nested scrolling do not
-// behave inside the phone layout's vertical scroll — the board is pushed past the
-// viewport, tab taps are missed, and the body cannot be scrolled to the top. This
-// switcher instead uses ordinary buttons over a stack that shows one body at a time, so
-// it inherits the same reliable tap and scroll behaviour as the rest of the screen.
+// tabPanel is a minimal tab switcher used in place of container.AppTabs, because AppTabs'
+// tab headers cannot be made to work on a touch screen from outside Fyne.
+//
+// Its headers are the unexported container.tabButton, which declares exactly
+// fyne.Widget, fyne.Tappable and desktop.Hoverable (container/tabs.go). Being unexported,
+// it can be given neither of the two things every touch control in this app needs:
+//   - mobile.Touchable, without which a header tap that drifts past the driver's 4 DIP
+//     threshold is taken by the enclosing Scroll as a pan and never arrives (see
+//     touchButton).
+//   - membership of a touchGroup, without which the driver's upward hit-test compensation
+//     cannot be corrected for it: the header's top edge is dead or operates whatever sits
+//     above the bar, and the bar answers to presses below itself (see touchGroup).
+//
+// This switcher instead uses ordinary buttons over a stack that shows one body at a time,
+// so the headers are touchButtons and are fixable like every other control. It also gives
+// the header row somewhere to put the whole-panel Copy button, which AppTabs has no slot
+// for.
 type tabPanel struct {
 	// root is the built panel (a button header above the body); it is what callers add to a layout.
 	root *fyne.Container

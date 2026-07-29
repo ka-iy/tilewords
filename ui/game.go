@@ -409,10 +409,20 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	// The definitions lookup worker is started from App.showGame (not here), so tests
 	// that build a screen directly do not spawn it or load the definitions asset.
 
+	// Each panel is wrapped so it returns to its newest entry when the viewport changes
+	// shape, which re-wraps the text under it; see endFollowLayout.
 	historyBox := newTabPanel(
 		onCopied,
-		tabItem{title: "Move history", content: gs.historyScroll, copyText: historyText},
-		tabItem{title: "Definitions", content: gs.defsScroll, copyText: defsText},
+		tabItem{
+			title:    "Move history",
+			content:  container.New(&endFollowLayout{}, gs.historyScroll),
+			copyText: historyText,
+		},
+		tabItem{
+			title:    "Definitions",
+			content:  container.New(&endFollowLayout{}, gs.defsScroll),
+			copyText: defsText,
+		},
 	).root
 
 	// Drag ghost: a floating tile that follows the cursor; hidden until a drag begins.
