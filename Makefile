@@ -13,7 +13,7 @@
 #   make install-mobile-tools     # then set ANDROID_HOME and ANDROID_NDK_HOME
 
 .PHONY: all linux linux-prod test vet vet32 clean clean-all-the-things clean-defs-sources \
-        gaddag gaddag-free download-wordlists defs help \
+        gaddag gaddag-free download-wordlists defs defs-asset help \
         debug-all release-all \
         windows-debug windows-release \
         android android-arm64-v8a android-x86_64 android-armeabi-v7a android-universal \
@@ -195,9 +195,11 @@ release-all: linux-prod windows-release android-release ## Build every release a
 # Everything the game embeds, and the sources it is built from. Three assets, each with its
 # own subsection below: the GADDAG dictionaries, the definitions asset, and the About text.
 #
-# The word lists and the definitions asset are committed, so none of these targets is needed
-# for an ordinary build — they exist to fetch sources and regenerate. Anything a build does
-# need is a prerequisite of the build targets themselves, so it is produced on demand.
+# The word lists are committed; the definitions asset is not (F-Droid does not accept a
+# prebuilt binary asset in a source tree), so a build produces one when it is absent. None of
+# these targets has to be run by hand — they exist to fetch sources and to regenerate
+# deliberately. Anything a build needs is a prerequisite of the build targets themselves, so
+# it is produced on demand.
 
 # ── GADDAG assets ─────────────────────────────────────────────────────────────
 #
@@ -308,8 +310,11 @@ $(DICT_DIR)/%.bin: $(WORDLISTS_DIR)/%.txt | $(DICT_DIR)
 # source cannot resolve, and only when the word is itself a headword there, so no gloss is
 # inferred from a near-spelling — see the precedence notes in SOURCES.md.
 #
-# 'make defs' is opt-in: the game builds and runs without it (definitions are simply
-# unavailable), so 'build' does not depend on it.
+# The asset is NOT committed, so a build makes one: every artifact target requires it through
+# the defs-asset guard below. The module still compiles without it — the embed pattern matches
+# the committed directory, and the game reports that definitions are unavailable — which is
+# why 'make test' and 'make vet' do not ask for it. Fetching the sources for a first build
+# takes a long while; the kaikki extract alone is several GB.
 
 DEFS_DIR   := defs/assets/definitions
 DEFS_ASSET := $(DEFS_DIR)/definitions.bin.gz
@@ -383,6 +388,22 @@ $(WORDNET_DICT):
 
 defs: $(DEFS_ASSET) ## Build the complete definitions asset, fetching each source if absent
 
+# defs-asset guarantees the asset exists, and does nothing else. It is what the build targets
+# depend on, rather than $(DEFS_ASSET) itself.
+#
+# The asset is not committed, so a build has to be able to produce one; but depending on the
+# file directly would pull every build into the asset's own prerequisite graph. After
+# clean-defs-sources — the ordinary way to reclaim the several GB the sources occupy — a plain
+# 'make linux' would then re-fetch the Wiktionary extract, because a missing prerequisite is
+# built before make can decide whether the asset is stale, and the fresh download would then
+# be newer than the asset sitting right there. Existence is the condition that matters for a
+# build, so that is the only thing tested here.
+#
+# Rebuilding an asset that already exists is what 'make defs' is for: it depends on the file,
+# so it still regenerates when a word list or a source is newer.
+defs-asset: ## Build the definitions asset if it is missing (what the build targets use)
+	@test -f $(DEFS_ASSET) || $(MAKE) $(DEFS_ASSET)
+
 # Both stages write to $(DEFS_STAGE), which is moved into place only once every stage has
 # succeeded — a failure part-way through must not leave a partial asset that make would
 # then consider up to date.
@@ -392,9 +413,10 @@ defs: $(DEFS_ASSET) ## Build the complete definitions asset, fetching each sourc
 # still built, but do not mark the target stale, which would mean a first run downloading
 # gigabytes and then rebuilding nothing.
 #
-# Note that $(DEFS_ASSET) is committed, so this rule is normally already satisfied. It fires
-# when a source or word list is newer than the asset, or when the asset has been removed
-# (clean-all-the-things), which is the point at which regenerating is actually wanted.
+# This rule fires when the asset is absent — a fresh checkout, or after clean-all-the-things —
+# and when a source or word list is newer than an asset that exists. A build reaches it only
+# through defs-asset, which asks for the file only when it is missing; 'make defs' names the
+# file itself, so that is what regenerates a stale one.
 $(DEFS_ASSET): $(WORDLIST_SRCS) $(SUPP_GLOSSARY) $(KAIKKI_EXTRACT) $(WEBSTER_JSON) $(WORDNET_DICT) | $(DEFS_DIR)
 	$(BUILDDEFS) -kaikki "$(KAIKKI_EXTRACT)" \
 	  -input "$(subst $(space),$(comma),$(WORDLIST_SRCS))" -output $(DEFS_STAGE)
@@ -423,6 +445,19 @@ COPYRIGHT_ASSET := ui/copyright.txt
 # TEXT_ASSETS is what the build targets depend on: both generated text assets are embedded
 # in the ui package, so a build needs each one present.
 TEXT_ASSETS := $(COPYRIGHT_ASSET) $(ABOUT_ASSET)
+
+# COMPILE_ASSETS is what any compilation of this module needs, because the packages that
+# embed them do not build without them: an embed pattern matching no file is a compile error.
+# 'make test' and 'make vet' need exactly this much.
+COMPILE_ASSETS := $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS)
+
+# BUILD_PREREQS is what producing a shippable artifact needs: the above, plus the definitions
+# asset. The definitions asset is deliberately not in COMPILE_ASSETS — the embed pattern
+# matches its committed directory, so the module compiles without it and only the game's
+# Definitions tab is affected, reporting that definitions are unavailable in this build. That
+# is fine for a test run and not fine for something a player installs, so every artifact
+# target requires it. See defs-asset for why the guard is used rather than the file itself.
+BUILD_PREREQS := $(COMPILE_ASSETS) defs-asset
 
 $(ABOUT_ASSET): $(ABOUT_SRCS)
 	@: > $@
@@ -489,7 +524,7 @@ DESKTOP_BIN_DEBUG := $(DESKTOP_BIN)-debug
 # not embed it). It is passed explicitly rather than relying on fyne to translate
 # FyneApp.toml's [Migrations] fyneDo=true, which requires that file to be found from the
 # main-package directory being built.
-linux: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Build the Linux desktop binary (debug)
+linux: $(BUILD_PREREQS) ## Build the Linux desktop binary (debug)
 	GOOS=$(LINUX_GOOS) GOARCH=$(LINUX_GOARCH) GOFLAGS="$(BUILD_INFO_GOFLAGS_DEBUG)" fyne build \
 		--src $(CMD) --tags migrated_fynedo -o $(CURDIR)/$(DESKTOP_BIN_DEBUG)
 
@@ -498,7 +533,7 @@ linux: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Build the Linux desk
 #
 # Code that branches on buildinfo.IsProductionBuild() only takes its production path in a
 # binary built this way, so this is the target to use when testing that behavior.
-linux-prod: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Build the Linux desktop binary (production, stripped)
+linux-prod: $(BUILD_PREREQS) ## Build the Linux desktop binary (production, stripped)
 	GOOS=$(LINUX_GOOS) GOARCH=$(LINUX_GOARCH) GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne build \
 		--src $(CMD) --tags migrated_fynedo --release -o $(CURDIR)/$(DESKTOP_BIN)
 
@@ -510,7 +545,7 @@ linux-prod: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Build the Linux
 #
 # 'fyne install' reads the app name from FyneApp.toml, which lives at the repo root rather
 # than in $(CMD), so we stage a copy there for the build (removed afterwards even on failure).
-install-desktop: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Install the Linux desktop app + .desktop entry (taskbar icon)
+install-desktop: $(BUILD_PREREQS) ## Install the Linux desktop app + .desktop entry (taskbar icon)
 	cp FyneApp.toml $(CMD)/FyneApp.toml
 	-cd $(CMD) && GOOS=$(LINUX_GOOS) GOARCH=$(LINUX_GOARCH) GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne install --release --icon $(ICON) --app-id $(APP_ID)
 	rm -f $(CMD)/FyneApp.toml
@@ -572,27 +607,31 @@ fyne package \
 mv $(CMD)/$(APP_NAME).exe $(3)
 endef
 
-windows-debug: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Cross-compile a Windows .exe (debug)
+windows-debug: $(BUILD_PREREQS) ## Cross-compile a Windows .exe (debug)
 	$(call fyne-package-windows,,$(BUILD_INFO_GOFLAGS_DEBUG),$(WINDOWS_BIN_DEBUG))
 
 # --release has fyne strip the binary (-s -w) and build it with -trimpath. It does not sign
 # the .exe: signing is what 'fyne release -os windows' does, and that wants a Microsoft
 # Store developer identity and certificate.
-windows-release: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Cross-compile a Windows .exe (production, stripped)
+windows-release: $(BUILD_PREREQS) ## Cross-compile a Windows .exe (production, stripped)
 	$(call fyne-package-windows,--release,$(BUILD_INFO_GOFLAGS_PROD),$(WINDOWS_BIN))
 
 # ── Development ───────────────────────────────────────────────────────────────
 ##@ Development
 
-# These carry the same asset prerequisites as the build targets because the assets are a
-# compile-time dependency, not just a runtime one: ui, dictionary and defs reach them with
-# //go:embed, and an embed pattern that matches no file fails the build of every package
-# that imports them. Without these, 'make test' and 'make vet' break after
-# clean-all-the-things rather than regenerating what they need.
-test: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Run all tests with the race detector
+# These carry the compile-time assets because those are a compile-time dependency, not just a
+# runtime one: ui, dictionary and defs reach them with //go:embed, and an embed pattern that
+# matches no file fails the build of every package that imports them. Without these, 'make
+# test' and 'make vet' break after clean-all-the-things rather than regenerating what they
+# need.
+#
+# They stop short of $(BUILD_PREREQS): the definitions asset is not needed to compile or to
+# test, and requiring it would put a multi-gigabyte download in front of a test run on a
+# checkout that has not built one. Artifact targets require it; these do not.
+test: $(COMPILE_ASSETS) ## Run all tests with the race detector
 	go test -race ./...
 
-vet: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Run go vet
+vet: $(COMPILE_ASSETS) ## Run go vet
 	go vet ./...
 
 # The 32-bit ABIs (armeabi-v7a, and any 386 Windows build) have a 32-bit int, so a constant
@@ -793,37 +832,37 @@ endef
 
 ##@ Android — debug APKs
 # Signed with $(DEBUG_KEYSTORE) if present, else the fyne debug key/cert. 'adb install'-able.
-android-arm64-v8a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Debug APK for arm64-v8a (modern phones)
+android-arm64-v8a: $(BUILD_PREREQS) ## Debug APK for arm64-v8a (modern phones)
 	$(call fyne-package-apk,android/arm64,arm64-v8a)
 
-android-x86_64: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Debug APK for x86_64 (emulators / x86 devices)
+android-x86_64: $(BUILD_PREREQS) ## Debug APK for x86_64 (emulators / x86 devices)
 	$(call fyne-package-apk,android/amd64,x86_64)
 
 # vet32 runs first on every target that includes the 32-bit ABI: a constant or size
 # computation that only fits a 64-bit int fails to compile for android/arm and nowhere else,
 # and catching that in a two-second type-check beats discovering it part-way through an APK
 # build that needs the NDK.
-android-armeabi-v7a: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Debug APK for armeabi-v7a (old 32-bit devices)
+android-armeabi-v7a: vet32 $(BUILD_PREREQS) ## Debug APK for armeabi-v7a (old 32-bit devices)
 	$(call fyne-package-apk,android/arm,armeabi-v7a)
 
 # Universal bundles include android/arm, so they need the 32-bit check too.
-android-universal: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Debug APK for all ABIs (universal, ~4x size)
+android-universal: vet32 $(BUILD_PREREQS) ## Debug APK for all ABIs (universal, ~4x size)
 	$(call fyne-package-apk,android,universal)
 
 android: android-arm64-v8a ## Debug APK for arm64-v8a (alias for android-arm64-v8a)
 
 ##@ Android — signed release App Bundles (.aab)
 # Need KEYSTORE / KEYSTORE_PASS / KEY_ALIAS (see the release-signing config above).
-android-release-arm64-v8a: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Signed release .aab for arm64-v8a
+android-release-arm64-v8a: $(BUILD_PREREQS) ## Signed release .aab for arm64-v8a
 	$(call fyne-release-aab,android/arm64,arm64-v8a)
 
-android-release-x86_64: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Signed release .aab for x86_64
+android-release-x86_64: $(BUILD_PREREQS) ## Signed release .aab for x86_64
 	$(call fyne-release-aab,android/amd64,x86_64)
 
-android-release-armeabi-v7a: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Signed release .aab for armeabi-v7a
+android-release-armeabi-v7a: vet32 $(BUILD_PREREQS) ## Signed release .aab for armeabi-v7a
 	$(call fyne-release-aab,android/arm,armeabi-v7a)
 
-android-release-universal: vet32 $(GADDAG_SHIPPED) $(GADDAG_ASSETS) $(TEXT_ASSETS) ## Signed release .aab for all ABIs (universal)
+android-release-universal: vet32 $(BUILD_PREREQS) ## Signed release .aab for all ABIs (universal)
 	$(call fyne-release-aab,android,universal)
 
 android-release: android-release-universal ## Signed release .aab for all ABIs (alias for android-release-universal)

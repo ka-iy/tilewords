@@ -6,8 +6,10 @@
 // counterpart to defslookup's -audit (which inspects words that DO resolve): its
 // job is to surface the coverage gap so it can be measured and closed.
 //
-// For each list it prints a coverage line (matched / total). Across all the lists
-// it emits a single deduplicated, sorted list of the missing words — the words a
+// For each list it prints a coverage line — matched and missing, each as a count and
+// as a percentage of that list — followed by the same figures for the union of every
+// list, so a run reports both the size of the gap and its proportion. Across all the
+// lists it emits a single deduplicated, sorted list of the missing words — the words a
 // player could form for which the game would show "no definition".
 //
 // The miss list goes to stdout (or -out) so it can be fed to a definition-sourcing
@@ -31,6 +33,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -79,6 +82,11 @@ func run() error {
 	// missIn maps a canonical (lowercase) missing word to the set of list indices
 	// it was missing in, so a miss can be attributed back to its source lists.
 	missIn := make(map[string]map[int]bool)
+	// seen is every canonical word across every list. It is what the aggregate figures are
+	// measured against, so a word carried by two lists counts once — the same basis as the
+	// deduplicated miss list, which would otherwise be reported as a share of a total that
+	// counts it twice.
+	seen := make(map[string]bool)
 	stats := make([]listStat, len(lists))
 
 	for i, path := range lists {
@@ -88,11 +96,12 @@ func run() error {
 		}
 		st := listStat{Path: path, Total: len(words)}
 		for _, w := range words {
+			key := strings.ToLower(w)
+			seen[key] = true
 			if _, ok := db.Lookup(w); ok {
 				continue
 			}
 			st.Missing++
-			key := strings.ToLower(w)
 			if missIn[key] == nil {
 				missIn[key] = make(map[int]bool)
 			}
@@ -110,7 +119,7 @@ func run() error {
 	if err := writeMisses(*outFlag, misses, missIn, lists, *tagFlag); err != nil {
 		return err
 	}
-	reportStats(stats, len(misses))
+	reportStats(os.Stderr, stats, len(seen), len(misses))
 	return nil
 }
 
@@ -193,25 +202,35 @@ func listName(path string) string {
 	return strings.TrimSuffix(base, ".txt")
 }
 
-// reportStats prints per-list coverage and the aggregate unique-miss count to
-// stderr. uniqueMisses is the deduplicated miss count across all lists.
-func reportStats(stats []listStat, uniqueMisses int) {
-	fmt.Fprintln(os.Stderr)
+// reportStats writes per-list coverage and the aggregate over the union of the lists.
+// Counts and percentages are given for both what is covered and what is missing, so the
+// gap can be read as a size and as a proportion without arithmetic.
+//
+// uniqueTotal is the number of distinct words across every list and uniqueMisses how many
+// of those have no definition; both are deduplicated, so the aggregate percentages describe
+// the words a player could form rather than the concatenation of the lists.
+func reportStats(w io.Writer, stats []listStat, uniqueTotal, uniqueMisses int) {
+	fmt.Fprintln(w)
 	for _, st := range stats {
 		matched := st.Total - st.Missing
-		fmt.Fprintf(os.Stderr, "%-28s %7d / %-7d covered (%6.2f%%), %d missing\n",
-			listName(st.Path), matched, st.Total, coverage(matched, st.Total), st.Missing)
+		fmt.Fprintf(w, "%-28s %7d / %-7d covered (%6.2f%%), %7d missing (%5.2f%%)\n",
+			listName(st.Path), matched, st.Total, percent(matched, st.Total),
+			st.Missing, percent(st.Missing, st.Total))
 	}
-	fmt.Fprintf(os.Stderr, "\naggregate: %d unique words missing across %d list(s)\n", uniqueMisses, len(stats))
+	fmt.Fprintf(w, "\naggregate across %d list(s):\n", len(stats))
+	uniqueMatched := uniqueTotal - uniqueMisses
+	fmt.Fprintf(w, "%-28s %7d / %-7d covered (%6.2f%%), %7d missing (%5.2f%%)\n",
+		"unique words", uniqueMatched, uniqueTotal, percent(uniqueMatched, uniqueTotal),
+		uniqueMisses, percent(uniqueMisses, uniqueTotal))
 }
 
-// coverage returns matched/total as a percentage, or 0 for an empty list so an
-// empty input never divides by zero.
-func coverage(matched, total int) float64 {
+// percent returns part/total as a percentage, or 0 for an empty total so an empty input
+// never divides by zero.
+func percent(part, total int) float64 {
 	if total == 0 {
 		return 0
 	}
-	return 100 * float64(matched) / float64(total)
+	return 100 * float64(part) / float64(total)
 }
 
 // loadDB decodes a definitions DB from a .gob(.gz) file.

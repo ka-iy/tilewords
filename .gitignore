@@ -21,8 +21,10 @@ Thumbs.db
 # gograph
 .gograph/
 
-# editor/IDE temp files
+# editor/IDE temp files. The undo-history pattern is dotted separately: vim writes it as
+# .<name>.un~, which the leading dot keeps out of reach of *~.
 *~
+.*.un~
 .*.swp
 .*.swo
 .idea/
@@ -39,6 +41,11 @@ buildgaddag
 /wordlists/kaikki-en.jsonl
 /wordlists/webster1913.json
 /wordlists/wordnet/
+
+# generated definitions asset. Not committed: F-Droid does not accept a prebuilt binary
+# asset in a source tree. Every build target produces it when it is missing (see the
+# defs-asset guard in the Makefile), and 'make defs' regenerates one that exists.
+/defs/assets/definitions/definitions.bin.gz
 
 # partially downloaded definitions sources, moved into place only once complete
 *.part

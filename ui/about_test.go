@@ -14,11 +14,17 @@ import (
 // dialog text must carry each source file's content under its own section header, so a
 // missing or stale ui/about.txt (which would otherwise fail silently at runtime) is caught.
 func TestAboutTextGenerated(t *testing.T) {
+	// Each source contributes a section header and a line of its own body, so a generation
+	// that dropped or truncated one of the three is caught. The body strings are matched
+	// against ABOUT.txt, FEATURES.txt and LEXICON.txt respectively — the repository URL is
+	// deliberately not among them: it lives in COPYRIGHT.txt, which is a separate asset
+	// (ui/copyright.txt) reaching the dialog by its own path, so asserting it here would pass
+	// on text this file has nothing to do with.
 	for _, want := range []string{
 		"ABOUT",                               // section header from ABOUT.txt
 		"FEATURES",                            // section header from FEATURES.txt
 		"LEXICON",                             // section header from LEXICON.txt
-		"github.com/ka-iy/tilewords",          // an ABOUT.txt URL
+		"crossword tile game",                 // ABOUT.txt's description of the game
 		"Selectable AI difficulty",            // a FEATURES.txt bullet
 		"https://github.com/wordnik/wordlist", // a LEXICON.txt source URL
 	} {
@@ -64,8 +70,10 @@ func TestAboutDialogTextBuildInfo(t *testing.T) {
 		}
 	}
 
-	// The embedded text is always present, section skipped or not.
-	if !strings.Contains(text, "github.com/ka-iy/tilewords") {
+	// The embedded text is always present, section skipped or not. The string is one of
+	// ABOUT.txt's own, not the repository URL: that arrives with the copyright notice, so it
+	// would be found here even if the sectioned text were missing entirely.
+	if !strings.Contains(text, "crossword tile game") {
 		t.Error("aboutDialogText is missing the embedded ABOUT.txt content")
 	}
 }

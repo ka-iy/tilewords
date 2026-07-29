@@ -44,11 +44,17 @@ All other external-entity trademarks, names, logos, and service marks (collectiv
 
 ## How's It Built (on Linux)?
 
-The three word lists (`wordlists/*.txt`) and the prebuilt definitions asset
-(`defs/assets/definitions/definitions.bin.gz`) are committed to the repository, so a
-from-scratch build is simply: install the [prerequisites](#prerequisites), then run
-`make`. The [word list](#fetch-the-word-lists) and [definitions](#fetch-and-build-the-definitions)
-sections below are only needed to refresh or regenerate that data.
+The three word lists (`wordlists/*.txt`) are committed to the repository, so a from-scratch
+build is: install the [prerequisites](#prerequisites), then run `make`.
+
+The definitions asset (`defs/assets/definitions/definitions.bin.gz`) is **not** committed —
+F-Droid does not accept a prebuilt binary asset in a source tree — so every build target
+builds it when it is missing, fetching the sources it is made from. **Be aware that this
+means a first build downloads several GB**, the Wiktionary extract being nearly all of it,
+and takes a correspondingly long time. Once the asset exists it is left alone; `make test`
+and `make vet` never ask for it, and `make defs` is what deliberately regenerates one. See
+[Fetch and build the definitions](#fetch-and-build-the-definitions) for how to point the
+build at copies of the sources you already have.
 
 ### Prerequisites
 
@@ -115,12 +121,12 @@ Adding a fourth list is just a matter of dropping `wordlists/<name>.txt` in plac
 discovered and compiled automatically - and registering `<name>` in
 `dictionary.AllDictNames` so the game offers it in the setup menu.
 
-### Fetch and build the definitions (Optional)
+### Fetch and build the definitions
 
-The definitions asset is committed, so this step is optional too. It is only needed to
-rebuild the in-game word definitions from scratch. One target does the whole job -
-fetching every source it does not already have, building the base asset, and folding in
-the supplements:
+The definitions asset is not committed, so a build makes one when it is missing. Running
+this by hand is only needed to regenerate an asset that already exists, or to fetch the
+sources ahead of a build. One target does the whole job - fetching every source it does not
+already have, building the base asset, and folding in the supplements:
 
 ```bash
 make defs
