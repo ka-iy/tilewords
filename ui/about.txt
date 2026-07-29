@@ -31,13 +31,13 @@ TILEWORDS IS NOT AFFILIATED WITH ANY OF THE ABOVE-MENTIONED PRODUCTS OR ENTITIES
 
 • Free and libre word lists: at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the Lexicon.
 
-• Word definitions: the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and public-domain glossaries. Words with no definition are noted rather than silently skipped.
+• Word definitions: the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and other libre / public-domain glossaries. Words with no definition are noted rather than silently skipped.
 
-• Two game modes: Classic uses the standard 15x15 premium-square layout and tile economy, while Interesting uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
+• Two game modes: Classic Mode uses the standard 15x15 premium-square layout and tile economy, while Interesting Mode uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
 
-• Selectable AI difficulty: choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard). Even at level 10, the AI is not infallible - just like a human being. At level 11, it is - this is God Mode (for the AI, not you). To quote from "This is Spinal Tap": "Why don't you just make 10 louder and make 10 be the top number?" / "...These go to ELEVEN!" 
+• Selectable AI difficulty: choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard). Even at level 10, the AI is not infallible - just like a human being. At level 11, it is - this is God Mode (for the AI, not you). To quote from "This is Spinal Tap": "Why don't you just make 10 louder and make 10 be the top number?" / "...These go to ELEVEN!"
 
-• Multiple ways to interact with the tiles and game board: drag a tile onto the board, or click/press on the tile and then the board square to place it at that square. double-tap a placed but not played board tile to return it to your rack. To recall all unplayed tiles to the rack, use the recall icon on top of your rack (looks like a download icon).
+• Multiple ways to interact with the tiles and game board: drag a tile onto the board, or click/press on the tile and then the board square to place it at that square. Double-tap a placed but not played board tile to return it to your rack. To recall all unplayed tiles to the rack, use the recall icon on top of your rack (looks like a download icon. Why? Because that's all that was available in the toolkit).
 
 • Move history: a running log of every turn - who played, the words formed, and the score - with an option to show it in standard Scrabble notation.
 
@@ -49,9 +49,11 @@ TILEWORDS IS NOT AFFILIATED WITH ANY OF THE ABOVE-MENTIONED PRODUCTS OR ENTITIES
 
 • Remembered setup defaults: optionally save your New Game choices - word list, game mode, difficulty, and notation - so that starting another game is a single tap.
 
-• Cross-platform: runs on desktop and Android from a single codebase. Written in Go using the Fyne UI toolkit. MacOS may be supported at some time in the future, but iOS will probably never be - the Apple Store hates open source, the GPL, and developers who don't work for them. Gurgle and Android are going the same way, sadly, in a horrifying game of monkey-see-monkey-do.
+• Cross-platform: runs on desktop and Android from a single codebase. Written in Go using the Fyne UI toolkit. MacOS may be supported at some time in the future, but iOS will probably never be - the Apple Store hates open source, the GPL, and developers who don't kowtow to them. Gurgle and Android are going the same way, sadly, in a horrifying game of simian mirror-neuron idiocy.
 
 • About and Lexicon: an in-app dialog crediting the word lists and dictionaries, with the source links copyable to the clipboard.
+
+• Show/Hide AI rack: For those times when you need to get a leg (or at least a toe) up on a frighteningly capable machine opponent.
 
 
 ==============================
