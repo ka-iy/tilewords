@@ -3,6 +3,7 @@
 # Generated GADDAG dictionary assets
 *.bin
 *.gob
+*.bin.gz
 
 # Claude's Test data
 testdata/
