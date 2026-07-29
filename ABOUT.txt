@@ -1,7 +1,4 @@
-TileWords is a free, fully open-source, fully offline Scrabble®-like crossword tile game (with word definitions!) in which you play against the computer, using individual letters to construct cromulent words on a game board to gain the endorphin hit from watching those sweet sweet points _racking_ (heh heh) up.
-
-TileWords is developed by Kartikeya IYER and is available (including source code) from:
-https://github.com/ka-iy/tilewords
+TileWords is a free, fully open-source, fully offline Scrabble®-like crossword tile game (with word definitions!) in which you play against the computer, using individual letter tiles to construct cromulent words on a game board to gain the endorphin hit from watching those sweet sweet points _racking_ (heh heh) up.
 
 TileWords uses public-domain and libre/freely available word lists and definitions.
 No proprietary lexicons were harmed during the making of this game.
@@ -14,6 +11,8 @@ LEGAL GUFF
 ==============================
 
 SCRABBLE® is a registered trademark. All intellectual property rights in and to SCRABBLE® are owned in the U.S.A. by Hasbro Inc., in Canada by Hasbro Canada Inc. and throughout the rest of the world by J.W. Spear & Sons Ltd. of England, a subsidiary of Mattel Inc.
+
+The "Android" name, the Android logo, the "Google Play" brand, and other Google trademarks, are property of Google LLC (whom I non-lovingly call "Gurgle").
 
 All other external-entity trademarks, names, logos, and service marks (collectively "trademarks") in this product are the registered and unregistered trademarks of their respective owners.
 

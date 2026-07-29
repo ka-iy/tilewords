@@ -2,10 +2,7 @@
   ABOUT
 ==============================
 
-TileWords is a free, fully open-source, fully offline Scrabble®-like crossword tile game (with word definitions!) in which you play against the computer, using individual letters to construct cromulent words on a game board to gain the endorphin hit from watching those sweet sweet points _racking_ (heh heh) up.
-
-TileWords is developed by Kartikeya IYER and is available (including source code) from:
-https://github.com/ka-iy/tilewords
+TileWords is a free, fully open-source, fully offline Scrabble®-like crossword tile game (with word definitions!) in which you play against the computer, using individual letter tiles to construct cromulent words on a game board to gain the endorphin hit from watching those sweet sweet points _racking_ (heh heh) up.
 
 TileWords uses public-domain and libre/freely available word lists and definitions.
 No proprietary lexicons were harmed during the making of this game.
@@ -18,6 +15,8 @@ LEGAL GUFF
 ==============================
 
 SCRABBLE® is a registered trademark. All intellectual property rights in and to SCRABBLE® are owned in the U.S.A. by Hasbro Inc., in Canada by Hasbro Canada Inc. and throughout the rest of the world by J.W. Spear & Sons Ltd. of England, a subsidiary of Mattel Inc.
+
+The "Android" name, the Android logo, the "Google Play" brand, and other Google trademarks, are property of Google LLC (whom I non-lovingly call "Gurgle").
 
 All other external-entity trademarks, names, logos, and service marks (collectively "trademarks") in this product are the registered and unregistered trademarks of their respective owners.
 
@@ -38,6 +37,8 @@ TILEWORDS IS NOT AFFILIATED WITH ANY OF THE ABOVE-MENTIONED PRODUCTS OR ENTITIES
 
 • Selectable AI difficulty: choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard). Even at level 10, the AI is not infallible - just like a human being. At level 11, it is - this is God Mode (for the AI, not you). To quote from "This is Spinal Tap": "Why don't you just make 10 louder and make 10 be the top number?" / "...These go to ELEVEN!" 
 
+• Multiple ways to interact with the tiles and game board: drag a tile onto the board, or click/press on the tile and then the board square to place it at that square. double-tap a placed but not played board tile to return it to your rack. To recall all unplayed tiles to the rack, use the recall icon on top of your rack (looks like a download icon).
+
 • Move history: a running log of every turn - who played, the words formed, and the score - with an option to show it in standard Scrabble notation.
 
 • Copy to clipboard: the move-history and definitions panels are copyable. On desktop, select and copy; on a phone, long-press to copy the whole panel, while a finger-drag scrolls and a double or triple tap selects a word or line.
@@ -48,7 +49,7 @@ TILEWORDS IS NOT AFFILIATED WITH ANY OF THE ABOVE-MENTIONED PRODUCTS OR ENTITIES
 
 • Remembered setup defaults: optionally save your New Game choices - word list, game mode, difficulty, and notation - so that starting another game is a single tap.
 
-• Cross-platform: runs on desktop and Android from a single codebase.
+• Cross-platform: runs on desktop and Android from a single codebase. Written in Go using the Fyne UI toolkit. MacOS may be supported at some time in the future, but iOS will probably never be - the Apple Store hates open source, the GPL, and developers who don't work for them. Gurgle and Android are going the same way, sadly, in a horrifying game of monkey-see-monkey-do.
 
 • About and Lexicon: an in-app dialog crediting the word lists and dictionaries, with the source links copyable to the clipboard.
 
@@ -81,7 +82,7 @@ DEFINITIONS
 
 • Glossary to Edmund Spenser's "The Faerie Queene", Book I: public domain, via Wikisource. https://en.wikisource.org/wiki/The_Faerie_Queene_(unsourced)/Book_I/Glossary
 
-• Extended Free Zyzzyva Dictionary (OWL 2.1): definitions by Joseph Petree, used with his permission and with his name recorded here as he asks; his wording is kept verbatim. Obtained via the WOW24 Zyzzyva import compiled by Mitch Bayersdorfer, (C) 2026, released under CC BY-SA 4.0, which also credits the Word Game Players Organization (WOW24 lexicon), NASPA Zyzzyva, and Wiktionary. This is the source for the tournament-lexicon words no general dictionary defines. https://pdxscrabble.neocities.org/word-lists/WOW24-Dictionary-Import
+• Joseph Petree's OWL 2.1 from WOW24: definitions by Joseph Petree, with his name recorded here as he asks. Obtained via the WOW24 import compiled by Mitch Bayersdorfer, (C) 2026, released under CC BY-SA 4.0, which also credits the Word Game Players Organization (WOW24 lexicon) and Wiktionary amongst others. https://pdxscrabble.neocities.org/word-lists/WOW24-Dictionary-Import
 
 • Webster's New Modern English Dictionary (1922): public domain, OCR text via the Internet Archive. https://archive.org/details/webstersnewmoder00web
 

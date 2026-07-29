@@ -22,7 +22,7 @@ DEFINITIONS
 
 • Glossary to Edmund Spenser's "The Faerie Queene", Book I: public domain, via Wikisource. https://en.wikisource.org/wiki/The_Faerie_Queene_(unsourced)/Book_I/Glossary
 
-• Extended Free Zyzzyva Dictionary (OWL 2.1): definitions by Joseph Petree, used with his permission and with his name recorded here as he asks; his wording is kept verbatim. Obtained via the WOW24 Zyzzyva import compiled by Mitch Bayersdorfer, (C) 2026, released under CC BY-SA 4.0, which also credits the Word Game Players Organization (WOW24 lexicon), NASPA Zyzzyva, and Wiktionary. This is the source for the tournament-lexicon words no general dictionary defines. https://pdxscrabble.neocities.org/word-lists/WOW24-Dictionary-Import
+• Joseph Petree's OWL 2.1 from WOW24: definitions by Joseph Petree, with his name recorded here as he asks. Obtained via the WOW24 import compiled by Mitch Bayersdorfer, (C) 2026, released under CC BY-SA 4.0, which also credits the Word Game Players Organization (WOW24 lexicon) and Wiktionary amongst others. https://pdxscrabble.neocities.org/word-lists/WOW24-Dictionary-Import
 
 • Webster's New Modern English Dictionary (1922): public domain, OCR text via the Internet Archive. https://archive.org/details/webstersnewmoder00web
 
