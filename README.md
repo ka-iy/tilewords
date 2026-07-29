@@ -4,7 +4,7 @@ A free, fully open-source, fully offline Scrabble®-like crossword tile game, wr
 
 See the note at the very bottom for why I felt the need to make this. And yes, this was built using AI. The note explains that too.
 
-## About
+## What's All This, Then?
 
 TileWords is a Scrabble®-like offline crossword tile game in which you play against the computer, using individual letters to construct cromulent words on a game board to gain the endorphin hit from watching those sweet sweet points _racking_ (heh heh) up. Plus, since it shows the definitions for words whose definitions it knows, it's a learning tool too!
 
@@ -16,29 +16,33 @@ While it is currently a fully offline game, if there is sufficient interest in a
 
 SCRABBLE® is a registered trademark. All intellectual property rights in and to SCRABBLE® are owned in the U.S.A. by Hasbro Inc., in Canada by Hasbro Canada Inc. and throughout the rest of the world by J.W. Spear & Sons Ltd. of England, a subsidiary of Mattel Inc.
 
+The "Android" name, the Android logo, the "Google Play" brand, and other Google trademarks, are property of Google LLC (whom I non-lovingly call "Gurgle").
+
 All other external-entity trademarks, names, logos, and service marks (collectively "trademarks") in this product are the registered and unregistered trademarks of their respective owners.
 
 **TileWords is NOT affiliated with any of the above-mentioned products or entities.**
 
-## Features
+## What's It Got?
 
 - **Free, offline and private:** the game is open-source, requires no payment, and will never track you or show you ads. It needs no network connection and requests no internet permission. Everything runs on your device.
-- **Free and libre word lists:** at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the [Lexicon](#lexicon).
+- **Free and libre word lists:** at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the [My Word!](#my-word) section.
    - The word list artefacts created during the build process are in an optimized form to minimize disk and memory usage on mobile devices.
-- **Word definitions:** the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and public-domain glossaries. Words with no definition are noted rather than silently skipped.
+- **Word definitions:** the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and other libre / public-domain glossaries. Words with no definition are noted rather than silently skipped.
    - Like the word lists, the definitions artefact is stored in a compact flat form and streamed in at load, so ~147,000 headwords cost about 19 MB of memory rather than the ~52 MB a conventional map of objects would. See the appendix to [OPTIMIZING_THE_GADDAGS.md](OPTIMIZING_THE_GADDAGS.md).
-- **Two game modes:** Classic uses the standard 15x15 premium-square layout and tile economy, while Interesting uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
+- **Two game modes:** Classic Mode uses the standard 15x15 premium-square layout and tile economy, while Interesting Mode uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
 - **Selectable AI difficulty:** choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard). Even at level 10, the AI is not infallible - just like a human being. At level 11, it is - this is God Mode (for the AI, not you). To quote from `This is Spinal Tap`: _"Why don't you just make 10 louder and make 10 be the top number?"_ **/** _"...These go to ELEVEN!"_
+- **Multiple ways to interact with the tiles and game board:** drag a tile onto the board, or click/press on the tile and then the board square to place it at that square. Double-tap a placed but not played board tile to return it to your rack. To recall all unplayed tiles to the rack, use the recall icon on top of your rack (looks like a download icon. Why? Because that's all that was available in the toolkit).
 - **Move history:** a running log of every turn - who played, the words formed, and the score - with an option to show it in standard Scrabble notation.
 - **Copy to clipboard:** the move-history and definitions panels are copyable. On desktop, select and copy; on a phone, long-press to copy the whole panel, while a finger-drag scrolls and a double or triple tap selects a word or line.
    - For convenience and visibility, a dedicated "Copy" button is also provided in the game UI which will copy the contents of the active tab (Move history or Definitions) to the system clipboard.
 - **Undo:** take back the last full round - your move together with the computer's reply.
 - **Save and restore:** keep a single saved game and resume it later. The save captures the board, racks, scores, move history, and game mode.
 - **Remembered setup defaults:** optionally save your New Game choices - word list, game mode, difficulty, and notation - so that starting another game is a single tap.
-- **Cross-platform:** runs on desktop and Android from a single codebase.
+- **Cross-platform:** runs on desktop and Android from a single codebase. Written in Go using the Fyne UI toolkit. MacOS may be supported at some time in the future, but iOS will probably never be - the Apple Store hates open source, the GPL, and developers who don't kowtow to them. Gurgle and Android are going the same way, sadly, in a horrifying game of simian mirror-neuron idiocy.
 - **About and Lexicon:** an in-app dialog crediting the word lists and dictionaries, with the source links copyable to the clipboard.
+- **Show/Hide AI rack:** for those times when you need to get a leg (or at least a toe) up on a frighteningly capable machine opponent.
 
-## Building on Linux
+## How's It Built (on Linux)?
 
 The three word lists (`wordlists/*.txt`) and the prebuilt definitions asset
 (`defs/assets/definitions/definitions.bin.gz`) are committed to the repository, so a
@@ -284,7 +288,7 @@ make android-release-apk \
 
 Run `make help` for the full list of per-ABI debug and release targets.
 
-## Lexicon
+## My Word!
 
 TileWords is built on freely available word lists and dictionaries. Grateful acknowledgement is made to the authors and maintainers of the sources below, whose work makes possible this game and the lexicon it uses.
 
@@ -308,11 +312,13 @@ While (almost) every effort has been made to fill the gaps in the definitions, g
 
 ----------
 
-## A note from the original developer
+## A note from the (original) developer
 
-This project was started as an experiment in using the [AWS AI-DLC framework](https://github.com/awslabs/aidlc-workflows) and Claude Code to build a word game with all the features I always wanted in my ideal word-game project _("What the hell does ZAX mean??")(It's a construction tool)_ but which I had not been able to find consolidated in one single project. As an addendum to the experiment, I wanted to see whether I could do this without firing up my editor or manually changing stuff. I almost succeeded in that endeavor. Almost.
+This project was started as an experiment in using the [AWS AI-DLC framework](https://github.com/awslabs/aidlc-workflows) and Claude Code to build a word game with all the features I always wanted in my ideal word-game...uh...game _("What the hell does ZAX mean??")(It's a construction tool)_ but which I had not been able to find consolidated in one single game.
 
-My takeaways thus far (as of July 2026):
+As an addendum to the experiment, I wanted to see whether I could do this without firing up my editor or manually changing stuff. I almost succeeded in that endeavor. Almost.
+
+My takeaways thus far (as of August 2026):
 - Agentic coding is definitely a development accelerator **provided that** the AI is constantly hand-held, stopped from going down senseless paths, steered in the correct direction, and generally treated like a precocious idiot-savant tween.
    - Thorough testing of _ALL THE THINGS_, followed by follow-up prompts to fix things, is pretty much _de rigeur_ for getting workable stuff out of an AI. And this wasn't even that complicated a project. OK, the UI was, since I'm not a UI guy - it actually did a decent job _(well, decent to a non-GUI guy, anyway)_ of coming with a rough initial layout which I could then use as a base to tweak.
    - It is, however,really good at typing much quicker than one would be able to even if one were able to code telepathically, plus (kinda) grok large wodges of code and come up with a halfway-sensible meaning of it all. It shaved literal months off the dev timeline as compared to my going at it alone. Also see below.
@@ -321,4 +327,4 @@ My takeaways thus far (as of July 2026):
 - AI-DLC is alright, but perhaps needs a bit more time to mature. Also, it is verbose as all hell, which is probably OK for Enterprise(tm) Development.
   - I think I'll follow the [BMAD](https://docs.bmad-method.org/) AI SLDC framework for future development especially since that lends itself well to collaborative efforts. I'll leave the `aidlc-docs` directory in the sources as a historical record of shenanigans perpetrated.
 
-I also had fun getting the AI to write a pseudoacademic "paper" on the optimization strategies used to reduce the size of the lexicon/glossary assets.
+I also had lots of fun getting the AI to write a pseudoacademic "paper" - ( ͡° ͜ʖ ͡°) - on the optimization strategies used to reduce the size of the lexicon/glossary assets.
