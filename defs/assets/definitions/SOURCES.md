@@ -50,20 +50,20 @@ requirement of the respective sources.
       (`befana`, `eboulement`, `siffleur`, `stegomyia`).
       https://archive.org/details/webstersnewmoder00web
     - **Joseph Petree's OWL 2.1 (2016) from WOW24 ** — definitions by **Joseph
-      Petree**, obtained via the WOW24 Zyzzyva import compiled by Mitch Bayersdorfer and
+      Petree**, obtained via the WOW24 import compiled by Mitch Bayersdorfer and
       released under **CC BY-SA 4.0** (© 2026 Mitch Bayersdorfer). This is the only source
       found that defines the Scrabble-tournament vocabulary absent from every general
       dictionary (`acta`, `aerosat`, `pistolero`, `wab`), and supplies the large majority of
       this glossary.
       https://pdxscrabble.neocities.org/word-lists/WOW24-Dictionary-Import
       Joseph Petree's permission requires that his name appear in the definitions file and
-      that the text not be severely altered, so his wording is kept verbatim and only
+      that the text not be severely altered, so his definitions are kept verbatim and only
       the database's formatting notation is stripped (inflection tables, cross-reference prefixes,
       the `~` non-tournament flag, provenance markers).
       Note: the bundle's README attaches a non-commercial note to its contents, deriving from
-      WGPO's terms for the **WOW24 word list**. That word list is not used here — only
-      definition text, keyed to this project's own word lists — but anyone redistributing this
-      asset commercially should confirm that reading for themselves.
+      WGPO's terms for the **WOW24 word list**. That word list is not used here — only Joseph
+      Petree's definition text, keyed to this project's own word lists — but anyone redistributing
+      this asset commercially should confirm that reading for themselves.
     - **The Online Plain Text English Dictionary (OPTED) v0.03**, Ralph S. Sutherland —
       public domain, derived from the Project Gutenberg etext of Webster's Unabridged
       Dictionary (1913), the same 1913 edition already credited above. Used only for the
