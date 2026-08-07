@@ -84,8 +84,8 @@ func (r *Rack) Remove(tiles []Tile) error {
 // bag is empty. Returns the drawn tiles so callers (e.g. PlayCommand) can
 // record them for undo.
 //
-// rng is passed through to Bag.Draw, which reshuffles the bag before taking each
-// individual replacement tile. Pass nil for a deterministic draw.
+// rng is passed through to Bag.Draw, which shuffles the bag before the replacement tiles
+// are taken. Pass nil for a deterministic draw.
 func (r *Rack) Replenish(bag *Bag, rng *rand.Rand) []Tile {
 	need := MaxRackSize - len(r.tiles)
 	if need <= 0 || bag.Count() == 0 {

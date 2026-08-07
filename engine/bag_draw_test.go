@@ -17,11 +17,10 @@ func letterBag(letters string) *Bag {
 	return newTestBag(tiles)
 }
 
-// A multi-tile draw takes every tile from a freshly shuffled bag, so each tile still in
-// the bag is equally likely to arrive at any position of the draw. Were the bag shuffled
-// only once per game (or not at all before a draw), a tile's chance of being drawn would
-// depend on where it happened to sit, and tiles returned to a known position would come
-// straight back out.
+// A draw shuffles the bag before taking its tiles, so every tile still in the bag is
+// equally likely to arrive at any position of the draw. Were the bag shuffled only once per
+// game (or not at all before a draw), a tile's chance of being drawn would depend on where
+// it happened to sit, and tiles returned to a known position would come straight back out.
 func TestBagDrawIsUniformAtEveryDrawPosition(t *testing.T) {
 	const (
 		letters = "ABCDEF"
@@ -179,9 +178,9 @@ func TestBagDrawNilRNGKeepsBagOrder(t *testing.T) {
 	}
 }
 
-// Replenish passes rng through to the draw, so a rack's replacement tiles are subject to
-// the same per-tile reshuffle. This covers both players: the human and the AI replenish
-// through PlayCommand.Execute, which routes here.
+// Replenish passes rng through to the draw, so a rack's replacement tiles come off a
+// shuffled bag too. This covers both players: the human and the AI replenish through
+// PlayCommand.Execute, which routes here.
 func TestRackReplenishDrawsRandomly(t *testing.T) {
 	const trials = 2000
 	rng := rand.New(rand.NewSource(11))
@@ -208,7 +207,7 @@ func TestRackReplenishDrawsRandomly(t *testing.T) {
 }
 
 // An exchange draws its replacements while the exchanged tiles are out of the bag, so no
-// reshuffle during the draw can hand a player back a tile they just exchanged away.
+// shuffle before the draw can hand a player back a tile they just exchanged away.
 func TestExchangeNeverReturnsTheExchangedTiles(t *testing.T) {
 	const trials = 500
 	rng := rand.New(rand.NewSource(3))
