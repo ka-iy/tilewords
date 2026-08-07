@@ -136,6 +136,11 @@ func TestExchangeUndo_ReshufflesBag(t *testing.T) {
 
 // TestUndo_NilRNGKeepsBagOrder verifies a nil rng leaves the order alone, which is what lets
 // a test assert exact restoration.
+//
+// The baseline is the bag as it stands after Execute, not before it: a draw reshuffles the
+// bag before taking each tile (see Bag.Draw), so Execute is entitled to have reordered it.
+// What a nil rng promises is that Undo adds nothing of its own — the drawn tiles go back on
+// the end and every other tile stays where Execute left it.
 func TestUndo_NilRNGKeepsBagOrder(t *testing.T) {
 	state := &GameState{
 		Board:       newFlatBoard(),
@@ -144,7 +149,6 @@ func TestUndo_NilRNGKeepsBagOrder(t *testing.T) {
 		Bag:         fullBag(),
 		CurrentTurn: HumanTurn,
 	}
-	before := bagOrder(state.Bag)
 
 	cmd := &PlayCommand{Move: PlayMove{Placed: []PlacedTile{
 		{Tile: Tile{Letter: 'A', Points: 1}, Row: 7, Col: 7},
@@ -153,10 +157,39 @@ func TestUndo_NilRNGKeepsBagOrder(t *testing.T) {
 	if err := cmd.Execute(state, testDict, deterministicRNG()); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
+	if len(cmd.drawnTiles) == 0 {
+		t.Fatal("fixture drew no tiles, so undo would put nothing back and the check is vacuous")
+	}
+
+	want := append(bagOrder(state.Bag), cmd.drawnTiles...)
+	cmd.Undo(state, nil)
+
+	if !sameOrder(want, bagOrder(state.Bag)) {
+		t.Error("undo with a nil rng changed the bag order")
+	}
+}
+
+// TestExchangeUndo_NilRNGRestoresBagExactly verifies the other half of the nil-rng contract:
+// an exchange undone with a nil rng restores the bag to exactly its pre-Execute order, since
+// its Undo replaces the bag from a snapshot taken before the draw reshuffled anything.
+func TestExchangeUndo_NilRNGRestoresBagExactly(t *testing.T) {
+	state := &GameState{
+		Board:       newFlatBoard(),
+		HumanRack:   &Rack{tiles: []Tile{{Letter: 'Q', Points: 10}, {Letter: 'Z', Points: 10}}},
+		AIRack:      &Rack{},
+		Bag:         fullBag(),
+		CurrentTurn: HumanTurn,
+	}
+	before := bagOrder(state.Bag)
+
+	cmd := &ExchangeCommand{Move: ExchangeMove{Tiles: []Tile{{Letter: 'Q', Points: 10}}}}
+	if err := cmd.Execute(state, testDict, deterministicRNG()); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
 	cmd.Undo(state, nil)
 
 	if !sameOrder(before, bagOrder(state.Bag)) {
-		t.Error("undo with a nil rng changed the bag order")
+		t.Error("undoing an exchange with a nil rng did not restore the bag order exactly")
 	}
 }
 

@@ -83,12 +83,15 @@ func (r *Rack) Remove(tiles []Tile) error {
 // Replenish draws tiles from bag until the rack holds MaxRackSize tiles or the
 // bag is empty. Returns the drawn tiles so callers (e.g. PlayCommand) can
 // record them for undo.
-func (r *Rack) Replenish(bag *Bag) []Tile {
+//
+// rng is passed through to Bag.Draw, which reshuffles the bag before taking each
+// individual replacement tile. Pass nil for a deterministic draw.
+func (r *Rack) Replenish(bag *Bag, rng *rand.Rand) []Tile {
 	need := MaxRackSize - len(r.tiles)
 	if need <= 0 || bag.Count() == 0 {
 		return nil
 	}
-	drawn := bag.Draw(need)
+	drawn := bag.Draw(need, rng)
 	r.tiles = append(r.tiles, drawn...)
 	return drawn
 }

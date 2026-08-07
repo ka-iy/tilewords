@@ -136,10 +136,10 @@ func NewWithMode(dictName dictionary.DictName, aiLevel int, mode GameMode, rng *
 	firstTurn, humanLetter, aiLetter := drawForFirstTurn(bag, rng)
 
 	humanRack := &Rack{}
-	humanRack.Replenish(bag)
+	humanRack.Replenish(bag, rng)
 
 	aiRack := &Rack{}
-	aiRack.Replenish(bag)
+	aiRack.Replenish(bag, rng)
 
 	return &GameState{
 		Board:       board,
@@ -166,7 +166,7 @@ func NewWithMode(dictName dictionary.DictName, aiLevel int, mode GameMode, rng *
 // returns, so the caller deals the racks from the full bag.
 func drawForFirstTurn(bag *Bag, rng *rand.Rand) (first Turn, humanLetter, aiLetter byte) {
 	for {
-		drawn := bag.Draw(2)
+		drawn := bag.Draw(2, rng)
 		humanLetter, aiLetter = drawn[0].Letter, drawn[1].Letter
 		bag.Return(drawn, rng)
 		if humanLetter == aiLetter {

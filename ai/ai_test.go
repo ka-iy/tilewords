@@ -411,7 +411,7 @@ func TestChooseMove_NoCandidates_SmallBag(t *testing.T) {
 	state.CurrentTurn = engine.AITurn
 	// Drain the bag to below MaxRackSize.
 	for state.Bag.Count() >= engine.MaxRackSize {
-		state.Bag.Draw(engine.MaxRackSize)
+		state.Bag.Draw(engine.MaxRackSize, nil)
 	}
 	rng2 := deterministicRNG(1)
 	move := ai.ChooseMove(state, emptyDict, 5, rng2)

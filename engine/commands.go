@@ -90,8 +90,10 @@ func (cmd *PlayCommand) Execute(state *GameState, dict *dictionary.Dictionary, r
 		state.ConsecutivePasses++
 	}
 
-	// Replenish the rack; record drawn tiles for Undo.
-	cmd.drawnTiles = rack.Replenish(state.Bag)
+	// Replenish the rack; record drawn tiles for Undo. rng reshuffles the bag before each
+	// replacement tile is taken. This is the draw for whichever player is on turn, so the
+	// human and the AI replenish through the same path.
+	cmd.drawnTiles = rack.Replenish(state.Bag, rng)
 
 	// Credit the score to the current player.
 	addScore(state, cmd.Move.Score)
@@ -189,8 +191,11 @@ func (cmd *ExchangeCommand) Execute(state *GameState, dict *dictionary.Dictionar
 	cmd.bagSnapshot = make([]Tile, len(state.Bag.tiles))
 	copy(cmd.bagSnapshot, state.Bag.tiles)
 
-	// Draw replacements, then return the exchanged tiles (with reshuffle).
-	cmd.drawnTiles = state.Bag.Draw(len(cmd.Move.Tiles))
+	// Draw replacements, then return the exchanged tiles (with reshuffle). The draw
+	// reshuffles the bag before each replacement tile. It must stay ahead of the Return
+	// below: the exchanged tiles are out of the bag for the whole draw, so no reshuffle
+	// during it can hand a player back a tile they just exchanged away.
+	cmd.drawnTiles = state.Bag.Draw(len(cmd.Move.Tiles), rng)
 	if err := rack.Add(cmd.drawnTiles); err != nil {
 		// Unreachable: the bag holds at least MaxRackSize tiles and the rack was within
 		// capacity, so the draw returns exactly as many tiles as Remove took out. Kept as

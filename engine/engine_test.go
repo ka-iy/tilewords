@@ -37,7 +37,7 @@ func TestBag_DrawAndReturn(t *testing.T) {
 	bag := NewBag(rng)
 	initial := bag.Count()
 
-	drawn := bag.Draw(7)
+	drawn := bag.Draw(7, nil) // no reshuffle
 	if len(drawn) != 7 {
 		t.Fatalf("Draw(7) returned %d tiles", len(drawn))
 	}
@@ -53,7 +53,7 @@ func TestBag_DrawAndReturn(t *testing.T) {
 
 func TestBag_DrawMoreThanAvailable(t *testing.T) {
 	bag := newTestBag([]Tile{{Letter: 'A', Points: 1}})
-	drawn := bag.Draw(5)
+	drawn := bag.Draw(5, nil)
 	if len(drawn) != 1 {
 		t.Errorf("Draw(5) from 1-tile bag returned %d tiles, want 1", len(drawn))
 	}

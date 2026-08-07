@@ -43,14 +43,31 @@ func NewBagForMode(rng *rand.Rand, mode GameMode) *Bag {
 
 // Draw removes and returns up to n tiles from the bag.
 // If fewer than n tiles remain, all remaining tiles are returned.
-func (b *Bag) Draw(n int) []Tile {
+//
+// The bag is reshuffled before each individual tile is taken, so every tile of a
+// multi-tile draw comes off a freshly randomised bag rather than off one ordering
+// fixed earlier. Sampling without replacement from a single uniform permutation is
+// already uniform, so this does not change the distribution of a draw; it makes the
+// randomness independent of how the remaining tiles happen to be ordered, so a
+// caller that puts tiles back at a known position cannot bias the tiles that follow.
+//
+// A nil rng skips every reshuffle and pops the last n tiles in their existing order,
+// which is what lets a caller ask for a deterministic draw (see Shuffle).
+func (b *Bag) Draw(n int, rng *rand.Rand) []Tile {
 	if n > len(b.tiles) {
 		n = len(b.tiles)
 	}
-	// Pop from the end of the slice (O(1)).
 	drawn := make([]Tile, n)
-	copy(drawn, b.tiles[len(b.tiles)-n:])
-	b.tiles = b.tiles[:len(b.tiles)-n]
+	// Filled back to front so that with a nil rng the result is the tail of the bag in
+	// its existing order, the same tiles in the same order a single unshuffled pop of n
+	// would have produced. With a non-nil rng the order carries no meaning: each tile is
+	// an independent uniform pick from the tiles still in the bag.
+	for i := n - 1; i >= 0; i-- {
+		b.Shuffle(rng)
+		// Pop from the end of the slice (O(1)).
+		drawn[i] = b.tiles[len(b.tiles)-1]
+		b.tiles = b.tiles[:len(b.tiles)-1]
+	}
 	return drawn
 }
 
