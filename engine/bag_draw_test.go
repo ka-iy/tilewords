@@ -68,6 +68,99 @@ func TestBagDrawIsUniformAtEveryDrawPosition(t *testing.T) {
 	}
 }
 
+// A dealt rack must match one sampled by the standard library's own shuffle over the same
+// 100 tiles. This is the check with no hand-derived arithmetic in it to get wrong: if the
+// bag's draw is biased in any way rand.Shuffle is not, the two disagree.
+//
+// It is aimed at the shape players actually notice — how many copies of one letter, and of
+// one vowel, land on a rack together. Those rates are naturally high (E alone is 12 of the
+// 100 tiles), so a report of "too many duplicate vowels" can only be settled by comparing
+// against a known-good sampler rather than against intuition.
+func TestBagDrawMatchesReferenceSampler(t *testing.T) {
+	const trials = 50000
+
+	var pool []Tile
+	for _, spec := range tileDistribution {
+		for i := 0; i < spec.count; i++ {
+			pool = append(pool, Tile{Letter: spec.letter, IsBlank: spec.letter == 0})
+		}
+	}
+
+	// Fixed seeds: a systematic bias shows up at every seed, so pinning them keeps the
+	// test deterministic without weakening it.
+	rng := rand.New(rand.NewSource(4242))
+	refRng := rand.New(rand.NewSource(2424))
+
+	// counts[k] = racks whose most-repeated letter appeared k times; same for vowels.
+	var bagLetter, refLetter [MaxRackSize + 1]int
+	var bagVowel, refVowel [MaxRackSize + 1]int
+	work := make([]Tile, len(pool))
+
+	for i := 0; i < trials; i++ {
+		rack := &Rack{}
+		rack.Replenish(NewBag(rng), rng)
+		hand := rack.Tiles()
+		bagLetter[maxRepeat(hand, false)]++
+		bagVowel[maxRepeat(hand, true)]++
+
+		copy(work, pool)
+		refRng.Shuffle(len(work), func(a, b int) { work[a], work[b] = work[b], work[a] })
+		ref := work[:MaxRackSize]
+		refLetter[maxRepeat(ref, false)]++
+		refVowel[maxRepeat(ref, true)]++
+	}
+
+	for _, tc := range []struct {
+		name     string
+		bag, ref [MaxRackSize + 1]int
+	}{
+		{"letter", bagLetter, refLetter},
+		{"vowel", bagVowel, refVowel},
+	} {
+		// Two-sample chi-square over equal-sized samples; ~1 per degree of freedom when the
+		// two samplers agree. A real bias lands orders of magnitude above the bound.
+		chi, df := 0.0, 0
+		for k := 0; k <= MaxRackSize; k++ {
+			b, r := float64(tc.bag[k]), float64(tc.ref[k])
+			if b+r < 50 { // too rare for the approximation to mean anything
+				continue
+			}
+			chi += (b - r) * (b - r) / (b + r)
+			df++
+		}
+		if df > 1 {
+			df--
+		}
+		if norm := chi / float64(df); norm > 4 {
+			t.Errorf("most-repeated-%s distribution differs from the reference sampler: chi2/df = %.2f (df=%d)\n bag=%v\n ref=%v",
+				tc.name, norm, df, tc.bag, tc.ref)
+		}
+	}
+}
+
+// maxRepeat returns how many copies of the most-repeated letter the tiles hold, counting
+// only vowels when vowelsOnly is set. Blanks are never counted: they have no letter.
+func maxRepeat(tiles []Tile, vowelsOnly bool) int {
+	counts := map[byte]int{}
+	for _, t := range tiles {
+		if t.IsBlank {
+			continue
+		}
+		if vowelsOnly && t.Letter != 'A' && t.Letter != 'E' && t.Letter != 'I' &&
+			t.Letter != 'O' && t.Letter != 'U' {
+			continue
+		}
+		counts[t.Letter]++
+	}
+	best := 0
+	for _, c := range counts {
+		if c > best {
+			best = c
+		}
+	}
+	return best
+}
+
 // A nil rng skips the reshuffle, so a draw is the tail of the bag in its existing order.
 // Callers rely on this to assert an exact bag (see Bag.Shuffle).
 func TestBagDrawNilRNGKeepsBagOrder(t *testing.T) {
