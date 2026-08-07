@@ -4,7 +4,7 @@
 package ui
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"tilewords/engine"
@@ -19,7 +19,7 @@ func TestSaveManager_PersistsScrabbleNotation(t *testing.T) {
 		t.Fatalf("NewSaveManager: %v", err)
 	}
 
-	state := engine.New("csw", 5, rand.New(rand.NewSource(42)))
+	state := engine.New("csw", 5, rand.New(rand.NewPCG(42, 0)))
 	state.ScrabbleNotation = true
 	if err := sm.Save(state); err != nil {
 		t.Fatalf("Save: %v", err)

@@ -7,7 +7,7 @@ package ui
 import (
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
@@ -231,7 +231,7 @@ func TestSaveManager_RoundTrip(t *testing.T) {
 		t.Fatal("Exists() should be false before first save")
 	}
 
-	state := engine.New("csw", 5, rand.New(rand.NewSource(42)))
+	state := engine.New("csw", 5, rand.New(rand.NewPCG(42, 0)))
 	if err := sm.Save(state); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
@@ -269,7 +269,7 @@ func TestSaveManager_RoundTripMidGame(t *testing.T) {
 	dir := t.TempDir()
 	sm, _ := NewSaveManager(dir)
 
-	state := engine.New("csw", 5, rand.New(rand.NewSource(42)))
+	state := engine.New("csw", 5, rand.New(rand.NewPCG(42, 0)))
 	state.History = []engine.MoveRecord{
 		{Player: "You", Line: "8H CAT +10", Points: 10, Cells: [][2]int{{7, 7}}, Words: []string{"CAT"}},
 		{Player: "AI", Line: "AI: passed"},
@@ -322,7 +322,7 @@ func TestSaveManager_LoadCorrupt(t *testing.T) {
 func TestSaveManager_MkdirOnFirstSave(t *testing.T) {
 	dir := t.TempDir()
 	sm, _ := NewSaveManager(filepath.Join(dir, "nested"))
-	state := engine.New("csw", 1, rand.New(rand.NewSource(42)))
+	state := engine.New("csw", 1, rand.New(rand.NewPCG(42, 0)))
 	if err := sm.Save(state); err != nil {
 		t.Fatalf("Save to new directory: %v", err)
 	}
@@ -337,7 +337,7 @@ func TestSaveManager_Delete(t *testing.T) {
 	dir := t.TempDir()
 	sm, _ := NewSaveManager(dir)
 
-	state := engine.New("csw", 5, rand.New(rand.NewSource(42)))
+	state := engine.New("csw", 5, rand.New(rand.NewPCG(42, 0)))
 	if err := sm.Save(state); err != nil {
 		t.Fatalf("Save: %v", err)
 	}

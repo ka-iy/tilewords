@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 )
 
 // Bag holds the pool of tiles available for drawing during the game.
@@ -20,7 +20,7 @@ type Bag struct {
 func NewBag(rng *rand.Rand) *Bag { return NewBagForMode(rng, ClassicMode) }
 
 // NewBagForMode returns a shuffled bag filled from mode's tile distribution.
-// The shuffle uses the Fisher-Yates algorithm seeded from rng.
+// See Shuffle for how the tiles are randomised; a nil rng leaves them in distribution order.
 func NewBagForMode(rng *rand.Rand, mode GameMode) *Bag {
 	var tiles []Tile
 	for _, entry := range distributionForMode(mode) {
@@ -32,13 +32,11 @@ func NewBagForMode(rng *rand.Rand, mode GameMode) *Bag {
 			})
 		}
 	}
-	// Fisher-Yates shuffle: for i from n-1 down to 1, swap tiles[i] with
-	// a uniformly random tiles[j] where 0 ≤ j ≤ i.
-	for i := len(tiles) - 1; i > 0; i-- {
-		j := rng.Intn(i + 1)
-		tiles[i], tiles[j] = tiles[j], tiles[i]
-	}
-	return &Bag{tiles: tiles}
+	// Shuffled through the bag's own method rather than a second copy of the algorithm here,
+	// so there is one shuffle in the engine to reason about and to test.
+	b := &Bag{tiles: tiles}
+	b.Shuffle(rng)
+	return b
 }
 
 // Draw removes and returns up to n tiles from the bag.
@@ -74,17 +72,23 @@ func (b *Bag) Return(tiles []Tile, rng *rand.Rand) {
 	b.Shuffle(rng)
 }
 
-// Shuffle randomises the order of the tiles remaining in the bag using the Fisher-Yates
-// algorithm. A nil rng is a no-op, which is what lets a caller ask for the order to be left
-// alone (tests that assert an exact bag).
+// Shuffle randomises the order of the tiles remaining in the bag. A nil rng is a no-op,
+// which is what lets a caller ask for the order to be left alone (tests that assert an
+// exact bag).
+//
+// rand.Shuffle is itself Fisher-Yates, so this is the same algorithm the loop it replaced
+// spelled out, drawing its swap indices from the same bounded-integer routine IntN would
+// have used. It is preferred over writing the loop out because the standard library's copy
+// is the one that cannot drift: a hand-written Fisher-Yates is one edit away from the
+// off-by-one that draws each index from the whole slice instead of the unshuffled prefix,
+// which biases the result while still looking shuffled.
 func (b *Bag) Shuffle(rng *rand.Rand) {
 	if rng == nil {
 		return
 	}
-	for i := len(b.tiles) - 1; i > 0; i-- {
-		j := rng.Intn(i + 1)
+	rng.Shuffle(len(b.tiles), func(i, j int) {
 		b.tiles[i], b.tiles[j] = b.tiles[j], b.tiles[i]
-	}
+	})
 }
 
 // Count returns the number of tiles remaining in the bag.

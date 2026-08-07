@@ -6,7 +6,7 @@ package engine
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 
 	"tilewords/dictionary"
 )

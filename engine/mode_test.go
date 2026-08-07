@@ -4,7 +4,7 @@
 package engine
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 )
 
@@ -30,7 +30,7 @@ func TestInterestingDistributionTotals(t *testing.T) {
 
 // TestNewBagForModeCounts verifies each mode fills the bag with the right tile count.
 func TestNewBagForModeCounts(t *testing.T) {
-	rng := rand.New(rand.NewSource(1))
+	rng := rand.New(rand.NewPCG(1, 0))
 	if n := NewBagForMode(rng, ClassicMode).Count(); n != 100 {
 		t.Fatalf("classic bag = %d, want 100", n)
 	}
@@ -41,7 +41,7 @@ func TestNewBagForModeCounts(t *testing.T) {
 
 // TestNewWithModeSetsMode verifies the mode is recorded on both the state and its board.
 func TestNewWithModeSetsMode(t *testing.T) {
-	rng := rand.New(rand.NewSource(1))
+	rng := rand.New(rand.NewPCG(1, 0))
 	s := NewWithMode("enable", 5, InterestingMode, rng)
 	if s.Mode != InterestingMode {
 		t.Fatalf("state.Mode = %v, want Interesting", s.Mode)

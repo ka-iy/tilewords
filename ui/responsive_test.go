@@ -5,7 +5,7 @@ package ui
 
 import (
 	"image/color"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"fyne.io/fyne/v2"
@@ -137,7 +137,7 @@ func TestGameScreen_ResponsiveFitsPhone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := engine.New(dict.Name(), 5, rand.New(rand.NewSource(1)))
+	state := engine.New(dict.Name(), 5, rand.New(rand.NewPCG(1, 0)))
 	content := newGameScreen(nil, state, dict).build()
 
 	const phoneWidth = 412 // generous average-phone portrait width (dp)

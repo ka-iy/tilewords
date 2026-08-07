@@ -6,7 +6,7 @@ package engine
 import (
 	"bytes"
 	"encoding/gob"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 )
 
@@ -711,7 +711,7 @@ func TestPlayCommand_ScoringPlayResetsScorelessCounter(t *testing.T) {
 // --- GameState.Clone tests ---
 
 func TestGameState_Clone_Independent(t *testing.T) {
-	rng := rand.New(rand.NewSource(99))
+	rng := rand.New(rand.NewPCG(99, 0))
 	state := New(testDict.Name(), 5, rng)
 	clone := state.Clone()
 

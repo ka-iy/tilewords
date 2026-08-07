@@ -6,7 +6,7 @@ package ai_test
 import (
 	"fmt"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 	"time"
 
@@ -22,7 +22,7 @@ import (
 func boardStateGen() *rapid.Generator[*engine.GameState] {
 	return rapid.Custom(func(t *rapid.T) *engine.GameState {
 		seed := rapid.Int64().Draw(t, "seed")
-		rng := rand.New(rand.NewSource(seed))
+		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		state.CurrentTurn = engine.AITurn
 
@@ -71,7 +71,7 @@ func simpleRackGen() *rapid.Generator[*engine.Rack] {
 func TestPBT_AI_AllCandidatesValid(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
-		rng := rand.New(rand.NewSource(seed))
+		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		rack := simpleRackGen().Draw(t, "rack")
 
@@ -89,7 +89,7 @@ func TestPBT_AI_AllCandidatesValid(t *testing.T) {
 func TestPBT_AI_CandidatesSorted(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
-		rng := rand.New(rand.NewSource(seed))
+		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		rack := simpleRackGen().Draw(t, "rack")
 
@@ -112,7 +112,7 @@ func TestPBT_AI_CandidatesSorted(t *testing.T) {
 func TestPBT_AI_NoDuplicates(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
-		rng := rand.New(rand.NewSource(seed))
+		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		rack := simpleRackGen().Draw(t, "rack")
 
@@ -145,7 +145,7 @@ func TestPBT_AI_NoDuplicates(t *testing.T) {
 func TestPBT_AI_Level10PlaysNearBest(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
-		rng := rand.New(rand.NewSource(seed))
+		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		rack := simpleRackGen().Draw(t, "rack")
 
@@ -158,7 +158,7 @@ func TestPBT_AI_Level10PlaysNearBest(t *testing.T) {
 		// Any seed must land inside the window; the margin is a fraction of the best score,
 		// and a best score of zero admits only the first candidate.
 		for _, s := range []int64{1, 42, 99, seed} {
-			got := ai.SelectMove(candidates, 10, rand.New(rand.NewSource(s)))
+			got := ai.SelectMove(candidates, 10, rand.New(rand.NewPCG(uint64(s), 0)))
 			if best <= 0 {
 				if got.Score != best {
 					t.Fatalf("all plays score %d but level 10 returned %d", best, got.Score)
@@ -185,7 +185,7 @@ func TestPBT_AI_SelectMove_RangeCorrect(t *testing.T) {
 			candidates[i] = ai.MoveCandidate{Score: n - i}
 		}
 
-		rng := rand.New(rand.NewSource(seed))
+		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		selected := ai.SelectMove(candidates, level, rng)
 
 		// Compute expected k using the same formula as SelectMove (BR-AI-05).
@@ -217,12 +217,12 @@ func TestPBT_AI_SelectMove_RangeCorrect(t *testing.T) {
 func TestPBT_AI_ChooseMove_NonNil(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
-		rng := rand.New(rand.NewSource(seed))
+		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		state.CurrentTurn = engine.AITurn
 
 		level := rapid.IntRange(1, 10).Draw(t, "level")
-		rng2 := rand.New(rand.NewSource(rapid.Int64().Draw(t, "seed2")))
+		rng2 := rand.New(rand.NewPCG(uint64(rapid.Int64().Draw(t, "seed2")), 0))
 
 		move := ai.ChooseMove(state, testDict, level, rng2)
 		if move == nil {
@@ -238,7 +238,7 @@ func TestPBT_AI_ChooseMove_NonNil(t *testing.T) {
 func TestPBT_AI_OffGoroutine_NoRace(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
-		rng := rand.New(rand.NewSource(seed))
+		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		state.CurrentTurn = engine.AITurn
 
@@ -246,7 +246,7 @@ func TestPBT_AI_OffGoroutine_NoRace(t *testing.T) {
 		snapshot := state.Clone()
 		result := make(chan engine.Move, 1)
 		go func() {
-			result <- ai.ChooseMove(snapshot, testDict, 10, rand.New(rand.NewSource(seed)))
+			result <- ai.ChooseMove(snapshot, testDict, 10, rand.New(rand.NewPCG(uint64(seed), 0)))
 		}()
 
 		// Keep reading the live state while the AI works: a clone that shared anything

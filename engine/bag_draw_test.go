@@ -4,7 +4,7 @@
 package engine
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 )
 
@@ -27,7 +27,7 @@ func TestBagDrawIsUniformAtEveryDrawPosition(t *testing.T) {
 		perDraw = 3
 		trials  = 60000
 	)
-	rng := rand.New(rand.NewSource(7))
+	rng := rand.New(rand.NewPCG(7, 0))
 
 	// counts[position][letter] — how often each letter arrived at each draw position.
 	counts := make([]map[byte]int, perDraw)
@@ -67,9 +67,15 @@ func TestBagDrawIsUniformAtEveryDrawPosition(t *testing.T) {
 	}
 }
 
-// A dealt rack must match one sampled by the standard library's own shuffle over the same
-// 100 tiles. This is the check with no hand-derived arithmetic in it to get wrong: if the
-// bag's draw is biased in any way rand.Shuffle is not, the two disagree.
+// A dealt rack must match one sampled by an independent shuffle over the same 100 tiles.
+// This is the check with no hand-derived arithmetic in it to get wrong: if the bag's draw is
+// biased in a way the reference is not, the two disagree.
+//
+// The reference is written out here rather than taken from the standard library, because the
+// bag now shuffles via rand.Shuffle — comparing against that would be comparing the code
+// with itself. The reference below is independent twice over: it is a separate transcription
+// of Fisher-Yates, and Intn takes a different route to a bounded integer than the one
+// rand.Shuffle uses internally, so the two agree only if both are genuinely uniform.
 //
 // It is aimed at the shape players actually notice — how many copies of one letter, and of
 // one vowel, land on a rack together. Those rates are naturally high (E alone is 12 of the
@@ -87,8 +93,8 @@ func TestBagDrawMatchesReferenceSampler(t *testing.T) {
 
 	// Fixed seeds: a systematic bias shows up at every seed, so pinning them keeps the
 	// test deterministic without weakening it.
-	rng := rand.New(rand.NewSource(4242))
-	refRng := rand.New(rand.NewSource(2424))
+	rng := rand.New(rand.NewPCG(4242, 0))
+	refRng := rand.New(rand.NewPCG(2424, 0))
 
 	// counts[k] = racks whose most-repeated letter appeared k times; same for vowels.
 	var bagLetter, refLetter [MaxRackSize + 1]int
@@ -103,7 +109,10 @@ func TestBagDrawMatchesReferenceSampler(t *testing.T) {
 		bagVowel[maxRepeat(hand, true)]++
 
 		copy(work, pool)
-		refRng.Shuffle(len(work), func(a, b int) { work[a], work[b] = work[b], work[a] })
+		for k := len(work) - 1; k > 0; k-- {
+			j := refRng.IntN(k + 1)
+			work[k], work[j] = work[j], work[k]
+		}
 		ref := work[:MaxRackSize]
 		refLetter[maxRepeat(ref, false)]++
 		refVowel[maxRepeat(ref, true)]++
@@ -183,7 +192,7 @@ func TestBagDrawNilRNGKeepsBagOrder(t *testing.T) {
 // PlayCommand.Execute, which routes here.
 func TestRackReplenishDrawsRandomly(t *testing.T) {
 	const trials = 2000
-	rng := rand.New(rand.NewSource(11))
+	rng := rand.New(rand.NewPCG(11, 0))
 
 	// With a 26-letter bag and a 7-tile replenish, the draw taking the bag's tail every
 	// time would yield the same 7 letters on every trial.
@@ -210,7 +219,7 @@ func TestRackReplenishDrawsRandomly(t *testing.T) {
 // shuffle before the draw can hand a player back a tile they just exchanged away.
 func TestExchangeNeverReturnsTheExchangedTiles(t *testing.T) {
 	const trials = 500
-	rng := rand.New(rand.NewSource(3))
+	rng := rand.New(rand.NewPCG(3, 0))
 
 	for n := 0; n < trials; n++ {
 		state := newGameState()

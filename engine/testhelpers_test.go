@@ -4,7 +4,7 @@
 package engine
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"testing"
 
@@ -101,7 +101,7 @@ var testDict *dictionary.Dictionary
 
 // deterministicRNG returns a seeded *rand.Rand for reproducible tests.
 func deterministicRNG() *rand.Rand {
-	return rand.New(rand.NewSource(42))
+	return rand.New(rand.NewPCG(42, 0))
 }
 
 // newGameState returns a fresh GameState using the shared testDict and fixed RNG seed.

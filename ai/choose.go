@@ -5,7 +5,7 @@
 package ai
 
 import (
-	"math/rand"
+	"math/rand/v2"
 
 	"tilewords/dictionary"
 	"tilewords/engine"

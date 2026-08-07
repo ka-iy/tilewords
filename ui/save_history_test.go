@@ -4,7 +4,7 @@
 package ui
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"fyne.io/fyne/v2/test"
@@ -22,7 +22,7 @@ func TestSaveManager_PersistsMoveHistory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := engine.New(dict.Name(), 5, rand.New(rand.NewSource(1)))
+	state := engine.New(dict.Name(), 5, rand.New(rand.NewPCG(1, 0)))
 	state.OpeningDraw = &engine.OpeningDraw{HumanLetter: 'C', AILetter: 'T', First: engine.HumanTurn}
 	state.CurrentTurn = engine.HumanTurn
 	gs := newGameScreen(nil, state, dict)

@@ -6,9 +6,8 @@ package ui
 
 import (
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -233,6 +232,17 @@ func (a *App) showGame(state *engine.GameState, dict *dictionary.Dictionary) {
 	}
 }
 
+// newGameRNG returns a generator for one game's randomness.
+//
+// The seed comes from math/rand/v2's top-level source, which the runtime seeds from the
+// operating system at start-up, rather than from the clock. Two words of it give PCG its
+// full 128-bit seed. Seeding from time.Now() instead would tie a game to the instant it
+// began: two games started within the same clock tick would deal identically, and the seeds
+// ever used would be confined to the narrow band of clock readings around a launch.
+func newGameRNG() *rand.Rand {
+	return rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
+}
+
 // ---------- Asynchronous dictionary loading ----------
 //
 // The GADDAG dictionary can be large to decode, so it is always loaded on a
@@ -255,7 +265,7 @@ func (a *App) startNewGame(dictName dictionary.DictName, level int, mode engine.
 				onErr(sanitiseError(err))
 				return
 			}
-			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+			rng := newGameRNG()
 			state := engine.NewWithMode(dict.Name(), level, mode, rng)
 			state.ScrabbleNotation = scrabbleNotation
 			logOpeningDraw(state)

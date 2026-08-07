@@ -6,7 +6,7 @@ package ui
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 	"time"
 
@@ -234,7 +234,7 @@ func newGameScreen(a *App, state *engine.GameState, dict *dictionary.Dictionary)
 		scrabbleNotation: state.ScrabbleNotation,
 		openingLine:      openingDrawLine(state.OpeningDraw),
 		history:          restoreHistory(state.History),
-		rng:              rand.New(rand.NewSource(time.Now().UnixNano())),
+		rng:              newGameRNG(),
 		rackSelected:     -1,
 		exchangeSel:      make(map[int]bool),
 		dragRackSrc:      -1,
@@ -1545,7 +1545,7 @@ func (gs *gameScreen) startAITurn() {
 	go func() {
 		result := make(chan engine.Move, 1)
 		go func() {
-			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+			rng := newGameRNG()
 			result <- ai.ChooseMove(snapshot, dict, level, rng)
 		}()
 

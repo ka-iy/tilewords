@@ -4,7 +4,7 @@
 package ui
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"sort"
 	"testing"
 
@@ -72,7 +72,7 @@ func TestRackDisplayMatchesEngineRack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rng := rand.New(rand.NewSource(9))
+	rng := rand.New(rand.NewPCG(9, 0))
 
 	for game := 0; game < 200; game++ {
 		state := engine.New(dict.Name(), 5, rng)
@@ -89,7 +89,7 @@ func TestRackDisplayMatchesEngineRack(t *testing.T) {
 			if n < 2 {
 				break
 			}
-			gs.reorderRack(rng.Intn(n), rng.Intn(n))
+			gs.reorderRack(rng.IntN(n), rng.IntN(n))
 			gs.refresh()
 
 			got, want := shownRackLetters(gs), heldRackLetters(gs)
@@ -113,7 +113,7 @@ func TestRackDisplayMatchesEngineRackAcrossPlays(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rng := rand.New(rand.NewSource(21))
+	rng := rand.New(rand.NewPCG(21, 0))
 
 	for game := 0; game < 100; game++ {
 		state := engine.New(dict.Name(), 5, rng)

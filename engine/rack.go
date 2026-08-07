@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 )
 
 // MaxRackSize is the maximum number of tiles a player may hold.
@@ -120,7 +120,7 @@ func (r *Rack) MoveTile(from, to int) {
 // cosmetic; the set of tiles is unchanged.
 func (r *Rack) Shuffle(rng *rand.Rand) {
 	for i := len(r.tiles) - 1; i > 0; i-- {
-		j := rng.Intn(i + 1)
+		j := rng.IntN(i + 1)
 		r.tiles[i], r.tiles[j] = r.tiles[j], r.tiles[i]
 	}
 }

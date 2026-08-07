@@ -4,7 +4,7 @@
 package engine
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"sort"
 	"testing"
 )
@@ -60,7 +60,7 @@ func TestRackMoveTile(t *testing.T) {
 func TestRackShuffle_PreservesMultiset(t *testing.T) {
 	const letters = "RETAINS"
 	r := rackOf(letters)
-	r.Shuffle(rand.New(rand.NewSource(12345)))
+	r.Shuffle(rand.New(rand.NewPCG(12345, 0)))
 
 	got := []byte(rackLetters(r))
 	sort.Slice(got, func(i, j int) bool { return got[i] < got[j] })

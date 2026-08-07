@@ -4,7 +4,7 @@
 package ai_test
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"testing"
 
@@ -113,7 +113,7 @@ func TestMain(m *testing.M) {
 
 // deterministicRNG returns a seeded *rand.Rand for reproducible tests.
 func deterministicRNG(seed int64) *rand.Rand {
-	return rand.New(rand.NewSource(seed))
+	return rand.New(rand.NewPCG(uint64(seed), 0))
 }
 
 // placeTile is a test helper that places a tile on the board at (row, col).

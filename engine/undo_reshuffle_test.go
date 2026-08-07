@@ -4,7 +4,7 @@
 package engine
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 )
 
@@ -89,7 +89,7 @@ func TestPlayUndo_ReshufflesBag(t *testing.T) {
 		t.Fatal("fixture drew no tiles, so there is no revealed order to protect")
 	}
 
-	cmd.Undo(state, rand.New(rand.NewSource(7)))
+	cmd.Undo(state, rand.New(rand.NewPCG(7, 0)))
 
 	after := bagOrder(state.Bag)
 	if !sameCounts(letterCounts(before), letterCounts(after)) {
@@ -118,7 +118,7 @@ func TestExchangeUndo_ReshufflesBag(t *testing.T) {
 		t.Fatalf("Execute: %v", err)
 	}
 
-	cmd.Undo(state, rand.New(rand.NewSource(7)))
+	cmd.Undo(state, rand.New(rand.NewPCG(7, 0)))
 
 	after := bagOrder(state.Bag)
 	if !sameCounts(letterCounts(before), letterCounts(after)) {
@@ -219,7 +219,7 @@ func TestUndo_RestoresEverythingButBagOrder(t *testing.T) {
 	if err := cmd.Execute(state, testDict, deterministicRNG()); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	cmd.Undo(state, rand.New(rand.NewSource(3)))
+	cmd.Undo(state, rand.New(rand.NewPCG(3, 0)))
 
 	if state.HumanScore != wantHuman || state.AIScore != wantAI {
 		t.Errorf("scores = %d/%d, want %d/%d", state.HumanScore, state.AIScore, wantHuman, wantAI)

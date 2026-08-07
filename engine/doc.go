@@ -18,7 +18,7 @@
 //
 // # Usage
 //
-//	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+//	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
 //	state := engine.New(dictionary.DictENABLE, 5, rng)
 //
 //	cmd := &engine.PlayCommand{Move: move}

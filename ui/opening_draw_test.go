@@ -4,7 +4,7 @@
 package ui
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 	"testing"
 
@@ -21,7 +21,7 @@ func newOpeningHarness(t *testing.T, od *engine.OpeningDraw) *gameScreen {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := engine.New(dict.Name(), 5, rand.New(rand.NewSource(1)))
+	state := engine.New(dict.Name(), 5, rand.New(rand.NewPCG(1, 0)))
 	state.OpeningDraw = od
 	state.CurrentTurn = engine.HumanTurn
 	gs := newGameScreen(nil, state, dict)

@@ -4,7 +4,7 @@
 package engine
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 )
 
@@ -29,7 +29,7 @@ func TestDrawForFirstTurn_NearestToAWins(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Slice order: tiles[len-2] is drawn first (human), tiles[len-1] second (AI).
 			bag := newTestBag([]Tile{{Letter: tc.human, IsBlank: tc.human == 0}, {Letter: tc.ai, IsBlank: tc.ai == 0}})
-			first, human, ai := drawForFirstTurn(bag, rand.New(rand.NewSource(1)))
+			first, human, ai := drawForFirstTurn(bag, rand.New(rand.NewPCG(1, 0)))
 			if first != tc.wantFirst {
 				t.Errorf("first = %v, want %v", first, tc.wantFirst)
 			}
@@ -49,7 +49,7 @@ func TestDrawForFirstTurn_NearestToAWins(t *testing.T) {
 // the returned first player. The bag holds duplicate 'A's to force the tie path.
 func TestDrawForFirstTurn_TieRedraws(t *testing.T) {
 	bag := newTestBag([]Tile{{Letter: 'A'}, {Letter: 'B'}, {Letter: 'A'}})
-	first, human, ai := drawForFirstTurn(bag, rand.New(rand.NewSource(7)))
+	first, human, ai := drawForFirstTurn(bag, rand.New(rand.NewPCG(7, 0)))
 	if human == ai {
 		t.Fatalf("drawn letters tied (%q == %q); a tie must be re-drawn", human, ai)
 	}
@@ -71,7 +71,7 @@ func TestDrawForFirstTurn_TieRedraws(t *testing.T) {
 func TestNew_FirstPlayerVaries(t *testing.T) {
 	humanFirst, aiFirst := 0, 0
 	for seed := int64(1); seed <= 300; seed++ {
-		state := New(testDict.Name(), 5, rand.New(rand.NewSource(seed)))
+		state := New(testDict.Name(), 5, rand.New(rand.NewPCG(uint64(seed), 0)))
 
 		od := state.OpeningDraw
 		if od == nil {

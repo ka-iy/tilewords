@@ -4,7 +4,7 @@
 package engine
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"pgregory.net/rapid"
@@ -24,7 +24,7 @@ func tileGen() *rapid.Generator[Tile] {
 func TestPBT_BagCount(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
-		rng := rand.New(rand.NewSource(seed))
+		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		bag := NewBag(rng)
 		if bag.Count() != tileDistributionTotal {
 			t.Fatalf("NewBag count = %d, want %d", bag.Count(), tileDistributionTotal)

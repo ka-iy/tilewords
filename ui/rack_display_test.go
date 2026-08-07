@@ -4,7 +4,7 @@
 package ui
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"fyne.io/fyne/v2/test"
@@ -62,7 +62,7 @@ func newRackHarness(t *testing.T) *gameScreen {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := engine.New(dict.Name(), 5, rand.New(rand.NewSource(1)))
+	state := engine.New(dict.Name(), 5, rand.New(rand.NewPCG(1, 0)))
 	state.CurrentTurn = engine.HumanTurn
 	gs := newGameScreen(nil, state, dict)
 	gs.build()

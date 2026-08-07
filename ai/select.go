@@ -6,7 +6,7 @@ package ai
 
 import (
 	"math"
-	"math/rand"
+	"math/rand/v2"
 )
 
 // MinLevel and MaxLevel bound the difficulty levels SelectMove accepts. They are exported so
@@ -87,7 +87,7 @@ func SelectMove(candidates []MoveCandidate, level int, rng *rand.Rand) MoveCandi
 
 	// Near-best: one of the plays comparable to the best — BR-AI-04.
 	if level == NearBestLevel {
-		return candidates[rng.Intn(nearBestCount(candidates))]
+		return candidates[rng.IntN(nearBestCount(candidates))]
 	}
 
 	// Levels 1–9: k-formula — FR-05 / BR-AI-05.
@@ -100,7 +100,7 @@ func SelectMove(candidates []MoveCandidate, level int, rng *rand.Rand) MoveCandi
 	if k > len(candidates) {
 		k = len(candidates)
 	}
-	return candidates[rng.Intn(k)]
+	return candidates[rng.IntN(k)]
 }
 
 // nearBestCount returns how many leading candidates score within topPlayMargin of the best.
