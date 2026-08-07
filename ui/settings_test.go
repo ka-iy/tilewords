@@ -50,8 +50,8 @@ func TestSanitize(t *testing.T) {
 			t.Errorf("difficulty %d: got %d, want default %d", bad, got.Difficulty, def.Difficulty)
 		}
 	}
-	// Every level the AI accepts is preserved, including the god-mode top level.
-	for _, ok := range []int{ai.MinLevel, 8, ai.NearBestLevel, ai.GodModeLevel} {
+	// Every level the AI accepts is preserved, including the demigod-mode top level.
+	for _, ok := range []int{ai.MinLevel, 8, ai.NearBestLevel, ai.DemigodModeLevel} {
 		if got := sanitize(GameSettings{Dict: "alpha", Difficulty: ok}, testAvail); got.Difficulty != ok {
 			t.Errorf("in-range difficulty %d not preserved: got %d", ok, got.Difficulty)
 		}

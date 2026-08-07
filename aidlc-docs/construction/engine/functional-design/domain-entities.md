@@ -206,7 +206,7 @@ type GameState struct {
     CurrentTurn       Turn
     MoveNumber        int             // increments on each Execute; 0 before first move
     DictName          dictionary.DictName
-    AILevel           int             // ai.MinLevel–ai.MaxLevel (1–11; 11 is god mode)
+    AILevel           int             // ai.MinLevel–ai.MaxLevel (1–11; 11 is demigod mode)
 }
 ```
 

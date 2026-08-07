@@ -6,7 +6,7 @@
 
 • Two game modes: Classic Mode uses the standard 15x15 premium-square layout and tile economy, while Interesting Mode uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
 
-• Selectable AI difficulty: choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard). Even at level 10, the AI is not infallible - just like a human being. At level 11, it is - this is God Mode (for the AI, not you). To quote from "This is Spinal Tap": "Why don't you just make 10 louder and make 10 be the top number?" / "...These go to ELEVEN!"
+• Selectable AI difficulty: choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard). Even at level 10, the AI is not infallible - just like a human being. At level 11, it is - this is Demigod Mode (for the AI, not you). To quote from "This is Spinal Tap": "Why don't you just make 10 louder and make 10 be the top number?" / "...These go to ELEVEN!"
 
 • Multiple ways to interact with the tiles and game board: drag a tile onto the board, or click/press on the tile and then the board square to place it at that square. Double-tap a placed but not played board tile to return it to your rack. To recall all unplayed tiles to the rack, use the recall icon on top of your rack (looks like a download icon. Why? Because that's all that was available in the toolkit).
 

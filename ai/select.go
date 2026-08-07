@@ -15,15 +15,15 @@ import (
 const (
 	// MinLevel is the easiest difficulty.
 	MinLevel = 1
-	// MaxLevel is the hardest difficulty: GodModeLevel.
-	MaxLevel = GodModeLevel
+	// MaxLevel is the hardest difficulty: DemigodModeLevel.
+	MaxLevel = DemigodModeLevel
 )
 
-// GodModeLevel is the difficulty at which the AI always plays the single best move available,
+// DemigodModeLevel is the difficulty at which the AI always plays the single best move available,
 // with no randomness at all. It sits above NearBestLevel so a player who wants a perfect
 // opponent can ask for one explicitly, while the top ordinary level still plays like a strong
 // human rather than a solver.
-const GodModeLevel = 11
+const DemigodModeLevel = 11
 
 // NearBestLevel is the highest ordinary difficulty. It plays one of the near-best moves rather
 // than always the optimum — see topPlayMargin.
@@ -46,7 +46,7 @@ const topPlayMargin = 0.10
 // candidates must be sorted by Score descending then OpponentAccess ascending
 // (as returned by GenerateMoves). SelectMove does not re-sort.
 //
-// GodModeLevel — perfect: always returns candidates[0], the highest-scoring move with the
+// DemigodModeLevel — perfect: always returns candidates[0], the highest-scoring move with the
 // lowest opponent access as a tiebreaker. No randomness is used, so the same board and rack
 // always produce the same move (BR-AI-04).
 //
@@ -65,7 +65,7 @@ const topPlayMargin = 0.10
 //	  level 10 → the plays within topPlayMargin of the best score
 //	  level 11 → candidates[0] (perfect, deterministic)
 //
-// rng must be non-nil for every level below GodModeLevel. Panics if candidates is empty —
+// rng must be non-nil for every level below DemigodModeLevel. Panics if candidates is empty —
 // callers must check len(candidates) > 0 (NFR-AI-R2).
 func SelectMove(candidates []MoveCandidate, level int, rng *rand.Rand) MoveCandidate {
 	if len(candidates) == 0 {
@@ -80,8 +80,8 @@ func SelectMove(candidates []MoveCandidate, level int, rng *rand.Rand) MoveCandi
 		level = MaxLevel
 	}
 
-	// God mode: the single best play, every time — BR-AI-04.
-	if level == GodModeLevel {
+	// Demigod mode: the single best play, every time — BR-AI-04.
+	if level == DemigodModeLevel {
 		return candidates[0]
 	}
 
@@ -104,7 +104,7 @@ func SelectMove(candidates []MoveCandidate, level int, rng *rand.Rand) MoveCandi
 }
 
 // nearBestCount returns how many leading candidates score within topPlayMargin of the best.
-// Used by NearBestLevel; GodModeLevel bypasses it and takes the first candidate outright.
+// Used by NearBestLevel; DemigodModeLevel bypasses it and takes the first candidate outright.
 // candidates must be non-empty and sorted by score descending, so the qualifying candidates
 // are a prefix and the result is always at least 1.
 func nearBestCount(candidates []MoveCandidate) int {

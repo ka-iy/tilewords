@@ -23,11 +23,11 @@ import (
 // name rather than by number: it is the one setting that changes the AI's character rather
 // than its strength, playing the single best move every turn instead of one of the near-best.
 func difficultyLabelText(level int) string {
-	if level >= ai.GodModeLevel {
-		return fmt.Sprintf("Difficulty: %d = GOD MODE", ai.GodModeLevel)
+	if level >= ai.DemigodModeLevel {
+		return fmt.Sprintf("Difficulty: %d = DEMIGOD MODE", ai.DemigodModeLevel)
 	}
-	return fmt.Sprintf("Difficulty: %d  (%d = easy, %d = hard, %d = GOD MODE)",
-		level, ai.MinLevel, ai.NearBestLevel, ai.GodModeLevel)
+	return fmt.Sprintf("Difficulty: %d  (%d = easy, %d = hard, %d = DEMIGOD MODE)",
+		level, ai.MinLevel, ai.NearBestLevel, ai.DemigodModeLevel)
 }
 
 // dictPlayableWords is the number of playable words (2–15 letters, A–Z only, after

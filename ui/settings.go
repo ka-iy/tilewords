@@ -35,7 +35,7 @@ type GameSettings struct {
 	Dict dictionary.DictName `json:"dict"`
 	// Mode is the chosen board layout + tile economy.
 	Mode engine.GameMode `json:"mode"`
-	// Difficulty is the AI difficulty level, ai.MinLevel (easy) to ai.MaxLevel (god mode).
+	// Difficulty is the AI difficulty level, ai.MinLevel (easy) to ai.MaxLevel (demigod mode).
 	Difficulty int `json:"difficulty"`
 	// Notation selects Scrabble-notation move history when true.
 	Notation bool `json:"notation"`

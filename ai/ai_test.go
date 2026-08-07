@@ -296,9 +296,9 @@ func TestSelectMove_Level10AllZeroScores(t *testing.T) {
 	}
 }
 
-// TestSelectMove_GodModeAlwaysBest verifies the top level always plays the single best move,
+// TestSelectMove_DemigodModeAlwaysBest verifies the top level always plays the single best move,
 // even where near-best alternatives exist that NearBestLevel would sometimes choose instead.
-func TestSelectMove_GodModeAlwaysBest(t *testing.T) {
+func TestSelectMove_DemigodModeAlwaysBest(t *testing.T) {
 	candidates := []ai.MoveCandidate{
 		{Score: 100, OpponentAccess: 2},
 		{Score: 99}, // within the near-best margin, so level 10 would sometimes take it
@@ -306,28 +306,28 @@ func TestSelectMove_GodModeAlwaysBest(t *testing.T) {
 	}
 	rng := deterministicRNG(11)
 	for i := 0; i < 500; i++ {
-		got := ai.SelectMove(candidates, ai.GodModeLevel, rng)
+		got := ai.SelectMove(candidates, ai.DemigodModeLevel, rng)
 		if got.Score != 100 || got.OpponentAccess != 2 {
-			t.Fatalf("god mode: got score %d access %d, want the best play (100, 2)",
+			t.Fatalf("demigod mode: got score %d access %d, want the best play (100, 2)",
 				got.Score, got.OpponentAccess)
 		}
 	}
 }
 
-// TestSelectMove_GodModeIsDeterministic verifies god mode ignores the RNG entirely, so the same
+// TestSelectMove_DemigodModeIsDeterministic verifies demigod mode ignores the RNG entirely, so the same
 // board and rack always produce the same move.
-func TestSelectMove_GodModeIsDeterministic(t *testing.T) {
+func TestSelectMove_DemigodModeIsDeterministic(t *testing.T) {
 	candidates := []ai.MoveCandidate{{Score: 50}, {Score: 49}, {Score: 48}}
-	a := ai.SelectMove(candidates, ai.GodModeLevel, deterministicRNG(1))
-	b := ai.SelectMove(candidates, ai.GodModeLevel, deterministicRNG(9999))
+	a := ai.SelectMove(candidates, ai.DemigodModeLevel, deterministicRNG(1))
+	b := ai.SelectMove(candidates, ai.DemigodModeLevel, deterministicRNG(9999))
 	if a.Score != b.Score {
-		t.Errorf("god mode varied with the seed: %d vs %d", a.Score, b.Score)
+		t.Errorf("demigod mode varied with the seed: %d vs %d", a.Score, b.Score)
 	}
 }
 
-// TestSelectMove_LevelsAboveMaxClampToGodMode verifies an out-of-range level (e.g. from a
+// TestSelectMove_LevelsAboveMaxClampToDemigodMode verifies an out-of-range level (e.g. from a
 // tampered save) clamps into the accepted range rather than indexing out of it.
-func TestSelectMove_LevelsAboveMaxClampToGodMode(t *testing.T) {
+func TestSelectMove_LevelsAboveMaxClampToDemigodMode(t *testing.T) {
 	candidates := []ai.MoveCandidate{{Score: 30}, {Score: 29}}
 	for _, level := range []int{ai.MaxLevel + 1, 50, 1 << 20} {
 		if got := ai.SelectMove(candidates, level, deterministicRNG(2)); got.Score != 30 {

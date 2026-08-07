@@ -18,7 +18,7 @@ what makes the feature extensible (adding a field extends the document automatic
 |---|---|---|---|
 | `Dict` | `dictionary.DictName` (string) | chosen word list | must be an available (bundled) dictionary |
 | `Mode` | `engine.GameMode` (int enum) | board layout + tile economy | `ClassicMode` or `InterestingMode` |
-| `Difficulty` | `int` | AI difficulty | `ai.MinLevel`–`ai.MaxLevel` inclusive (1–11, where 11 is god mode) |
+| `Difficulty` | `int` | AI difficulty | `ai.MinLevel`–`ai.MaxLevel` inclusive (1–11, where 11 is demigod mode) |
 | `Notation` | `bool` | show move history in Scrabble notation | true/false |
 
 - The struct maps 1:1 to the setup screen's controls (dictionary radio, mode radio,
