@@ -42,6 +42,23 @@ const pressFlashDuration = 140 * time.Millisecond
 // on all of them.
 const pressFlashImportance = widget.WarningImportance
 
+// Labels for the control button that toggles the AI rack, chosen by applyAIRackBtnLabel.
+//
+// Once the rack is face up the button hides it again in both arrangements, so it reads the
+// same in both. While the rack is face down the button does different things in each — the
+// narrow layout has to bring the whole block back, the wide layout only turns the tiles
+// over — so each arrangement names it for what it will do.
+const (
+	// aiRackBtnLabelShown is the label in either arrangement while the rack is face up.
+	aiRackBtnLabelShown = "Hide AI"
+	// aiRackBtnLabelNarrow is the label in the narrow arrangement while the rack is hidden,
+	// where pressing the button restores the block as well as the tile faces.
+	aiRackBtnLabelNarrow = "AI Rack"
+	// aiRackBtnLabelWide is the label in the wide arrangement while the rack is face down,
+	// where the block is already on screen and pressing the button only reveals the tiles.
+	aiRackBtnLabelWide = "Show AI"
+)
+
 // stagedTile holds a tile taken from the human rack and tentatively placed on the
 // board. fromRackIdx records the original rack slot so the tile can be recalled.
 type stagedTile struct {
@@ -107,6 +124,12 @@ type gameScreen struct {
 	// the human rack; drag-and-drop hit-tests pointer positions against their geometry.
 	boardBox      *fyne.Container
 	humanRackBoxC *fyne.Container
+
+	// aiRackBox is the AI rack block (its heading plus the rack row), shown or hidden as a
+	// whole by applyAIRackVisibility. It is held here because the narrow layout leaves it out
+	// entirely until the player asks for it, which is a change of visibility rather than of
+	// the arrangement the widgets sit in.
+	aiRackBox *fyne.Container
 
 	// boardLabels holds the board's row and column labels (A–O then 1–15). They are kept
 	// here because their colour is baked in at construction: the game screen is refreshed
@@ -343,7 +366,9 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	gs.passBtn = gs.newControlButton("Pass", gs.commitPass)
 	gs.undoBtn = gs.newControlButton("Undo", gs.doUndo)
 	gs.saveBtn = gs.newControlButton("Save", gs.doSave)
-	gs.toggleBtn = gs.newControlButton("Show AI", gs.toggleAIRack)
+	// The arrangement decides the final label (see applyAIRackBtnLabel); this is the
+	// starting text, replaced as soon as an arrangement is built.
+	gs.toggleBtn = gs.newControlButton(aiRackBtnLabelNarrow, gs.toggleAIRack)
 	gs.menuBtn = gs.newControlButton("Menu", gs.goMainMenu)
 	buttons := []fyne.CanvasObject{
 		gs.playBtn, gs.exchBtn, gs.passBtn, gs.undoBtn, gs.saveBtn, gs.toggleBtn, gs.menuBtn,
@@ -372,6 +397,7 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 		widget.NewLabelWithStyle(fmt.Sprintf("AI rack - Lv %d", gs.state.AILevel), fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		aiRack,
 	)
+	gs.aiRackBox = aiRackBox
 
 	// Right-hand panel: two tabs sharing the space beside the board. Both are
 	// non-editable, scrollable, and selectable so their text can be copied.
@@ -464,6 +490,10 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 				histWrap,
 			)
 			gs.page = newPhoneColumnScroll(column, board, histWrap, &gs.gesture)
+			// Set after gs.page, which is what both of these read to tell the arrangements
+			// apart.
+			gs.applyAIRackVisibility()
+			gs.applyAIRackBtnLabel()
 			return gs.page
 		}
 		// The action buttons stretch across the full width of the left pane: the grid
@@ -471,6 +501,10 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 		// of the pane width.
 		// The wide arrangement has no page-level scroll: the split's panes scroll individually.
 		gs.page = nil
+		// The wide layout always shows the AI rack, including when the window was narrow with
+		// it hidden — the two arrangements share the widget, as they do the toggle button.
+		gs.applyAIRackVisibility()
+		gs.applyAIRackBtnLabel()
 		controls := newTouchGroup(container.NewGridWithColumns(len(buttons), buttons...), buttons...)
 		// The board fills the left pane above the status/rack/control stack; boardLayout
 		// centres the board square within that space.
@@ -625,12 +659,6 @@ func (gs *gameScreen) syncButtons() {
 		gs.exchBtn.SetText("Cancel")
 	default:
 		gs.exchBtn.SetText("Exchange")
-	}
-
-	if gs.showAIRack {
-		gs.toggleBtn.SetText("Hide AI")
-	} else {
-		gs.toggleBtn.SetText("Show AI")
 	}
 }
 
@@ -1010,7 +1038,62 @@ func (gs *gameScreen) doSave() {
 
 func (gs *gameScreen) toggleAIRack() {
 	gs.showAIRack = !gs.showAIRack
+	gs.applyAIRackVisibility()
+	gs.applyAIRackBtnLabel()
+	// The narrow column has just gained or lost the rack's height, so the history pane's
+	// share of the viewport has to be recomputed; nothing resizes the page here to do it.
+	if gs.page != nil {
+		gs.page.refit()
+	}
 	gs.refresh()
+}
+
+// applyAIRackVisibility shows or hides the AI rack block for the arrangement now in use.
+//
+//   - Narrow (the stacked phone column): the block is present only once the player has asked
+//     for it, so the move-history/definitions pane starts directly under the action buttons
+//     and keeps the height the rack would otherwise have taken.
+//   - Wide: the block is always present. The left pane has room for it below the controls,
+//     and the history pane is the split's other side, so hiding it would buy that pane
+//     nothing.
+//
+// Both arrangements re-parent the same widgets, so a block hidden in one would stay hidden
+// in the other. This runs whenever the arrangement is built, which is what keeps the wide
+// layout's rack from disappearing because it was hidden while the window was narrow.
+func (gs *gameScreen) applyAIRackVisibility() {
+	if gs.aiRackBox == nil {
+		return
+	}
+	if gs.page == nil || gs.showAIRack {
+		gs.aiRackBox.Show()
+		return
+	}
+	gs.aiRackBox.Hide()
+}
+
+// applyAIRackBtnLabel names the AI rack toggle for what pressing it would do now: hide a
+// rack that is face up, or reveal one that is not — which differs by arrangement (see the
+// aiRackBtnLabel constants).
+//
+// The label is derived from the rack's face-up state and the arrangement, and each of those
+// changes in exactly one place: toggleAIRack and buildArrangement respectively. Both call
+// this, which is what keeps the label correct without recomputing it on every refresh.
+// buildArrangement has to because the two arrangements share the one button and name it
+// differently, so a window crossing the wide/narrow threshold would otherwise keep the name
+// the arrangement it was built in gave it.
+func (gs *gameScreen) applyAIRackBtnLabel() {
+	if gs.toggleBtn == nil {
+		return
+	}
+	label := aiRackBtnLabelShown
+	if !gs.showAIRack {
+		// gs.page is set only by the narrow arrangement, which is what tells the two apart.
+		label = aiRackBtnLabelWide
+		if gs.page != nil {
+			label = aiRackBtnLabelNarrow
+		}
+	}
+	gs.toggleBtn.SetText(label)
 }
 
 func (gs *gameScreen) goMainMenu() {

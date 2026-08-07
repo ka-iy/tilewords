@@ -218,7 +218,22 @@ func (p phoneColumnLayout) boardSide(width float32) float32 {
 
 func (p phoneColumnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	y := float32(0)
-	for i, o := range objs {
+	first := true
+	for _, o := range objs {
+		// A hidden child (the AI rack, which the narrow layout shows only on request)
+		// occupies no height and takes no gap, so the children below it move up and the
+		// space is left for the history pane rather than showing as a blank band.
+		if !o.Visible() {
+			continue
+		}
+		// Gaps go between visible children only, matching MinSize and nonHistoryHeight. A gap
+		// after the last child would make the column one gap taller than those two report, and
+		// in fill mode — where the history pane is sized to exactly consume the spare height —
+		// that surplus pushes the pane's bottom edge off a viewport that does not scroll.
+		if !first {
+			y += phoneColGap
+		}
+		first = false
 		w, h := size.Width, o.MinSize().Height
 		if o == p.board {
 			side := p.boardSide(size.Width)
@@ -227,13 +242,6 @@ func (p phoneColumnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 		o.Resize(fyne.NewSize(w, h))
 		o.Move(fyne.NewPos(0, y))
 		y += h
-		// Gaps go between children only, matching MinSize and nonHistoryHeight. A gap after
-		// the last child would make the column one gap taller than those two report, and in
-		// fill mode — where the history pane is sized to exactly consume the spare height —
-		// that surplus pushes the pane's bottom edge off a viewport that does not scroll.
-		if i < len(objs)-1 {
-			y += phoneColGap
-		}
 	}
 }
 
@@ -248,15 +256,21 @@ func (p phoneColumnLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	// (e.g. the status row at a large system font) can never inflate the column either.
 	//
 	// Only the height is summed, so the column scrolls when it is taller than the screen.
+	// Hidden children are skipped, matching Layout.
 	total := float32(0)
-	for i, o := range objs {
+	first := true
+	for _, o := range objs {
+		if !o.Visible() {
+			continue
+		}
+		if !first {
+			total += phoneColGap
+		}
+		first = false
 		if o == p.board {
 			total += p.minBoard
 		} else {
 			total += o.MinSize().Height
-		}
-		if i > 0 {
-			total += phoneColGap
 		}
 	}
 	return fyne.NewSize(0, total)
@@ -297,6 +311,9 @@ type phoneColumnScroll struct {
 	histMinH float32
 	// histInited guards the first setHistoryMin, since 0 is a plausible height.
 	histInited bool
+	// lastSize is the viewport the column was last laid out for, so refit can redo the
+	// fill-vs-scroll choice after a child is shown or hidden.
+	lastSize fyne.Size
 	// gesture is passed to the page's drag router so a drag that began on a tile is delivered
 	// there rather than panning the page; see pageDragRouter.
 	gesture *gestureOwner
@@ -314,13 +331,14 @@ func newPhoneColumnScroll(column *fyne.Container, board fyne.CanvasObject, histW
 	return p
 }
 
-// nonHistoryHeight is the total height every column child except the history pane occupies
-// (including the per-child gap), using the actual board square edge — the column width —
-// for the board.
+// nonHistoryHeight is the total height every visible column child except the history pane
+// occupies (including the per-child gap), using the actual board square edge — the column
+// width — for the board. A hidden child contributes nothing, so the height it would have
+// taken is left over for the history pane.
 func (p *phoneColumnScroll) nonHistoryHeight(width float32) float32 {
 	total := float32(0)
 	for _, o := range p.column.Objects {
-		if o == p.histWrap {
+		if o == p.histWrap || !o.Visible() {
 			continue
 		}
 		h := o.MinSize().Height
@@ -386,17 +404,34 @@ func (p *phoneColumnScroll) panPage(e *fyne.DragEvent) {
 //     more of it shows. A full viewport-tall pane is deliberately avoided: it would fill
 //     the screen and swallow the drag gestures used to scroll the page itself.
 func (p *phoneColumnScroll) Resize(size fyne.Size) {
-	if size.Width > 0 && size.Height > 0 {
-		fill := size.Height - p.nonHistoryHeight(size.Width)
-		if fill < portraitHistoryMinH {
-			p.setHistoryMin(portraitHistoryMinH * 2)
-			p.setScrolled(true)
-		} else {
-			p.setHistoryMin(fill)
-			p.setScrolled(false)
-		}
-	}
+	p.lastSize = size
+	p.fitHistory(size)
 	p.BaseWidget.Resize(size)
+}
+
+// fitHistory applies the fill-vs-scroll choice described on Resize for a viewport of size.
+// A zero-area viewport carries no information about the space available, so the current
+// choice is kept until a real one arrives.
+func (p *phoneColumnScroll) fitHistory(size fyne.Size) {
+	if size.Width <= 0 || size.Height <= 0 {
+		return
+	}
+	fill := size.Height - p.nonHistoryHeight(size.Width)
+	if fill < portraitHistoryMinH {
+		p.setHistoryMin(portraitHistoryMinH * 2)
+		p.setScrolled(true)
+	} else {
+		p.setHistoryMin(fill)
+		p.setScrolled(false)
+	}
+}
+
+// refit re-runs the fill-vs-scroll choice for the viewport the column already has. Showing
+// or hiding a child changes how much height is left for the history pane without resizing
+// the widget itself, so nothing else would recompute it.
+func (p *phoneColumnScroll) refit() {
+	p.fitHistory(p.lastSize)
+	p.column.Refresh()
 }
 
 func (p *phoneColumnScroll) CreateRenderer() fyne.WidgetRenderer {
