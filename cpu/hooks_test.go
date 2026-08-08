@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: 2026 Kartikeya IYER
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package ai_test
+package cpu_test
 
 import (
 	"testing"
 
-	"tilewords/ai"
+	"tilewords/cpu"
 	"tilewords/engine"
 )
 
 // formedWord returns the first candidate that forms word w, if any.
-func formedWord(cands []ai.MoveCandidate, w string) (ai.MoveCandidate, bool) {
+func formedWord(cands []cpu.MoveCandidate, w string) (cpu.MoveCandidate, bool) {
 	for _, c := range cands {
 		for _, fw := range c.Move.WordsFormed {
 			if fw == w {
@@ -19,7 +19,7 @@ func formedWord(cands []ai.MoveCandidate, w string) (ai.MoveCandidate, bool) {
 			}
 		}
 	}
-	return ai.MoveCandidate{}, false
+	return cpu.MoveCandidate{}, false
 }
 
 // TestGenerateMoves_FirstMoveScored verifies that newly placed tiles contribute
@@ -32,7 +32,7 @@ func TestGenerateMoves_FirstMoveScored(t *testing.T) {
 	_ = rack.Add([]engine.Tile{
 		{Letter: 'C', Points: 3}, {Letter: 'A', Points: 1}, {Letter: 'T', Points: 1},
 	})
-	cands := ai.GenerateMoves(board, rack, testDict)
+	cands := cpu.GenerateMoves(board, rack, testDict)
 	c, ok := formedWord(cands, "CAT")
 	if !ok {
 		t.Fatal("CAT not generated on empty board")
@@ -43,16 +43,16 @@ func TestGenerateMoves_FirstMoveScored(t *testing.T) {
 	}
 }
 
-// TestGenerateMoves_FrontHook verifies the AI can place a tile to the LEFT of an
+// TestGenerateMoves_FrontHook verifies the CPU can place a tile to the LEFT of an
 // existing word. Regression: left-extension could not navigate existing board
-// tiles, so the AI missed every prefix/front-hook play.
+// tiles, so the CPU missed every prefix/front-hook play.
 func TestGenerateMoves_FrontHook(t *testing.T) {
 	board := engine.NewBoard()
 	placeTile(board, 7, 8, 'A', 1)
 	placeTile(board, 7, 9, 'T', 1)
 	rack := &engine.Rack{}
 	_ = rack.Add([]engine.Tile{{Letter: 'C', Points: 3}})
-	if _, ok := formedWord(ai.GenerateMoves(board, rack, testDict), "CAT"); !ok {
+	if _, ok := formedWord(cpu.GenerateMoves(board, rack, testDict), "CAT"); !ok {
 		t.Fatal("front-hook CAT (C left of existing AT) not generated")
 	}
 }
@@ -64,12 +64,12 @@ func TestGenerateMoves_VerticalFrontHook(t *testing.T) {
 	placeTile(board, 9, 7, 'T', 1)
 	rack := &engine.Rack{}
 	_ = rack.Add([]engine.Tile{{Letter: 'C', Points: 3}})
-	if _, ok := formedWord(ai.GenerateMoves(board, rack, testDict), "CAT"); !ok {
+	if _, ok := formedWord(cpu.GenerateMoves(board, rack, testDict), "CAT"); !ok {
 		t.Fatal("vertical front-hook CAT (C above existing AT) not generated")
 	}
 }
 
-// TestGenerateMoves_Append verifies the AI can extend an existing word to the right.
+// TestGenerateMoves_Append verifies the CPU can extend an existing word to the right.
 func TestGenerateMoves_Append(t *testing.T) {
 	board := engine.NewBoard()
 	placeTile(board, 7, 7, 'C', 3)
@@ -77,7 +77,7 @@ func TestGenerateMoves_Append(t *testing.T) {
 	placeTile(board, 7, 9, 'R', 1)
 	rack := &engine.Rack{}
 	_ = rack.Add([]engine.Tile{{Letter: 'T', Points: 1}})
-	if _, ok := formedWord(ai.GenerateMoves(board, rack, testDict), "CART"); !ok {
+	if _, ok := formedWord(cpu.GenerateMoves(board, rack, testDict), "CART"); !ok {
 		t.Fatal("append CART (T after existing CAR) not generated")
 	}
 }
@@ -90,7 +90,7 @@ func TestGenerateMoves_PlayThrough(t *testing.T) {
 	placeTile(board, 7, 9, 'T', 1)
 	rack := &engine.Rack{}
 	_ = rack.Add([]engine.Tile{{Letter: 'A', Points: 1}})
-	if _, ok := formedWord(ai.GenerateMoves(board, rack, testDict), "CAT"); !ok {
+	if _, ok := formedWord(cpu.GenerateMoves(board, rack, testDict), "CAT"); !ok {
 		t.Fatal("play-through CAT (A between existing C and T) not generated")
 	}
 }
@@ -106,7 +106,7 @@ func TestGenerateMoves_DistinctWordsSameFootprint(t *testing.T) {
 		{Letter: 'C', Points: 3}, {Letter: 'A', Points: 1}, {Letter: 'B', Points: 3},
 		{Letter: 'P', Points: 3}, {Letter: 'R', Points: 1}, {Letter: 'T', Points: 1},
 	})
-	cands := ai.GenerateMoves(board, rack, testDict)
+	cands := cpu.GenerateMoves(board, rack, testDict)
 	for _, w := range []string{"CAB", "CAP", "CAR", "CAT"} {
 		if _, ok := formedWord(cands, w); !ok {
 			t.Errorf("%s (shares footprint (7,7)-(7,9)) not generated — dedup key too coarse", w)
@@ -118,7 +118,7 @@ func TestGenerateMoves_DistinctWordsSameFootprint(t *testing.T) {
 // both as a real tile and as a blank, BOTH physical assignments of a word using that letter
 // are generated. They are different plays, not duplicates: a blank scores zero, so which
 // cell it covers changes the score. Generating only one would hide the higher-scoring
-// assignment from move selection, and the AI would play a weaker move while a better one
+// assignment from move selection, and the CPU would play a weaker move while a better one
 // was legal.
 func TestGenerateMoves_BlankAndRealTileBothTried(t *testing.T) {
 	board := engine.NewBoard()
@@ -134,8 +134,8 @@ func TestGenerateMoves_BlankAndRealTileBothTried(t *testing.T) {
 		{Letter: 0, Points: 0, IsBlank: true},
 	})
 
-	var fizz []ai.MoveCandidate
-	for _, c := range ai.GenerateMoves(board, rack, testDict) {
+	var fizz []cpu.MoveCandidate
+	for _, c := range cpu.GenerateMoves(board, rack, testDict) {
 		for _, w := range c.Move.WordsFormed {
 			if w == "FIZZ" {
 				fizz = append(fizz, c)
@@ -147,7 +147,7 @@ func TestGenerateMoves_BlankAndRealTileBothTried(t *testing.T) {
 	}
 
 	// The two must differ in which cell carries the blank, and therefore in score.
-	blankCell := func(c ai.MoveCandidate) [2]int {
+	blankCell := func(c cpu.MoveCandidate) [2]int {
 		for _, p := range c.Move.Placed {
 			if p.Tile.IsBlank {
 				return [2]int{p.Row, p.Col}
@@ -182,7 +182,7 @@ func TestGenerateMoves_BlankOnlyRackStillPlays(t *testing.T) {
 	placeTile(board, 7, 9, 'T', 1)
 	rack := &engine.Rack{}
 	_ = rack.Add([]engine.Tile{{Letter: 0, Points: 0, IsBlank: true}})
-	c, ok := formedWord(ai.GenerateMoves(board, rack, testDict), "CAT")
+	c, ok := formedWord(cpu.GenerateMoves(board, rack, testDict), "CAT")
 	if !ok {
 		t.Fatal("CAT not generated from a blank-only rack")
 	}
@@ -204,7 +204,7 @@ func TestGenerateMoves_HookStillValidated(t *testing.T) {
 		{Letter: 'T', Points: 1}, {Letter: 'S', Points: 1}, {Letter: 'E', Points: 1},
 		{Letter: 'D', Points: 2}, {Letter: 'O', Points: 1},
 	})
-	cands := ai.GenerateMoves(board, rack, testDict)
+	cands := cpu.GenerateMoves(board, rack, testDict)
 	for i, c := range cands {
 		m := c.Move
 		if _, err := engine.ValidatePlacement(board, &m, testDict); err != nil {

@@ -72,7 +72,7 @@ func TestPlayUndo_ReshufflesBag(t *testing.T) {
 	state := &GameState{
 		Board:       newFlatBoard(),
 		HumanRack:   &Rack{tiles: []Tile{{Letter: 'A', Points: 1}, {Letter: 'T', Points: 1}}},
-		AIRack:      &Rack{},
+		CPURack:     &Rack{},
 		Bag:         fullBag(),
 		CurrentTurn: HumanTurn,
 	}
@@ -107,7 +107,7 @@ func TestExchangeUndo_ReshufflesBag(t *testing.T) {
 	state := &GameState{
 		Board:       newFlatBoard(),
 		HumanRack:   &Rack{tiles: []Tile{{Letter: 'Q', Points: 10}, {Letter: 'Z', Points: 10}}},
-		AIRack:      &Rack{},
+		CPURack:     &Rack{},
 		Bag:         fullBag(),
 		CurrentTurn: HumanTurn,
 	}
@@ -145,7 +145,7 @@ func TestUndo_NilRNGKeepsBagOrder(t *testing.T) {
 	state := &GameState{
 		Board:       newFlatBoard(),
 		HumanRack:   &Rack{tiles: []Tile{{Letter: 'A', Points: 1}, {Letter: 'T', Points: 1}}},
-		AIRack:      &Rack{},
+		CPURack:     &Rack{},
 		Bag:         fullBag(),
 		CurrentTurn: HumanTurn,
 	}
@@ -176,7 +176,7 @@ func TestExchangeUndo_NilRNGRestoresBagExactly(t *testing.T) {
 	state := &GameState{
 		Board:       newFlatBoard(),
 		HumanRack:   &Rack{tiles: []Tile{{Letter: 'Q', Points: 10}, {Letter: 'Z', Points: 10}}},
-		AIRack:      &Rack{},
+		CPURack:     &Rack{},
 		Bag:         fullBag(),
 		CurrentTurn: HumanTurn,
 	}
@@ -199,15 +199,15 @@ func TestUndo_RestoresEverythingButBagOrder(t *testing.T) {
 	state := &GameState{
 		Board:             newFlatBoard(),
 		HumanRack:         &Rack{tiles: []Tile{{Letter: 'A', Points: 1}, {Letter: 'T', Points: 1}}},
-		AIRack:            &Rack{tiles: []Tile{{Letter: 'E', Points: 1}}},
+		CPURack:           &Rack{tiles: []Tile{{Letter: 'E', Points: 1}}},
 		Bag:               fullBag(),
 		CurrentTurn:       HumanTurn,
 		HumanScore:        11,
-		AIScore:           7,
+		CPUScore:          7,
 		ConsecutivePasses: 3,
 		MoveNumber:        4,
 	}
-	wantHuman, wantAI := state.HumanScore, state.AIScore
+	wantHuman, wantCPU := state.HumanScore, state.CPUScore
 	wantPasses, wantMove, wantTurn := state.ConsecutivePasses, state.MoveNumber, state.CurrentTurn
 	wantRack := letterCounts(state.HumanRack.Tiles())
 	wantBagCount := state.Bag.Count()
@@ -221,8 +221,8 @@ func TestUndo_RestoresEverythingButBagOrder(t *testing.T) {
 	}
 	cmd.Undo(state, rand.New(rand.NewPCG(3, 0)))
 
-	if state.HumanScore != wantHuman || state.AIScore != wantAI {
-		t.Errorf("scores = %d/%d, want %d/%d", state.HumanScore, state.AIScore, wantHuman, wantAI)
+	if state.HumanScore != wantHuman || state.CPUScore != wantCPU {
+		t.Errorf("scores = %d/%d, want %d/%d", state.HumanScore, state.CPUScore, wantHuman, wantCPU)
 	}
 	if state.ConsecutivePasses != wantPasses {
 		t.Errorf("ConsecutivePasses = %d, want %d", state.ConsecutivePasses, wantPasses)
@@ -250,11 +250,11 @@ func TestIsGameOver_GoingOutBeatsSixScorelessTurns(t *testing.T) {
 	state := &GameState{
 		Board:             newFlatBoard(),
 		HumanRack:         &Rack{}, // played out
-		AIRack:            &Rack{tiles: []Tile{{Letter: 'Q', Points: 10}}},
+		CPURack:           &Rack{tiles: []Tile{{Letter: 'Q', Points: 10}}},
 		Bag:               newTestBag(nil), // empty, so no replenish
 		ConsecutivePasses: 6,               // the same turn also reached the scoreless limit
 		HumanScore:        50,
-		AIScore:           40,
+		CPUScore:          40,
 	}
 
 	over, reason := IsGameOver(state)
@@ -266,9 +266,9 @@ func TestIsGameOver_GoingOutBeatsSixScorelessTurns(t *testing.T) {
 	}
 
 	ApplyEndgameScoring(state, reason)
-	// Going out: the human gains the AI's remaining tiles, the AI loses them.
-	if state.HumanScore != 60 || state.AIScore != 30 {
-		t.Errorf("scores = %d/%d, want 60/30 (going-out bonus applied)", state.HumanScore, state.AIScore)
+	// Going out: the human gains the CPU's remaining tiles, the CPU loses them.
+	if state.HumanScore != 60 || state.CPUScore != 30 {
+		t.Errorf("scores = %d/%d, want 60/30 (going-out bonus applied)", state.HumanScore, state.CPUScore)
 	}
 }
 
@@ -278,11 +278,11 @@ func TestIsGameOver_SixScorelessTurnsWhenNobodyPlayedOut(t *testing.T) {
 	state := &GameState{
 		Board:             newFlatBoard(),
 		HumanRack:         &Rack{tiles: []Tile{{Letter: 'A', Points: 1}}},
-		AIRack:            &Rack{tiles: []Tile{{Letter: 'Q', Points: 10}}},
+		CPURack:           &Rack{tiles: []Tile{{Letter: 'Q', Points: 10}}},
 		Bag:               newTestBag(nil),
 		ConsecutivePasses: 6,
 		HumanScore:        50,
-		AIScore:           40,
+		CPUScore:          40,
 	}
 
 	over, reason := IsGameOver(state)
@@ -292,7 +292,7 @@ func TestIsGameOver_SixScorelessTurnsWhenNobodyPlayedOut(t *testing.T) {
 
 	ApplyEndgameScoring(state, reason)
 	// Each player loses their own remaining tiles, with no redistribution.
-	if state.HumanScore != 49 || state.AIScore != 30 {
-		t.Errorf("scores = %d/%d, want 49/30", state.HumanScore, state.AIScore)
+	if state.HumanScore != 49 || state.CPUScore != 30 {
+		t.Errorf("scores = %d/%d, want 49/30", state.HumanScore, state.CPUScore)
 	}
 }

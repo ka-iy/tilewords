@@ -175,7 +175,7 @@ func hasAdjacent(board *Board, placed []PlacedTile) bool {
 func IsGameOver(state *GameState) (bool, EndReason) {
 	// One player exhausted their rack while the bag is empty (BR-E11).
 	if state.Bag.Count() == 0 {
-		if state.HumanRack.Count() == 0 || state.AIRack.Count() == 0 {
+		if state.HumanRack.Count() == 0 || state.CPURack.Count() == 0 {
 			return true, RackExhausted
 		}
 	}
@@ -204,7 +204,7 @@ func ApplyEndgameScoring(state *GameState, reason EndReason) {
 	state.EndgameScored = true
 
 	humanRemaining := sumRackPoints(state.HumanRack)
-	aiRemaining := sumRackPoints(state.AIRack)
+	cpuRemaining := sumRackPoints(state.CPURack)
 
 	switch reason {
 	case RackExhausted:
@@ -212,17 +212,17 @@ func ApplyEndgameScoring(state *GameState, reason EndReason) {
 		// values; the opponent loses them (the going-out bonus, BR-E11). At least
 		// one rack is empty here by IsGameOver's definition of RackExhausted.
 		if state.HumanRack.Count() == 0 {
-			state.HumanScore += aiRemaining
-			state.AIScore -= aiRemaining
+			state.HumanScore += cpuRemaining
+			state.CPUScore -= cpuRemaining
 		} else {
-			state.AIScore += humanRemaining
+			state.CPUScore += humanRemaining
 			state.HumanScore -= humanRemaining
 		}
 	case SixConsecutivePasses:
 		// Six consecutive scoreless turns (BR-E12): each player loses their own remaining
 		// tile values, with no redistribution.
 		state.HumanScore -= humanRemaining
-		state.AIScore -= aiRemaining
+		state.CPUScore -= cpuRemaining
 	}
 }
 

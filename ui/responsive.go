@@ -220,7 +220,7 @@ func (p phoneColumnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	y := float32(0)
 	first := true
 	for _, o := range objs {
-		// A hidden child (the AI rack, which the narrow layout shows only on request)
+		// A hidden child (the CPU rack, which the narrow layout shows only on request)
 		// occupies no height and takes no gap, so the children below it move up and the
 		// space is left for the history pane rather than showing as a blank band.
 		if !o.Visible() {

@@ -44,7 +44,7 @@ type Board struct {
 	cells [15][15]Cell // unexported; accessed via methods
 	// mode records the game mode this board was built for. It selects both the
 	// premium-square layout (baked into cells) and the letter point values used by
-	// LetterPoints, so the AI (which is handed only the board) scores in the right mode.
+	// LetterPoints, so the CPU (which is handed only the board) scores in the right mode.
 	mode GameMode
 }
 
@@ -164,7 +164,7 @@ func (b *Board) malformedTile() (Tile, bool) {
 }
 
 // LetterPoints returns the face value of an uppercase letter A–Z in this board's mode
-// (0 for any other byte, including the blank sentinel). The AI move generator uses it to
+// (0 for any other byte, including the blank sentinel). The CPU move generator uses it to
 // stamp the correct per-mode face value onto tiles it places.
 func (b *Board) LetterPoints(letter byte) int {
 	if letter < 'A' || letter > 'Z' {
@@ -225,13 +225,13 @@ func (b *Board) HasAnyTile() bool {
 // Clone returns a deep copy of the board. The returned board is safe for
 // independent modification. Tile pointers within cells are shallow-copied:
 // tiles on the board are immutable after placement, so this is safe for
-// read-only AI use.
+// read-only CPU use.
 func (b *Board) Clone() *Board {
 	clone := &Board{mode: b.mode}
 	clone.cells = b.cells // array copy — all 225 Cell values copied by value
 	// Each Cell.Tile is a pointer. The pointed-to Tile is not copied, but since
 	// placed tiles are never mutated (only placed and removed), the shared pointer
-	// is safe for read-only access by the AI goroutine.
+	// is safe for read-only access by the CPU goroutine.
 	return clone
 }
 

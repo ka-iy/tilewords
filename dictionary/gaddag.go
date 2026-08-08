@@ -291,7 +291,7 @@ func (g *GADDAG) words() int { return int(g.wordCount) }
 // Successor returns the NodeID reached by following the edge labelled letter from node,
 // and whether such an edge exists.
 // letter must be an uppercase A-Z byte or the arc-separator ArcSep ('+').
-// Used by the AI move generator during left-extension traversal (Appel-Jacobson §5, GenerateMoves).
+// Used by the CPU move generator during left-extension traversal (Appel-Jacobson §5, GenerateMoves).
 func (g *GADDAG) Successor(node NodeID, letter byte) (NodeID, bool) {
 	if uint32(node) >= g.nodeCount {
 		return 0, false

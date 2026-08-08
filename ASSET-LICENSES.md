@@ -5,7 +5,7 @@ separately:
 
 | Part | What it is | Licence |
 |---|---|---|
-| **Code** | everything under `ai/`, `buildinfo/`, `cmd/`, `defs/`, `dictionary/`, `engine/`, `ui/`, `tools/`, plus the `Makefile` and build scripts | **GPL-3.0-or-later** — see [`LICENSE`](LICENSE) |
+| **Code** | everything under `cpu/`, `buildinfo/`, `cmd/`, `defs/`, `dictionary/`, `engine/`, `ui/`, `tools/`, plus the `Makefile` and build scripts | **GPL-3.0-or-later** — see [`LICENSE`](LICENSE) |
 | **Word-list assets** | `dictionary/assets/dictionaries/*.bin` (generated GADDAGs) | terms of the source word lists — see below |
 | **Definitions asset** | `defs/assets/definitions/definitions.bin.gz`, and its reviewable source `defs/supplemental-glossary.tsv` | **CC BY-SA 4.0** — see below |
 

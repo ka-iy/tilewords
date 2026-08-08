@@ -1,27 +1,27 @@
 // SPDX-FileCopyrightText: 2026 Kartikeya IYER
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package ai_test
+package cpu_test
 
 import (
 	"math/rand/v2"
 	"os"
 	"testing"
 
-	"tilewords/ai"
+	"tilewords/cpu"
 	"tilewords/dictionary"
 	"tilewords/engine"
 )
 
-// aiTestWords is a curated, license-free word list used to build the test dictionary.
-var aiTestWords = []string{
+// cpuTestWords is a curated, license-free word list used to build the test dictionary.
+var cpuTestWords = []string{
 	// 2-letter words
 	"AA", "AB", "AD", "AE", "AG", "AH", "AI", "AL", "AM", "AN",
 	"AR", "AS", "AT", "AW", "AX", "AY",
 	"GO", "HI", "IT", "ME", "MY", "NO", "OF", "ON", "OR", "SO",
 	"TO", "UP", "US", "WE",
 	// 3-letter words
-	"ACE", "AGO", "AID", "AIM", "APE", "APT",
+	"ACE", "AGO", "CPUD", "CPUM", "APE", "APT",
 	"BAG", "BIG", "BIT", "BOX",
 	"CAB", "CAP", "CAR", "CAT", "COB", "COD", "COP", "CUB", "CUP", "CUT",
 	"DAB", "DAD", "DAM", "DIM", "DIP", "DOG", "DOT",
@@ -104,7 +104,7 @@ var testDict *dictionary.Dictionary
 
 func TestMain(m *testing.M) {
 	var err error
-	testDict, err = dictionary.NewFromWords(dictionary.DictENABLE, aiTestWords)
+	testDict, err = dictionary.NewFromWords(dictionary.DictENABLE, cpuTestWords)
 	if err != nil {
 		panic("ai_test: failed to build test dictionary: " + err.Error())
 	}
@@ -128,7 +128,7 @@ func placeTile(b *engine.Board, row, col int, letter byte, points int) {
 func TestGenerateMoves_EmptyRack(t *testing.T) {
 	board := engine.NewBoard()
 	rack := &engine.Rack{}
-	candidates := ai.GenerateMoves(board, rack, testDict)
+	candidates := cpu.GenerateMoves(board, rack, testDict)
 	if candidates == nil {
 		t.Fatal("expected non-nil slice, got nil")
 	}
@@ -146,7 +146,7 @@ func TestGenerateMoves_FirstMove(t *testing.T) {
 		{Letter: 'A', Points: 1},
 		{Letter: 'T', Points: 1},
 	})
-	candidates := ai.GenerateMoves(board, rack, testDict)
+	candidates := cpu.GenerateMoves(board, rack, testDict)
 	if len(candidates) == 0 {
 		t.Fatal("expected candidates for CAT rack on empty board, got none")
 	}
@@ -175,7 +175,7 @@ func TestGenerateMoves_AllValid(t *testing.T) {
 		{Letter: 'E', Points: 1},
 		{Letter: 'R', Points: 1},
 	})
-	candidates := ai.GenerateMoves(board, rack, testDict)
+	candidates := cpu.GenerateMoves(board, rack, testDict)
 	for i, c := range candidates {
 		move := c.Move
 		if _, err := engine.ValidatePlacement(board, &move, testDict); err != nil {
@@ -197,7 +197,7 @@ func TestGenerateMoves_Sorted(t *testing.T) {
 		{Letter: 'N', Points: 1},
 		{Letter: 'G', Points: 2},
 	})
-	candidates := ai.GenerateMoves(board, rack, testDict)
+	candidates := cpu.GenerateMoves(board, rack, testDict)
 	for i := 1; i < len(candidates); i++ {
 		a, b := candidates[i-1], candidates[i]
 		if a.Score < b.Score {
@@ -222,7 +222,7 @@ func TestGenerateMoves_NoDuplicates(t *testing.T) {
 		{Letter: 'E', Points: 1},
 		{Letter: 'N', Points: 1},
 	})
-	candidates := ai.GenerateMoves(board, rack, testDict)
+	candidates := cpu.GenerateMoves(board, rack, testDict)
 	seen := make(map[string]bool)
 	for _, c := range candidates {
 		placed := c.Move.Placed
@@ -239,16 +239,16 @@ func TestGenerateMoves_NoDuplicates(t *testing.T) {
 
 // TestSelectMove_Level10SteepScoresPicksBest verifies that when nothing else comes close to
 // the best play, level 10 plays it. The near-best window is a score window, so a steep drop
-// after the leader leaves nothing to choose between and the AI cannot squander the turn.
+// after the leader leaves nothing to choose between and the CPU cannot squander the turn.
 func TestSelectMove_Level10SteepScores(t *testing.T) {
-	candidates := []ai.MoveCandidate{
+	candidates := []cpu.MoveCandidate{
 		{Score: 100},
 		{Score: 80}, // 20% below the best: outside the window
 		{Score: 60},
 	}
 	rng := deterministicRNG(42)
 	for i := 0; i < 200; i++ {
-		if got := ai.SelectMove(candidates, 10, rng); got.Score != 100 {
+		if got := cpu.SelectMove(candidates, 10, rng); got.Score != 100 {
 			t.Fatalf("level 10 with a steep score drop: got %d, want the best play (100)", got.Score)
 		}
 	}
@@ -257,7 +257,7 @@ func TestSelectMove_Level10SteepScores(t *testing.T) {
 // TestSelectMove_Level10VariesAmongNearBest verifies level 10 does not always play the single
 // best move when comparable alternatives exist, and never plays one outside the margin.
 func TestSelectMove_Level10VariesAmongNearBest(t *testing.T) {
-	candidates := []ai.MoveCandidate{
+	candidates := []cpu.MoveCandidate{
 		{Score: 100},
 		{Score: 95}, // within 10% of the best: eligible
 		{Score: 92}, // within 10%: eligible
@@ -266,7 +266,7 @@ func TestSelectMove_Level10VariesAmongNearBest(t *testing.T) {
 	rng := deterministicRNG(7)
 	seen := make(map[int]bool)
 	for i := 0; i < 500; i++ {
-		got := ai.SelectMove(candidates, 10, rng)
+		got := cpu.SelectMove(candidates, 10, rng)
 		seen[got.Score] = true
 		if got.Score < 90 {
 			t.Fatalf("level 10 chose a play %d, outside the near-best margin", got.Score)
@@ -284,13 +284,13 @@ func TestSelectMove_Level10VariesAmongNearBest(t *testing.T) {
 // zero: there is nothing to choose between on score, so the sort's OpponentAccess tiebreak
 // stands rather than the window widening to the whole list.
 func TestSelectMove_Level10AllZeroScores(t *testing.T) {
-	candidates := []ai.MoveCandidate{
+	candidates := []cpu.MoveCandidate{
 		{Score: 0, OpponentAccess: 1},
 		{Score: 0, OpponentAccess: 5},
 	}
 	rng := deterministicRNG(3)
 	for i := 0; i < 50; i++ {
-		if got := ai.SelectMove(candidates, 10, rng); got.OpponentAccess != 1 {
+		if got := cpu.SelectMove(candidates, 10, rng); got.OpponentAccess != 1 {
 			t.Fatalf("all-zero scores: got OpponentAccess %d, want the lowest (1)", got.OpponentAccess)
 		}
 	}
@@ -299,14 +299,14 @@ func TestSelectMove_Level10AllZeroScores(t *testing.T) {
 // TestSelectMove_DemigodModeAlwaysBest verifies the top level always plays the single best move,
 // even where near-best alternatives exist that NearBestLevel would sometimes choose instead.
 func TestSelectMove_DemigodModeAlwaysBest(t *testing.T) {
-	candidates := []ai.MoveCandidate{
+	candidates := []cpu.MoveCandidate{
 		{Score: 100, OpponentAccess: 2},
 		{Score: 99}, // within the near-best margin, so level 10 would sometimes take it
 		{Score: 98},
 	}
 	rng := deterministicRNG(11)
 	for i := 0; i < 500; i++ {
-		got := ai.SelectMove(candidates, ai.DemigodModeLevel, rng)
+		got := cpu.SelectMove(candidates, cpu.DemigodModeLevel, rng)
 		if got.Score != 100 || got.OpponentAccess != 2 {
 			t.Fatalf("demigod mode: got score %d access %d, want the best play (100, 2)",
 				got.Score, got.OpponentAccess)
@@ -317,9 +317,9 @@ func TestSelectMove_DemigodModeAlwaysBest(t *testing.T) {
 // TestSelectMove_DemigodModeIsDeterministic verifies demigod mode ignores the RNG entirely, so the same
 // board and rack always produce the same move.
 func TestSelectMove_DemigodModeIsDeterministic(t *testing.T) {
-	candidates := []ai.MoveCandidate{{Score: 50}, {Score: 49}, {Score: 48}}
-	a := ai.SelectMove(candidates, ai.DemigodModeLevel, deterministicRNG(1))
-	b := ai.SelectMove(candidates, ai.DemigodModeLevel, deterministicRNG(9999))
+	candidates := []cpu.MoveCandidate{{Score: 50}, {Score: 49}, {Score: 48}}
+	a := cpu.SelectMove(candidates, cpu.DemigodModeLevel, deterministicRNG(1))
+	b := cpu.SelectMove(candidates, cpu.DemigodModeLevel, deterministicRNG(9999))
 	if a.Score != b.Score {
 		t.Errorf("demigod mode varied with the seed: %d vs %d", a.Score, b.Score)
 	}
@@ -328,9 +328,9 @@ func TestSelectMove_DemigodModeIsDeterministic(t *testing.T) {
 // TestSelectMove_LevelsAboveMaxClampToDemigodMode verifies an out-of-range level (e.g. from a
 // tampered save) clamps into the accepted range rather than indexing out of it.
 func TestSelectMove_LevelsAboveMaxClampToDemigodMode(t *testing.T) {
-	candidates := []ai.MoveCandidate{{Score: 30}, {Score: 29}}
-	for _, level := range []int{ai.MaxLevel + 1, 50, 1 << 20} {
-		if got := ai.SelectMove(candidates, level, deterministicRNG(2)); got.Score != 30 {
+	candidates := []cpu.MoveCandidate{{Score: 30}, {Score: 29}}
+	for _, level := range []int{cpu.MaxLevel + 1, 50, 1 << 20} {
+		if got := cpu.SelectMove(candidates, level, deterministicRNG(2)); got.Score != 30 {
 			t.Errorf("level %d: got %d, want the best play (30)", level, got.Score)
 		}
 	}
@@ -338,15 +338,15 @@ func TestSelectMove_LevelsAboveMaxClampToDemigodMode(t *testing.T) {
 
 // TestSelectMove_Level1 verifies level 1 samples from the full candidate set.
 func TestSelectMove_Level1(t *testing.T) {
-	candidates := make([]ai.MoveCandidate, 100)
+	candidates := make([]cpu.MoveCandidate, 100)
 	for i := range candidates {
-		candidates[i] = ai.MoveCandidate{Score: 100 - i}
+		candidates[i] = cpu.MoveCandidate{Score: 100 - i}
 	}
 	rng := deterministicRNG(0)
 	// With 1000 samples at level 1, we expect most score values to appear.
 	seen := make(map[int]bool)
 	for i := 0; i < 1000; i++ {
-		got := ai.SelectMove(candidates, 1, rng)
+		got := cpu.SelectMove(candidates, 1, rng)
 		seen[got.Score] = true
 	}
 	if len(seen) < 50 {
@@ -362,18 +362,18 @@ func TestSelectMove_EmptyPanics(t *testing.T) {
 		}
 	}()
 	rng := deterministicRNG(0)
-	ai.SelectMove(nil, 5, rng)
+	cpu.SelectMove(nil, 5, rng)
 }
 
 // TestChooseMove_HasCandidates verifies ChooseMove returns a PlayMove when candidates exist.
 func TestChooseMove_HasCandidates(t *testing.T) {
 	rng := deterministicRNG(0)
 	state := engine.New(dictionary.DictENABLE, 10, rng)
-	// Ensure the AI rack has usable tiles for a first move.
-	// We use the standard New which deals tiles; if AI goes first or second, it has a rack.
-	state.CurrentTurn = engine.AITurn
+	// Ensure the CPU rack has usable tiles for a first move.
+	// We use the standard New which deals tiles; if CPU goes first or second, it has a rack.
+	state.CurrentTurn = engine.CPUTurn
 	rng2 := deterministicRNG(1)
-	move := ai.ChooseMove(state, testDict, 10, rng2)
+	move := cpu.ChooseMove(state, testDict, 10, rng2)
 	if move == nil {
 		t.Fatal("ChooseMove returned nil")
 	}
@@ -388,14 +388,14 @@ func TestChooseMove_NoCandidates_LargeBag(t *testing.T) {
 	}
 	rng := deterministicRNG(0)
 	state := engine.New(dictionary.DictENABLE, 5, rng)
-	state.CurrentTurn = engine.AITurn
+	state.CurrentTurn = engine.CPUTurn
 	rng2 := deterministicRNG(1)
-	move := ai.ChooseMove(state, emptyDict, 5, rng2)
+	move := cpu.ChooseMove(state, emptyDict, 5, rng2)
 	if move == nil {
 		t.Fatal("ChooseMove returned nil")
 	}
 	if _, ok := move.(engine.ExchangeMove); !ok {
-		t.Logf("bag count=%d, rack count=%d", state.Bag.Count(), state.AIRack.Count())
+		t.Logf("bag count=%d, rack count=%d", state.Bag.Count(), state.CPURack.Count())
 		// Either ExchangeMove or PassMove is valid depending on bag size.
 	}
 }
@@ -408,17 +408,17 @@ func TestChooseMove_NoCandidates_SmallBag(t *testing.T) {
 	}
 	rng := deterministicRNG(0)
 	state := engine.New(dictionary.DictENABLE, 5, rng)
-	state.CurrentTurn = engine.AITurn
+	state.CurrentTurn = engine.CPUTurn
 	// Drain the bag to below MaxRackSize.
 	for state.Bag.Count() >= engine.MaxRackSize {
 		state.Bag.Draw(engine.MaxRackSize, nil)
 	}
 	rng2 := deterministicRNG(1)
-	move := ai.ChooseMove(state, emptyDict, 5, rng2)
+	move := cpu.ChooseMove(state, emptyDict, 5, rng2)
 	if _, ok := move.(engine.PassMove); !ok {
 		t.Errorf("expected PassMove with small bag, got %T", move)
 	}
 }
 
 // Choosing a move on a background goroutine — the pattern a UI uses so its own thread never
-// blocks — is covered by TestPBT_AI_OffGoroutine_NoRace in ai_pbt_test.go.
+// blocks — is covered by TestPBT_CPU_OffGoroutine_NoRace in cpu_pbt_test.go.

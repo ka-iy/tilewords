@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Kartikeya IYER
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package ai_test
+package cpu_test
 
 import (
 	"fmt"
@@ -12,24 +12,24 @@ import (
 
 	"pgregory.net/rapid"
 
-	"tilewords/ai"
+	"tilewords/cpu"
 	"tilewords/dictionary"
 	"tilewords/engine"
 )
 
-// boardStateGen generates a valid game state by replaying a random number of AI
+// boardStateGen generates a valid game state by replaying a random number of CPU
 // moves on an empty board. The resulting board has 0–N words placed.
 func boardStateGen() *rapid.Generator[*engine.GameState] {
 	return rapid.Custom(func(t *rapid.T) *engine.GameState {
 		seed := rapid.Int64().Draw(t, "seed")
 		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
-		state.CurrentTurn = engine.AITurn
+		state.CurrentTurn = engine.CPUTurn
 
-		// Play 0–4 AI moves to create board variety.
+		// Play 0–4 CPU moves to create board variety.
 		moves := rapid.IntRange(0, 4).Draw(t, "moves")
 		for i := 0; i < moves; i++ {
-			move := ai.ChooseMove(state, testDict, 10, rng)
+			move := cpu.ChooseMove(state, testDict, 10, rng)
 			switch m := move.(type) {
 			case engine.PlayMove:
 				cmd := &engine.PlayCommand{Move: m}
@@ -37,7 +37,7 @@ func boardStateGen() *rapid.Generator[*engine.GameState] {
 			default:
 				// Pass or exchange — advance without modifying board significantly.
 			}
-			state.CurrentTurn = engine.AITurn
+			state.CurrentTurn = engine.CPUTurn
 		}
 		return state
 	})
@@ -66,16 +66,16 @@ func simpleRackGen() *rapid.Generator[*engine.Rack] {
 	})
 }
 
-// TestPBT_AI_AllCandidatesValid (PBT-AI-01): every candidate returned by
+// TestPBT_CPU_AllCandidatesValid (PBT-AI-01): every candidate returned by
 // GenerateMoves passes engine.ValidatePlacement with the same board and dictionary.
-func TestPBT_AI_AllCandidatesValid(t *testing.T) {
+func TestPBT_CPU_AllCandidatesValid(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
 		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		rack := simpleRackGen().Draw(t, "rack")
 
-		candidates := ai.GenerateMoves(state.Board, rack, testDict)
+		candidates := cpu.GenerateMoves(state.Board, rack, testDict)
 		for i, c := range candidates {
 			move := c.Move
 			if _, err := engine.ValidatePlacement(state.Board, &move, testDict); err != nil {
@@ -85,15 +85,15 @@ func TestPBT_AI_AllCandidatesValid(t *testing.T) {
 	})
 }
 
-// TestPBT_AI_CandidatesSorted (PBT-AI-02): result is sorted score-desc, OpponentAccess-asc.
-func TestPBT_AI_CandidatesSorted(t *testing.T) {
+// TestPBT_CPU_CandidatesSorted (PBT-AI-02): result is sorted score-desc, OpponentAccess-asc.
+func TestPBT_CPU_CandidatesSorted(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
 		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		rack := simpleRackGen().Draw(t, "rack")
 
-		candidates := ai.GenerateMoves(state.Board, rack, testDict)
+		candidates := cpu.GenerateMoves(state.Board, rack, testDict)
 		for i := 1; i < len(candidates); i++ {
 			a, b := candidates[i-1], candidates[i]
 			if a.Score < b.Score {
@@ -108,15 +108,15 @@ func TestPBT_AI_CandidatesSorted(t *testing.T) {
 	})
 }
 
-// TestPBT_AI_NoDuplicates (PBT-AI-03): no two candidates have the same move footprint.
-func TestPBT_AI_NoDuplicates(t *testing.T) {
+// TestPBT_CPU_NoDuplicates (PBT-AI-03): no two candidates have the same move footprint.
+func TestPBT_CPU_NoDuplicates(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
 		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		rack := simpleRackGen().Draw(t, "rack")
 
-		candidates := ai.GenerateMoves(state.Board, rack, testDict)
+		candidates := cpu.GenerateMoves(state.Board, rack, testDict)
 		seen := make(map[string]bool)
 		for i, c := range candidates {
 			placed := c.Move.Placed
@@ -136,20 +136,20 @@ func TestPBT_AI_NoDuplicates(t *testing.T) {
 	})
 }
 
-// TestPBT_AI_Level10Deterministic (PBT-AI-04): two calls with the same inputs return
+// TestPBT_CPU_Level10Deterministic (PBT-AI-04): two calls with the same inputs return
 // identical MoveCandidate at level 10.
-// TestPBT_AI_Level10PlaysNearBest (PBT-AI-04): whatever seed it is given, a level-10 play
+// TestPBT_CPU_Level10PlaysNearBest (PBT-AI-04): whatever seed it is given, a level-10 play
 // always scores within topPlayMargin of the best available play. Level 10 varies its choice
 // among comparable plays rather than always taking the optimum, so the invariant worth
 // holding is the bound on what it gives up, not that the move is identical every time.
-func TestPBT_AI_Level10PlaysNearBest(t *testing.T) {
+func TestPBT_CPU_Level10PlaysNearBest(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
 		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
 		rack := simpleRackGen().Draw(t, "rack")
 
-		candidates := ai.GenerateMoves(state.Board, rack, testDict)
+		candidates := cpu.GenerateMoves(state.Board, rack, testDict)
 		if len(candidates) == 0 {
 			return // no candidates: nothing to check
 		}
@@ -158,7 +158,7 @@ func TestPBT_AI_Level10PlaysNearBest(t *testing.T) {
 		// Any seed must land inside the window; the margin is a fraction of the best score,
 		// and a best score of zero admits only the first candidate.
 		for _, s := range []int64{1, 42, 99, seed} {
-			got := ai.SelectMove(candidates, 10, rand.New(rand.NewPCG(uint64(s), 0)))
+			got := cpu.SelectMove(candidates, 10, rand.New(rand.NewPCG(uint64(s), 0)))
 			if best <= 0 {
 				if got.Score != best {
 					t.Fatalf("all plays score %d but level 10 returned %d", best, got.Score)
@@ -172,21 +172,21 @@ func TestPBT_AI_Level10PlaysNearBest(t *testing.T) {
 	})
 }
 
-// TestPBT_AI_SelectMove_RangeCorrect (PBT-AI-05): the selected candidate for level L
+// TestPBT_CPU_SelectMove_RangeCorrect (PBT-AI-05): the selected candidate for level L
 // is always within candidates[:k] where k = round(total × (1-(L-1)/9)).
-func TestPBT_AI_SelectMove_RangeCorrect(t *testing.T) {
+func TestPBT_CPU_SelectMove_RangeCorrect(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		n := rapid.IntRange(1, 50).Draw(t, "n")
 		level := rapid.IntRange(1, 9).Draw(t, "level")
 		seed := rapid.Int64().Draw(t, "seed")
 
-		candidates := make([]ai.MoveCandidate, n)
+		candidates := make([]cpu.MoveCandidate, n)
 		for i := range candidates {
-			candidates[i] = ai.MoveCandidate{Score: n - i}
+			candidates[i] = cpu.MoveCandidate{Score: n - i}
 		}
 
 		rng := rand.New(rand.NewPCG(uint64(seed), 0))
-		selected := ai.SelectMove(candidates, level, rng)
+		selected := cpu.SelectMove(candidates, level, rng)
 
 		// Compute expected k using the same formula as SelectMove (BR-AI-05).
 		fraction := 1.0 - float64(level-1)/9.0
@@ -213,47 +213,47 @@ func TestPBT_AI_SelectMove_RangeCorrect(t *testing.T) {
 	})
 }
 
-// TestPBT_AI_ChooseMove_NonNil (PBT-AI-06): ChooseMove always returns a non-nil move.
-func TestPBT_AI_ChooseMove_NonNil(t *testing.T) {
+// TestPBT_CPU_ChooseMove_NonNil (PBT-AI-06): ChooseMove always returns a non-nil move.
+func TestPBT_CPU_ChooseMove_NonNil(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
 		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
-		state.CurrentTurn = engine.AITurn
+		state.CurrentTurn = engine.CPUTurn
 
 		level := rapid.IntRange(1, 10).Draw(t, "level")
 		rng2 := rand.New(rand.NewPCG(uint64(rapid.Int64().Draw(t, "seed2")), 0))
 
-		move := ai.ChooseMove(state, testDict, level, rng2)
+		move := cpu.ChooseMove(state, testDict, level, rng2)
 		if move == nil {
 			t.Fatal("ChooseMove returned nil")
 		}
 	})
 }
 
-// TestPBT_AI_OffGoroutine_NoRace (PBT-AI-07): choosing a move on a background goroutine,
+// TestPBT_CPU_OffGoroutine_NoRace (PBT-AI-07): choosing a move on a background goroutine,
 // the way a UI must so its own thread never blocks, produces a valid move and no data race.
 // The state handed over is a Clone, which is what makes the caller's live state safe to keep
 // reading meanwhile. Run with go test -race.
-func TestPBT_AI_OffGoroutine_NoRace(t *testing.T) {
+func TestPBT_CPU_OffGoroutine_NoRace(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		seed := rapid.Int64().Draw(t, "seed")
 		rng := rand.New(rand.NewPCG(uint64(seed), 0))
 		state := engine.New(dictionary.DictENABLE, 10, rng)
-		state.CurrentTurn = engine.AITurn
+		state.CurrentTurn = engine.CPUTurn
 
 		// Snapshot and hand off exactly as ui does, with the goroutine owning its own rng.
 		snapshot := state.Clone()
 		result := make(chan engine.Move, 1)
 		go func() {
-			result <- ai.ChooseMove(snapshot, testDict, 10, rand.New(rand.NewPCG(uint64(seed), 0)))
+			result <- cpu.ChooseMove(snapshot, testDict, 10, rand.New(rand.NewPCG(uint64(seed), 0)))
 		}()
 
-		// Keep reading the live state while the AI works: a clone that shared anything
+		// Keep reading the live state while the CPU works: a clone that shared anything
 		// mutable with it would show up here under -race.
 		for i := 0; i < 50; i++ {
 			_ = state.Bag.Count()
-			_ = state.AIRack.Count()
+			_ = state.CPURack.Count()
 			_ = state.Board.HasAnyTile()
 		}
 

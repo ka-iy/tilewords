@@ -16,14 +16,14 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"tilewords/ai"
+	"tilewords/cpu"
 	"tilewords/dictionary"
 	"tilewords/engine"
 )
 
-// aiTimeoutSecs is the maximum time the UI waits for the AI to return a move
+// cpuTimeoutSecs is the maximum time the UI waits for the CPU to return a move
 // before applying a pass on its behalf.
-const aiTimeoutSecs = 10
+const cpuTimeoutSecs = 10
 
 // doubleTapWindow is the maximum gap between two presses on the same staged board tile
 // for them to register as a double-press, which returns the tile to the rack. The board
@@ -42,21 +42,21 @@ const pressFlashDuration = 140 * time.Millisecond
 // on all of them.
 const pressFlashImportance = widget.WarningImportance
 
-// Labels for the control button that toggles the AI rack, chosen by applyAIRackBtnLabel.
+// Labels for the control button that toggles the CPU rack, chosen by applyCPURackBtnLabel.
 //
 // Once the rack is face up the button hides it again in both arrangements, so it reads the
 // same in both. While the rack is face down the button does different things in each — the
 // narrow layout has to bring the whole block back, the wide layout only turns the tiles
 // over — so each arrangement names it for what it will do.
 const (
-	// aiRackBtnLabelShown is the label in either arrangement while the rack is face up.
-	aiRackBtnLabelShown = "Hide AI"
-	// aiRackBtnLabelNarrow is the label in the narrow arrangement while the rack is hidden,
+	// cpuRackBtnLabelShown is the label in either arrangement while the rack is face up.
+	cpuRackBtnLabelShown = "Hide CPU"
+	// cpuRackBtnLabelNarrow is the label in the narrow arrangement while the rack is hidden,
 	// where pressing the button restores the block as well as the tile faces.
-	aiRackBtnLabelNarrow = "AI Rack"
-	// aiRackBtnLabelWide is the label in the wide arrangement while the rack is face down,
+	cpuRackBtnLabelNarrow = "CPU Rack"
+	// cpuRackBtnLabelWide is the label in the wide arrangement while the rack is face down,
 	// where the block is already on screen and pressing the button only reveals the tiles.
-	aiRackBtnLabelWide = "Show AI"
+	cpuRackBtnLabelWide = "Show CPU"
 )
 
 // stagedTile holds a tile taken from the human rack and tentatively placed on the
@@ -70,11 +70,11 @@ type stagedTile struct {
 // historyEntry is one executed turn shown in the move-history panel. cmd is the executed
 // command for undo — nil for entries restored from a save, which are not undoable. points
 // and cells are self-contained copies of the move's score contribution and placed cells, so
-// the status summary and the AI-word highlight can be derived without the command (which
+// the status summary and the CPU-word highlight can be derived without the command (which
 // restored entries lack).
 type historyEntry struct {
 	cmd    engine.Command // nil for entries restored from a save (not undoable)
-	player string         // "You" or "AI"
+	player string         // "You" or "CPU"
 	line   string
 	points int      // score this move contributed (a play's score; 0 for pass/exchange)
 	cells  [][2]int // board cells this move placed; nil for pass/exchange
@@ -98,38 +98,38 @@ type gameScreen struct {
 	rackSelected int          // selected human rack index; -1 = none
 	exchangeMode bool         // selecting tiles to exchange
 	exchangeSel  map[int]bool // rack indices chosen for exchange
-	showAIRack   bool
-	aiThinking   bool
+	showCPURack  bool
+	cpuThinking  bool
 	blankOpen    bool // a blank-letter dialog is currently shown
-	abandoned    bool // set when the player leaves this screen (stops stale AI callbacks)
+	abandoned    bool // set when the player leaves this screen (stops stale CPU callbacks)
 	gameOver     bool // set when the game has ended; the screen stays up for review
 
 	statusMsg   string
 	statusIsErr bool
 
-	// lastHumanPts and lastAIPts hold each player's most-recent-move points — a play's
+	// lastHumanPts and lastCPUPts hold each player's most-recent-move points — a play's
 	// score, or +0 for a pass or exchange — or -1 before that player has moved. The status
-	// line shows them as "You <pts> / AI <pts>" — the human's in green, the AI's in amber —
-	// whenever no transient message or AI-thinking notice is being shown. Derived from the
+	// line shows them as "You <pts> / CPU <pts>" — the human's in green, the CPU's in amber —
+	// whenever no transient message or CPU-thinking notice is being shown. Derived from the
 	// move history by recomputeLastPoints so they stay correct across undo.
 	lastHumanPts int
-	lastAIPts    int
+	lastCPUPts   int
 
 	// Widgets.
 	cells     [boardDim * boardDim]*cellWidget
 	humanRack [engine.MaxRackSize]*rackSlotWidget
-	aiRack    [engine.MaxRackSize]*rackSlotWidget
+	cpuRack   [engine.MaxRackSize]*rackSlotWidget
 
 	// boardBox and humanRackBoxC are the laid-out containers for the board grid and
 	// the human rack; drag-and-drop hit-tests pointer positions against their geometry.
 	boardBox      *fyne.Container
 	humanRackBoxC *fyne.Container
 
-	// aiRackBox is the AI rack block (its heading plus the rack row), shown or hidden as a
-	// whole by applyAIRackVisibility. It is held here because the narrow layout leaves it out
+	// cpuRackBox is the CPU rack block (its heading plus the rack row), shown or hidden as a
+	// whole by applyCPURackVisibility. It is held here because the narrow layout leaves it out
 	// entirely until the player asks for it, which is a change of visibility rather than of
 	// the arrangement the widgets sit in.
-	aiRackBox *fyne.Container
+	cpuRackBox *fyne.Container
 
 	// boardLabels holds the board's row and column labels (A–O then 1–15). They are kept
 	// here because their colour is baked in at construction: the game screen is refreshed
@@ -171,10 +171,10 @@ type gameScreen struct {
 	afterFunc func(time.Duration, func()) *time.Timer
 
 	youLabel   *widget.Label
-	aiLabel    *widget.Label
+	cpuLabel   *widget.Label
 	bagLabel   *widget.Label
 	moveLabel  *widget.Label
-	levelLabel *widget.Label // AI difficulty, shown in the top counters row
+	levelLabel *widget.Label // CPU difficulty, shown in the top counters row
 	statusRT   *widget.RichText
 
 	// page is the phone arrangement's scrolling page, used to pan it for gestures another handler
@@ -209,9 +209,9 @@ type gameScreen struct {
 	// defsClosed guards against closing defsWordCh more than once when the screen is left.
 	defsClosed bool
 
-	// aiLastPlaced holds the board cells of the AI's most recently played word; the
-	// board outlines these tiles in red. Derived from history by recomputeAIHighlight.
-	aiLastPlaced map[[2]int]bool
+	// cpuLastPlaced holds the board cells of the CPU's most recently played word; the
+	// board outlines these tiles in red. Derived from history by recomputeCPUHighlight.
+	cpuLastPlaced map[[2]int]bool
 
 	playBtn    *touchButton
 	exchBtn    *touchButton
@@ -242,12 +242,12 @@ func newGameScreen(a *App, state *engine.GameState, dict *dictionary.Dictionary)
 		pickedUp:         [2]int{-1, -1},
 		lastPressCell:    [2]int{-1, -1},
 		lastHumanPts:     -1,
-		lastAIPts:        -1,
+		lastCPUPts:       -1,
 	}
-	// Derive the status summary and the AI-word highlight from the (possibly restored)
+	// Derive the status summary and the CPU-word highlight from the (possibly restored)
 	// history so a resumed game shows them immediately.
 	gs.recomputeLastPoints()
-	gs.recomputeAIHighlight()
+	gs.recomputeCPUHighlight()
 	return gs
 }
 
@@ -316,28 +316,28 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	humanRack := container.New(rackLayout{}, humanObjs...)
 	gs.humanRackBoxC = humanRack
 
-	aiObjs := make([]fyne.CanvasObject, engine.MaxRackSize)
+	cpuObjs := make([]fyne.CanvasObject, engine.MaxRackSize)
 	for i := 0; i < engine.MaxRackSize; i++ {
-		s := newRackSlotWidget(i, nil) // AI rack is not interactive
+		s := newRackSlotWidget(i, nil) // CPU rack is not interactive
 		// Nothing here can be dragged, so a drag on this row goes to the page instead of dying.
 		s.onUnusableDrag = gs.panPage
-		gs.aiRack[i] = s
-		aiObjs[i] = s
+		gs.cpuRack[i] = s
+		cpuObjs[i] = s
 	}
-	aiRack := container.New(rackLayout{}, aiObjs...)
+	cpuRack := container.New(rackLayout{}, cpuObjs...)
 
 	// Score/status bar.
 	gs.youLabel = widget.NewLabel("")
-	gs.aiLabel = widget.NewLabel("")
+	gs.cpuLabel = widget.NewLabel("")
 	gs.bagLabel = widget.NewLabel("")
 	gs.moveLabel = widget.NewLabel("")
-	gs.levelLabel = widget.NewLabel(fmt.Sprintf("AI Lv: %d", gs.state.AILevel))
+	gs.levelLabel = widget.NewLabel(fmt.Sprintf("CPU Lv: %d", gs.state.CPULevel))
 	gs.statusRT = widget.NewRichTextWithText("")
 	gs.statusRT.Wrapping = fyne.TextWrapWord
 
 	// The score counters show as one centred row, wrapping to two rows (the two scores,
 	// then the bag/move/level counters) only when the width cannot fit the single row.
-	counters := newStatusCounters(gs.youLabel, gs.aiLabel, gs.bagLabel, gs.moveLabel, gs.levelLabel)
+	counters := newStatusCounters(gs.youLabel, gs.cpuLabel, gs.bagLabel, gs.moveLabel, gs.levelLabel)
 	statusItems := make([]fyne.CanvasObject, 0, 3)
 	// statusGaps[i] is the vertical gap between status row i and row i+1 (see
 	// tightColumnLayout). The word-list/counters gap is tight (statusRowGap); the gap above
@@ -366,9 +366,9 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	gs.passBtn = gs.newControlButton("Pass", gs.commitPass)
 	gs.undoBtn = gs.newControlButton("Undo", gs.doUndo)
 	gs.saveBtn = gs.newControlButton("Save", gs.doSave)
-	// The arrangement decides the final label (see applyAIRackBtnLabel); this is the
+	// The arrangement decides the final label (see applyCPURackBtnLabel); this is the
 	// starting text, replaced as soon as an arrangement is built.
-	gs.toggleBtn = gs.newControlButton(aiRackBtnLabelNarrow, gs.toggleAIRack)
+	gs.toggleBtn = gs.newControlButton(cpuRackBtnLabelNarrow, gs.toggleCPURack)
 	gs.menuBtn = gs.newControlButton("Menu", gs.goMainMenu)
 	buttons := []fyne.CanvasObject{
 		gs.playBtn, gs.exchBtn, gs.passBtn, gs.undoBtn, gs.saveBtn, gs.toggleBtn, gs.menuBtn,
@@ -393,11 +393,11 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 	)
 	gs.rackHeader = container.NewCenter(rackHeaderRow)
 	humanRackBox := container.NewVBox(gs.rackHeader, humanRack)
-	aiRackBox := container.NewVBox(
-		widget.NewLabelWithStyle(fmt.Sprintf("AI rack - Lv %d", gs.state.AILevel), fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		aiRack,
+	cpuRackBox := container.NewVBox(
+		widget.NewLabelWithStyle(fmt.Sprintf("CPU rack - Lv %d", gs.state.CPULevel), fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		cpuRack,
 	)
-	gs.aiRackBox = aiRackBox
+	gs.cpuRackBox = cpuRackBox
 
 	// Right-hand panel: two tabs sharing the space beside the board. Both are
 	// non-editable, scrollable, and selectable so their text can be copied.
@@ -486,14 +486,14 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 				board,
 				statusAndRack,
 				controls,
-				aiRackBox,
+				cpuRackBox,
 				histWrap,
 			)
 			gs.page = newPhoneColumnScroll(column, board, histWrap, &gs.gesture)
 			// Set after gs.page, which is what both of these read to tell the arrangements
 			// apart.
-			gs.applyAIRackVisibility()
-			gs.applyAIRackBtnLabel()
+			gs.applyCPURackVisibility()
+			gs.applyCPURackBtnLabel()
 			return gs.page
 		}
 		// The action buttons stretch across the full width of the left pane: the grid
@@ -501,14 +501,14 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 		// of the pane width.
 		// The wide arrangement has no page-level scroll: the split's panes scroll individually.
 		gs.page = nil
-		// The wide layout always shows the AI rack, including when the window was narrow with
+		// The wide layout always shows the CPU rack, including when the window was narrow with
 		// it hidden — the two arrangements share the widget, as they do the toggle button.
-		gs.applyAIRackVisibility()
-		gs.applyAIRackBtnLabel()
+		gs.applyCPURackVisibility()
+		gs.applyCPURackBtnLabel()
 		controls := newTouchGroup(container.NewGridWithColumns(len(buttons), buttons...), buttons...)
 		// The board fills the left pane above the status/rack/control stack; boardLayout
 		// centres the board square within that space.
-		bottom := container.NewVBox(statusBar, humanRackBox, controls, aiRackBox)
+		bottom := container.NewVBox(statusBar, humanRackBox, controls, cpuRackBox)
 		left := container.NewBorder(nil, bottom, nil, nil, board)
 		// The history panel is the split's right pane, so it runs the full screen height.
 		split := container.NewHSplit(left, historyBox)
@@ -543,7 +543,7 @@ func (gs *gameScreen) refresh() {
 			committed := gs.state.Board.Cell(row, col).Tile
 			if committed != nil {
 				t := *committed
-				cell.setContent(&t, false, gs.aiLastPlaced[[2]int{row, col}], false)
+				cell.setContent(&t, false, gs.cpuLastPlaced[[2]int{row, col}], false)
 				continue
 			}
 			if t, ok := stagedAt[[2]int{row, col}]; ok && [2]int{row, col} != gs.dragBoardSrc {
@@ -572,27 +572,27 @@ func (gs *gameScreen) refresh() {
 		slot.setContent(&t, false, selected, gs.exchangeSel[i])
 	}
 
-	// AI rack (face-down unless revealed).
-	aiTiles := gs.state.AIRack.Tiles()
+	// CPU rack (face-down unless revealed).
+	cpuTiles := gs.state.CPURack.Tiles()
 	for i := 0; i < engine.MaxRackSize; i++ {
-		slot := gs.aiRack[i]
-		if i >= len(aiTiles) {
+		slot := gs.cpuRack[i]
+		if i >= len(cpuTiles) {
 			slot.setContent(nil, false, false, false)
 			continue
 		}
-		t := aiTiles[i]
-		slot.setContent(&t, !gs.showAIRack, false, false)
+		t := cpuTiles[i]
+		slot.setContent(&t, !gs.showCPURack, false, false)
 	}
 
 	// Scores / counters.
-	youMark, aiMark := "", ""
+	youMark, cpuMark := "", ""
 	if gs.state.CurrentTurn == engine.HumanTurn {
 		youMark = "▶ "
 	} else {
-		aiMark = "▶ "
+		cpuMark = "▶ "
 	}
 	gs.youLabel.SetText(fmt.Sprintf("%sYou: %d", youMark, gs.state.HumanScore))
-	gs.aiLabel.SetText(fmt.Sprintf("%sAI: %d", aiMark, gs.state.AIScore))
+	gs.cpuLabel.SetText(fmt.Sprintf("%sCPU: %d", cpuMark, gs.state.CPUScore))
 
 	// Board labels follow the current theme variant. Only the ones whose colour actually
 	// changed are refreshed, so an ordinary refresh (every tap) does no work here.
@@ -612,7 +612,7 @@ func (gs *gameScreen) refresh() {
 		switch {
 		case gs.gameOver:
 			text, col = "GAME OVER", gameOverColor()
-		case gs.state.CurrentTurn == engine.HumanTurn && !gs.aiThinking:
+		case gs.state.CurrentTurn == engine.HumanTurn && !gs.cpuThinking:
 			col = turnCueColor()
 			icon = playIconResource
 		}
@@ -639,7 +639,7 @@ func (gs *gameScreen) refresh() {
 func (gs *gameScreen) syncButtons() {
 	// While the blank-letter dialog is open, no action button may fire — a staged
 	// blank has no assigned letter yet, so committing now would form an invalid word.
-	humanTurn := gs.state.CurrentTurn == engine.HumanTurn && !gs.aiThinking && !gs.blankOpen && !gs.gameOver
+	humanTurn := gs.state.CurrentTurn == engine.HumanTurn && !gs.cpuThinking && !gs.blankOpen && !gs.gameOver
 	hasStaged := len(gs.staged) > 0
 
 	setEnabled(gs.playBtn, humanTurn && hasStaged)
@@ -811,7 +811,7 @@ func (gs *gameScreen) onRackTap(idx int) {
 
 // humanInputAllowed reports whether board/rack taps should be processed.
 func (gs *gameScreen) humanInputAllowed() bool {
-	return !gs.abandoned && !gs.aiThinking && !gs.blankOpen && !gs.gameOver &&
+	return !gs.abandoned && !gs.cpuThinking && !gs.blankOpen && !gs.gameOver &&
 		gs.state.CurrentTurn == engine.HumanTurn
 }
 
@@ -927,7 +927,7 @@ func (gs *gameScreen) commitPlay() {
 	gs.rackSelected = -1
 	gs.clearDragState()
 	// logCommand records the points and clears the transient message so the status line
-	// shows the score summary (your points in green / the AI's in amber).
+	// shows the score summary (your points in green / the CPU's in amber).
 	gs.logCommand("You", cmd)
 	gs.afterHumanMove()
 }
@@ -999,7 +999,7 @@ func (gs *gameScreen) doUndo() {
 		gs.refresh()
 		return
 	}
-	// Undo one of the player's turns: reverse the trailing commands (the AI's reply,
+	// Undo one of the player's turns: reverse the trailing commands (the CPU's reply,
 	// if any, then the human's move) so the state lands back on the human's turn.
 	// Pressing Undo again steps back another turn.
 	for len(gs.history) > 0 {
@@ -1015,7 +1015,7 @@ func (gs *gameScreen) doUndo() {
 			break
 		}
 	}
-	gs.recomputeAIHighlight()
+	gs.recomputeCPUHighlight()
 	gs.recomputeLastPoints()
 	gs.refreshHistory()
 	gs.dropUndoneDefinitions()
@@ -1036,10 +1036,10 @@ func (gs *gameScreen) doSave() {
 	gs.refresh()
 }
 
-func (gs *gameScreen) toggleAIRack() {
-	gs.showAIRack = !gs.showAIRack
-	gs.applyAIRackVisibility()
-	gs.applyAIRackBtnLabel()
+func (gs *gameScreen) toggleCPURack() {
+	gs.showCPURack = !gs.showCPURack
+	gs.applyCPURackVisibility()
+	gs.applyCPURackBtnLabel()
 	// The narrow column has just gained or lost the rack's height, so the history pane's
 	// share of the viewport has to be recomputed; nothing resizes the page here to do it.
 	if gs.page != nil {
@@ -1048,7 +1048,7 @@ func (gs *gameScreen) toggleAIRack() {
 	gs.refresh()
 }
 
-// applyAIRackVisibility shows or hides the AI rack block for the arrangement now in use.
+// applyCPURackVisibility shows or hides the CPU rack block for the arrangement now in use.
 //
 //   - Narrow (the stacked phone column): the block is present only once the player has asked
 //     for it, so the move-history/definitions pane starts directly under the action buttons
@@ -1060,44 +1060,44 @@ func (gs *gameScreen) toggleAIRack() {
 // Both arrangements re-parent the same widgets, so a block hidden in one would stay hidden
 // in the other. This runs whenever the arrangement is built, which is what keeps the wide
 // layout's rack from disappearing because it was hidden while the window was narrow.
-func (gs *gameScreen) applyAIRackVisibility() {
-	if gs.aiRackBox == nil {
+func (gs *gameScreen) applyCPURackVisibility() {
+	if gs.cpuRackBox == nil {
 		return
 	}
-	if gs.page == nil || gs.showAIRack {
-		gs.aiRackBox.Show()
+	if gs.page == nil || gs.showCPURack {
+		gs.cpuRackBox.Show()
 		return
 	}
-	gs.aiRackBox.Hide()
+	gs.cpuRackBox.Hide()
 }
 
-// applyAIRackBtnLabel names the AI rack toggle for what pressing it would do now: hide a
+// applyCPURackBtnLabel names the CPU rack toggle for what pressing it would do now: hide a
 // rack that is face up, or reveal one that is not — which differs by arrangement (see the
-// aiRackBtnLabel constants).
+// cpuRackBtnLabel constants).
 //
 // The label is derived from the rack's face-up state and the arrangement, and each of those
-// changes in exactly one place: toggleAIRack and buildArrangement respectively. Both call
+// changes in exactly one place: toggleCPURack and buildArrangement respectively. Both call
 // this, which is what keeps the label correct without recomputing it on every refresh.
 // buildArrangement has to because the two arrangements share the one button and name it
 // differently, so a window crossing the wide/narrow threshold would otherwise keep the name
 // the arrangement it was built in gave it.
-func (gs *gameScreen) applyAIRackBtnLabel() {
+func (gs *gameScreen) applyCPURackBtnLabel() {
 	if gs.toggleBtn == nil {
 		return
 	}
-	label := aiRackBtnLabelShown
-	if !gs.showAIRack {
+	label := cpuRackBtnLabelShown
+	if !gs.showCPURack {
 		// gs.page is set only by the narrow arrangement, which is what tells the two apart.
-		label = aiRackBtnLabelWide
+		label = cpuRackBtnLabelWide
 		if gs.page != nil {
-			label = aiRackBtnLabelNarrow
+			label = cpuRackBtnLabelNarrow
 		}
 	}
 	gs.toggleBtn.SetText(label)
 }
 
 func (gs *gameScreen) goMainMenu() {
-	// showMainMenu tears this screen down (marking it abandoned so any in-flight AI callback
+	// showMainMenu tears this screen down (marking it abandoned so any in-flight CPU callback
 	// is ignored, and stopping the definitions worker) as part of leaving it.
 	gs.app.showMainMenu("")
 }
@@ -1191,7 +1191,7 @@ func (gs *gameScreen) onRackDragEnd(fromIdx int, abs fyne.Position) {
 	gs.refresh()
 }
 
-// panPage scrolls the whole page by a drag that no other handler could use: one on the AI's rack
+// panPage scrolls the whole page by a drag that no other handler could use: one on the CPU's rack
 // row, which has nothing to move, or on a panel too short to scroll. Without this such a gesture is
 // absorbed by the widget the driver happened to hand it to, making that area a dead zone.
 //
@@ -1204,7 +1204,7 @@ func (gs *gameScreen) panPage(e *fyne.DragEvent) {
 }
 
 // onBoardDoubleTap recalls a tile the player staged this turn; committed tiles (played
-// in a previous turn or by the AI) are left untouched.
+// in a previous turn or by the CPU) are left untouched.
 func (gs *gameScreen) onBoardDoubleTap(row, col int) {
 	if !gs.humanInputAllowed() {
 		return
@@ -1493,12 +1493,12 @@ func moveIndex(i, f, t int) int {
 	}
 }
 
-// afterHumanMove checks for game over, otherwise starts the AI turn.
+// afterHumanMove checks for game over, otherwise starts the CPU turn.
 func (gs *gameScreen) afterHumanMove() {
 	if gs.checkEndGame() {
 		return
 	}
-	gs.startAITurn()
+	gs.startCPUTurn()
 }
 
 // checkEndGame ends the game in place when an end condition is met: it applies the
@@ -1521,54 +1521,54 @@ func (gs *gameScreen) checkEndGame() bool {
 func (gs *gameScreen) endGameMessage() string {
 	winner := "It's a tie!"
 	switch {
-	case gs.state.HumanScore > gs.state.AIScore:
+	case gs.state.HumanScore > gs.state.CPUScore:
 		winner = "You win!"
-	case gs.state.AIScore > gs.state.HumanScore:
-		winner = "AI wins!"
+	case gs.state.CPUScore > gs.state.HumanScore:
+		winner = "CPU wins!"
 	}
-	return fmt.Sprintf("Game over - %s  (You %d, AI %d)", winner, gs.state.HumanScore, gs.state.AIScore)
+	return fmt.Sprintf("Game over - %s  (You %d, CPU %d)", winner, gs.state.HumanScore, gs.state.CPUScore)
 }
 
-// ---------- AI turn ----------
+// ---------- CPU turn ----------
 
-// startAITurn computes the AI move on a background goroutine and applies the
-// result on the UI goroutine. A clone of the state is handed to the AI so it
-// never shares mutable data with the UI; a timeout converts a stuck AI to a pass.
-func (gs *gameScreen) startAITurn() {
-	gs.aiThinking = true
+// startCPUTurn computes the CPU move on a background goroutine and applies the
+// result on the UI goroutine. A clone of the state is handed to the CPU so it
+// never shares mutable data with the UI; a timeout converts a stuck CPU to a pass.
+func (gs *gameScreen) startCPUTurn() {
+	gs.cpuThinking = true
 	gs.refresh()
 
 	snapshot := gs.state.Clone()
 	dict := gs.dict
-	level := gs.state.AILevel
+	level := gs.state.CPULevel
 
 	go func() {
 		result := make(chan engine.Move, 1)
 		go func() {
 			rng := newGameRNG()
-			result <- ai.ChooseMove(snapshot, dict, level, rng)
+			result <- cpu.ChooseMove(snapshot, dict, level, rng)
 		}()
 
 		var move engine.Move
 		timedOut := false
 		select {
 		case move = <-result:
-		case <-time.After(aiTimeoutSecs * time.Second):
+		case <-time.After(cpuTimeoutSecs * time.Second):
 			move = engine.PassMove{}
 			timedOut = true
 		}
 
-		fyne.Do(func() { gs.applyAIMove(move, timedOut) })
+		fyne.Do(func() { gs.applyCPUMove(move, timedOut) })
 	}()
 }
 
-func (gs *gameScreen) applyAIMove(move engine.Move, timedOut bool) {
+func (gs *gameScreen) applyCPUMove(move engine.Move, timedOut bool) {
 	if gs.abandoned {
 		return // the player left this game; drop the result
 	}
-	gs.aiThinking = false
+	gs.cpuThinking = false
 
-	// Anything that went wrong with the AI's turn is held here rather than shown straight
+	// Anything that went wrong with the CPU's turn is held here rather than shown straight
 	// away: logCommand clears the status line so a completed move shows the score summary
 	// instead of the previous turn's transient message, which would also discard a notice
 	// set before it. The notice is re-applied afterwards so the player is actually told.
@@ -1585,28 +1585,28 @@ func (gs *gameScreen) applyAIMove(move engine.Move, timedOut bool) {
 	default:
 		// Unreachable: engine.Move's marker method is unexported, so the three cases above
 		// are the only implementations, and ChooseMove always returns one of them.
-		notice = "AI returned an unknown move - passing."
+		notice = "CPU returned an unknown move - passing."
 		cmd = &engine.PassCommand{}
 	}
 
 	executed := cmd
 	if err := cmd.Execute(gs.state, gs.dict, gs.rng); err != nil {
-		notice = fmt.Sprintf("AI move invalid (%s) - passing.", sanitiseError(err))
+		notice = fmt.Sprintf("CPU move invalid (%s) - passing.", sanitiseError(err))
 		fallback := &engine.PassCommand{}
 		_ = fallback.Execute(gs.state, gs.dict, gs.rng)
 		executed = fallback
 	} else if timedOut {
-		notice = "AI timed out - pass applied."
+		notice = "CPU timed out - pass applied."
 	}
 
-	gs.logCommand("AI", executed)
+	gs.logCommand("CPU", executed)
 
 	if notice != "" {
 		gs.setStatus(notice, true)
 	}
 
 	// The human's turn now begins, so guarantee a clean slate. The human cannot act
-	// during the AI turn, so any staged tile, selection, or drag state lingering here is
+	// during the CPU turn, so any staged tile, selection, or drag state lingering here is
 	// stale (e.g. from a gesture that outlived the previous turn). Left in place, a stale
 	// staged entry blanks its rack slot and makes the rack look like it is missing a tile
 	// — and enables the recall button even though nothing was played this turn.
@@ -1625,10 +1625,10 @@ func (gs *gameScreen) setStatus(msg string, isErr bool) {
 	gs.statusIsErr = isErr
 }
 
-// statusSegments builds the status line. While the AI is thinking, or a transient message
+// statusSegments builds the status line. While the CPU is thinking, or a transient message
 // (an error, or feedback like "Game saved.") is set, that single message is shown.
 // Otherwise the line shows the most-recent-play score summary: the human's points in green
-// and the AI's in amber, separated by " / ".
+// and the CPU's in amber, separated by " / ".
 func (gs *gameScreen) statusSegments() []widget.RichTextSegment {
 	seg := func(text string, colorName fyne.ThemeColorName) *widget.TextSegment {
 		return &widget.TextSegment{Text: text, Style: widget.RichTextStyle{
@@ -1640,8 +1640,8 @@ func (gs *gameScreen) statusSegments() []widget.RichTextSegment {
 	}
 
 	switch {
-	case gs.aiThinking:
-		return []widget.RichTextSegment{seg("AI is thinking…", theme.ColorNameForeground)}
+	case gs.cpuThinking:
+		return []widget.RichTextSegment{seg("CPU is thinking…", theme.ColorNameForeground)}
 	case gs.statusMsg != "":
 		c := theme.ColorNameSuccess
 		if gs.statusIsErr {
@@ -1652,7 +1652,7 @@ func (gs *gameScreen) statusSegments() []widget.RichTextSegment {
 		return []widget.RichTextSegment{
 			seg("You "+playPts(gs.lastHumanPts), theme.ColorNameSuccess),
 			seg(" / ", theme.ColorNameForeground),
-			seg("AI "+playPts(gs.lastAIPts), theme.ColorNameWarning),
+			seg("CPU "+playPts(gs.lastCPUPts), theme.ColorNameWarning),
 		}
 	}
 }
@@ -1708,11 +1708,11 @@ func (gs *gameScreen) logCommand(player string, cmd engine.Command) {
 	// A completed move clears any transient message so the score summary is shown.
 	gs.statusMsg = ""
 	gs.statusIsErr = false
-	gs.recomputeAIHighlight()
+	gs.recomputeCPUHighlight()
 	gs.refreshHistory()
 }
 
-// playCells returns the board cells a play placed, for the AI-word highlight and the
+// playCells returns the board cells a play placed, for the CPU-word highlight and the
 // persisted history; nil for a pass or exchange.
 func playCells(cmd engine.Command) [][2]int {
 	pc, ok := cmd.(*engine.PlayCommand)
@@ -1731,15 +1731,15 @@ func playCells(cmd engine.Command) [][2]int {
 // moved yet. Deriving from the history keeps the status summary correct across undo.
 func (gs *gameScreen) recomputeLastPoints() {
 	gs.lastHumanPts = -1
-	gs.lastAIPts = -1
+	gs.lastCPUPts = -1
 	for i := len(gs.history) - 1; i >= 0; i-- {
 		e := gs.history[i]
 		if e.player == "You" && gs.lastHumanPts < 0 {
 			gs.lastHumanPts = e.points
-		} else if e.player == "AI" && gs.lastAIPts < 0 {
-			gs.lastAIPts = e.points
+		} else if e.player == "CPU" && gs.lastCPUPts < 0 {
+			gs.lastCPUPts = e.points
 		}
-		if gs.lastHumanPts >= 0 && gs.lastAIPts >= 0 {
+		if gs.lastHumanPts >= 0 && gs.lastCPUPts >= 0 {
 			break
 		}
 	}
@@ -1754,20 +1754,20 @@ func movePoints(cmd engine.Command) int {
 	return 0
 }
 
-// recomputeAIHighlight derives aiLastPlaced from the move history: the cells of the
-// AI's most recent play that is still on the board. It is called whenever the
+// recomputeCPUHighlight derives cpuLastPlaced from the move history: the cells of the
+// CPU's most recent play that is still on the board. It is called whenever the
 // history changes (a move is logged or undone) so the red outline always tracks the
-// AI's latest word; an AI pass or exchange is skipped because it places no tiles.
-func (gs *gameScreen) recomputeAIHighlight() {
-	gs.aiLastPlaced = nil
+// CPU's latest word; a CPU pass or exchange is skipped because it places no tiles.
+func (gs *gameScreen) recomputeCPUHighlight() {
+	gs.cpuLastPlaced = nil
 	for i := len(gs.history) - 1; i >= 0; i-- {
 		e := gs.history[i]
-		if e.player != "AI" || len(e.cells) == 0 {
-			continue // not the AI, or a pass/exchange that places no tiles; keep looking back
+		if e.player != "CPU" || len(e.cells) == 0 {
+			continue // not the CPU, or a pass/exchange that places no tiles; keep looking back
 		}
-		gs.aiLastPlaced = make(map[[2]int]bool, len(e.cells))
+		gs.cpuLastPlaced = make(map[[2]int]bool, len(e.cells))
 		for _, cell := range e.cells {
-			gs.aiLastPlaced[[2]int{cell[0], cell[1]}] = true
+			gs.cpuLastPlaced[[2]int{cell[0], cell[1]}] = true
 		}
 		return
 	}
@@ -1811,11 +1811,11 @@ func openingDrawLine(od *engine.OpeningDraw) string {
 		return ""
 	}
 	first := "you go first"
-	if od.First == engine.AITurn {
-		first = "AI goes first"
+	if od.First == engine.CPUTurn {
+		first = "CPU goes first"
 	}
-	return fmt.Sprintf("Opening draw: you drew %s, AI drew %s - %s",
-		drawnLetterName(od.HumanLetter), drawnLetterName(od.AILetter), first)
+	return fmt.Sprintf("Opening draw: you drew %s, CPU drew %s - %s",
+		drawnLetterName(od.HumanLetter), drawnLetterName(od.CPULetter), first)
 }
 
 // scrollHistoryToEnd keeps the newest move-history line in view after the log changes.

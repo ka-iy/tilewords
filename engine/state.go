@@ -17,8 +17,8 @@ type Turn int
 const (
 	// HumanTurn means the human player is to move.
 	HumanTurn Turn = iota
-	// AITurn means the AI player is to move.
-	AITurn
+	// CPUTurn means the CPU player is to move.
+	CPUTurn
 )
 
 // EndReason describes why the game ended.
@@ -44,10 +44,10 @@ const (
 type GameState struct {
 	Board      *Board
 	HumanRack  *Rack
-	AIRack     *Rack
+	CPURack    *Rack
 	Bag        *Bag
 	HumanScore int
-	AIScore    int
+	CPUScore   int
 	// ConsecutivePasses counts consecutive scoreless turns: PassMove, ExchangeMove,
 	// and zero-scoring PlayMove executions. Resets to 0 on a scoring play. The game
 	// ends when this reaches 6 (BR-E09/BR-E10).
@@ -56,10 +56,10 @@ type GameState struct {
 	// MoveNumber increments on each Command.Execute and decrements on Undo.
 	MoveNumber int
 	DictName   dictionary.DictName
-	// AILevel is the difficulty level selected at game start, in the ai package's level range
-	// (see ai.MinLevel and ai.MaxLevel). The engine stores it without interpreting it; the
-	// range is the ai package's to define and it clamps anything outside it.
-	AILevel int
+	// CPULevel is the difficulty level selected at game start, in the cpu package's level range
+	// (see cpu.MinLevel and cpu.MaxLevel). The engine stores it without interpreting it; the
+	// range is the cpu package's to define and it clamps anything outside it.
+	CPULevel int
 	// Mode is the game mode (board layout + tile economy) chosen at game start. It is
 	// persisted so a resumed game keeps the same board and economy. Older save files
 	// without this field decode as the zero value, ClassicMode.
@@ -78,9 +78,8 @@ type GameState struct {
 
 	// History is the move log shown in the UI's move-history panel, persisted so a resumed
 	// game keeps its record. It holds already-rendered display data rather than executable
-	// commands: undo is intentionally not restored across a save/load (consistent with the
-	// zeroed LastHumanCommand/LastAICommand above). Empty for a fresh game and for older
-	// save files without this field.
+	// commands: undo is intentionally not restored across a save/load. Empty for a fresh
+	// game and for older save files without this field.
 	History []MoveRecord
 
 	// OpeningDraw records how the first turn was decided (BR-E19). It is set by New
@@ -91,14 +90,14 @@ type GameState struct {
 // MoveRecord is one entry of the persisted move-history log. It stores rendered display
 // data (not an executable command), so it is gob-serialisable and independent of undo.
 type MoveRecord struct {
-	// Player is "You" or "AI".
+	// Player is "You" or "CPU".
 	Player string
 	// Line is the already-formatted move-history display line.
 	Line string
 	// Points is the score this move contributed (a play's score; 0 for a pass or exchange),
 	// used to restore the status summary.
 	Points int
-	// Cells are the board cells this move placed, used to restore the AI's last-word
+	// Cells are the board cells this move placed, used to restore the CPU's last-word
 	// highlight; nil for a pass or exchange.
 	Cells [][2]int
 	// Words are the words this play formed (main word + cross-words), used to repopulate the
@@ -114,45 +113,45 @@ type MoveRecord struct {
 // so this is purely an informational record of how the first turn was decided.
 type OpeningDraw struct {
 	HumanLetter byte // letter drawn by the human; 0 = blank
-	AILetter    byte // letter drawn by the AI; 0 = blank
+	CPULetter   byte // letter drawn by the CPU; 0 = blank
 	First       Turn // the player who won the draw and plays first
 }
 
 // New initialises a fresh ClassicMode GameState.
-func New(dictName dictionary.DictName, aiLevel int, rng *rand.Rand) *GameState {
-	return NewWithMode(dictName, aiLevel, ClassicMode, rng)
+func New(dictName dictionary.DictName, cpuLevel int, rng *rand.Rand) *GameState {
+	return NewWithMode(dictName, cpuLevel, ClassicMode, rng)
 }
 
 // NewWithMode initialises a fresh GameState for mode: creates a shuffled bag and board
 // for that mode, decides who plays first via the standard opening draw (BR-E19), then
 // deals 7 tiles to each rack.
-func NewWithMode(dictName dictionary.DictName, aiLevel int, mode GameMode, rng *rand.Rand) *GameState {
+func NewWithMode(dictName dictionary.DictName, cpuLevel int, mode GameMode, rng *rand.Rand) *GameState {
 	board := NewBoardForMode(mode)
 	bag := NewBagForMode(rng, mode)
 
 	// Decide the first player by the standard opening draw, then deal the racks.
 	// drawForFirstTurn returns its tiles to the bag and reshuffles, so the racks
 	// are dealt from the full bag.
-	firstTurn, humanLetter, aiLetter := drawForFirstTurn(bag, rng)
+	firstTurn, humanLetter, cpuLetter := drawForFirstTurn(bag, rng)
 
 	humanRack := &Rack{}
 	humanRack.Replenish(bag, rng)
 
-	aiRack := &Rack{}
-	aiRack.Replenish(bag, rng)
+	cpuRack := &Rack{}
+	cpuRack.Replenish(bag, rng)
 
 	return &GameState{
 		Board:       board,
 		HumanRack:   humanRack,
-		AIRack:      aiRack,
+		CPURack:     cpuRack,
 		Bag:         bag,
 		CurrentTurn: firstTurn,
 		DictName:    dictName,
-		AILevel:     aiLevel,
+		CPULevel:    cpuLevel,
 		Mode:        mode,
 		OpeningDraw: &OpeningDraw{
 			HumanLetter: humanLetter,
-			AILetter:    aiLetter,
+			CPULetter:   cpuLetter,
 			First:       firstTurn,
 		},
 	}
@@ -164,20 +163,20 @@ func NewWithMode(dictName dictionary.DictName, aiLevel int, mode GameMode, rng *
 // A tie (both players draw the same letter, or both draw blanks) is re-drawn. The
 // drawn tiles are always returned to the bag and reshuffled with rng before this
 // returns, so the caller deals the racks from the full bag.
-func drawForFirstTurn(bag *Bag, rng *rand.Rand) (first Turn, humanLetter, aiLetter byte) {
+func drawForFirstTurn(bag *Bag, rng *rand.Rand) (first Turn, humanLetter, cpuLetter byte) {
 	for {
 		drawn := bag.Draw(2, rng)
-		humanLetter, aiLetter = drawn[0].Letter, drawn[1].Letter
+		humanLetter, cpuLetter = drawn[0].Letter, drawn[1].Letter
 		bag.Return(drawn, rng)
-		if humanLetter == aiLetter {
+		if humanLetter == cpuLetter {
 			continue // tie — draw again
 		}
 		// A smaller letter byte is nearer the start of the alphabet; the blank
 		// sentinel (0) is smallest and therefore plays first.
-		if humanLetter < aiLetter {
-			return HumanTurn, humanLetter, aiLetter
+		if humanLetter < cpuLetter {
+			return HumanTurn, humanLetter, cpuLetter
 		}
-		return AITurn, humanLetter, aiLetter
+		return CPUTurn, humanLetter, cpuLetter
 	}
 }
 
@@ -189,7 +188,7 @@ func drawForFirstTurn(bag *Bag, rng *rand.Rand) (first Turn, humanLetter, aiLett
 // problems it can see in the encoding, so a file whose bytes decode cleanly can still
 // carry values no game could have reached, and code downstream is written against the
 // invariants rather than re-checking them. A single flipped bit is enough: it can turn a
-// rack blank into a tile with letter 0, which the AI's move generator would then index a
+// rack blank into a tile with letter 0, which the CPU's move generator would then index a
 // letter-keyed array with.
 //
 // It deliberately checks only what would otherwise crash or corrupt play. Implausible but
@@ -199,7 +198,7 @@ func ValidateDecodedState(s *GameState) error {
 	if s == nil {
 		return fmt.Errorf("engine.ValidateDecodedState: nil state")
 	}
-	if s.Board == nil || s.HumanRack == nil || s.AIRack == nil || s.Bag == nil {
+	if s.Board == nil || s.HumanRack == nil || s.CPURack == nil || s.Bag == nil {
 		return fmt.Errorf("engine.ValidateDecodedState: missing board, rack, or bag")
 	}
 
@@ -211,7 +210,7 @@ func ValidateDecodedState(s *GameState) error {
 		bad  func() (Tile, bool)
 	}{
 		{"human rack", s.HumanRack.malformedTile},
-		{"AI rack", s.AIRack.malformedTile},
+		{"CPU rack", s.CPURack.malformedTile},
 		{"bag", s.Bag.malformedTile},
 		{"board", s.Board.malformedTile},
 	} {
@@ -226,13 +225,13 @@ func ValidateDecodedState(s *GameState) error {
 	if n := s.HumanRack.Count(); n > MaxRackSize {
 		return fmt.Errorf("engine.ValidateDecodedState: human rack holds %d tiles, more than the %d-tile capacity", n, MaxRackSize)
 	}
-	if n := s.AIRack.Count(); n > MaxRackSize {
-		return fmt.Errorf("engine.ValidateDecodedState: AI rack holds %d tiles, more than the %d-tile capacity", n, MaxRackSize)
+	if n := s.CPURack.Count(); n > MaxRackSize {
+		return fmt.Errorf("engine.ValidateDecodedState: CPU rack holds %d tiles, more than the %d-tile capacity", n, MaxRackSize)
 	}
 	return nil
 }
 
-// Clone returns a deep copy of the GameState suitable for use by the AI goroutine.
+// Clone returns a deep copy of the GameState suitable for use by the CPU goroutine.
 // The clone is fully independent: mutations to the original do not affect it.
 //
 // It copies the struct wholesale and then replaces every field that would otherwise be
@@ -242,10 +241,10 @@ func (s *GameState) Clone() *GameState {
 	c := *s
 	c.Board = s.Board.Clone()
 	c.HumanRack = s.HumanRack.Clone()
-	c.AIRack = s.AIRack.Clone()
+	c.CPURack = s.CPURack.Clone()
 	c.Bag = s.Bag.Clone()
-	// History is rendered display data the AI never reads; sharing the slice would let the
-	// UI append to it while the AI goroutine holds the clone.
+	// History is rendered display data the CPU never reads; sharing the slice would let the
+	// UI append to it while the CPU goroutine holds the clone.
 	c.History = nil
 	// OpeningDraw is written once by New and never mutated, so the pointer is safe to share.
 	return &c
@@ -256,7 +255,7 @@ func currentRack(state *GameState) *Rack {
 	if state.CurrentTurn == HumanTurn {
 		return state.HumanRack
 	}
-	return state.AIRack
+	return state.CPURack
 }
 
 // addScore adds points to the current player's score.
@@ -264,7 +263,7 @@ func addScore(state *GameState, points int) {
 	if state.CurrentTurn == HumanTurn {
 		state.HumanScore += points
 	} else {
-		state.AIScore += points
+		state.CPUScore += points
 	}
 }
 
@@ -273,14 +272,14 @@ func subtractScore(state *GameState, points int) {
 	if state.CurrentTurn == HumanTurn {
 		state.HumanScore -= points
 	} else {
-		state.AIScore -= points
+		state.CPUScore -= points
 	}
 }
 
 // opposite returns the other Turn value.
 func opposite(t Turn) Turn {
 	if t == HumanTurn {
-		return AITurn
+		return CPUTurn
 	}
 	return HumanTurn
 }

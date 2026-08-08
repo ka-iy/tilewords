@@ -454,8 +454,8 @@ func TestPlayCommand_ExecuteUndo(t *testing.T) {
 		t.Fatalf("Execute: %v", err)
 	}
 
-	if state.CurrentTurn != AITurn {
-		t.Error("CurrentTurn should be AITurn after human play")
+	if state.CurrentTurn != CPUTurn {
+		t.Error("CurrentTurn should be CPUTurn after human play")
 	}
 	if state.HumanScore <= 0 {
 		t.Errorf("HumanScore = %d, expected > 0", state.HumanScore)
@@ -529,8 +529,8 @@ func TestPassCommand_ExecuteUndo(t *testing.T) {
 	if state.ConsecutivePasses != 1 {
 		t.Errorf("ConsecutivePasses = %d, want 1", state.ConsecutivePasses)
 	}
-	if state.CurrentTurn != AITurn {
-		t.Error("expected AITurn after pass")
+	if state.CurrentTurn != CPUTurn {
+		t.Error("expected CPUTurn after pass")
 	}
 
 	cmd.Undo(state, nil)
@@ -583,7 +583,7 @@ func TestIsGameOver_NotOver(t *testing.T) {
 func TestApplyEndgameScoring_RackExhausted_HumanWins(t *testing.T) {
 	state := newGameState()
 	state.HumanRack = &Rack{}
-	state.AIRack = &Rack{tiles: []Tile{
+	state.CPURack = &Rack{tiles: []Tile{
 		{Letter: 'Q', Points: 10},
 		{Letter: 'Z', Points: 10},
 	}}
@@ -594,25 +594,25 @@ func TestApplyEndgameScoring_RackExhausted_HumanWins(t *testing.T) {
 	if state.HumanScore != 20 {
 		t.Errorf("HumanScore = %d, want 20", state.HumanScore)
 	}
-	if state.AIScore != -20 {
-		t.Errorf("AIScore = %d, want -20", state.AIScore)
+	if state.CPUScore != -20 {
+		t.Errorf("CPUScore = %d, want -20", state.CPUScore)
 	}
 }
 
 func TestApplyEndgameScoring_SixPasses(t *testing.T) {
 	state := newGameState()
 	state.HumanRack = &Rack{tiles: []Tile{{Letter: 'A', Points: 1}}}
-	state.AIRack = &Rack{tiles: []Tile{{Letter: 'Z', Points: 10}}}
+	state.CPURack = &Rack{tiles: []Tile{{Letter: 'Z', Points: 10}}}
 	state.HumanScore = 50
-	state.AIScore = 60
+	state.CPUScore = 60
 
 	ApplyEndgameScoring(state, SixConsecutivePasses)
 
 	if state.HumanScore != 49 {
 		t.Errorf("HumanScore = %d, want 49", state.HumanScore)
 	}
-	if state.AIScore != 50 {
-		t.Errorf("AIScore = %d, want 50", state.AIScore)
+	if state.CPUScore != 50 {
+		t.Errorf("CPUScore = %d, want 50", state.CPUScore)
 	}
 }
 
@@ -623,18 +623,18 @@ func TestApplyEndgameScoring_SixPasses(t *testing.T) {
 func TestApplyEndgameScoring_BranchesOnReason(t *testing.T) {
 	state := newGameState()
 	state.HumanRack = &Rack{} // empty
-	state.AIRack = &Rack{tiles: []Tile{{Letter: 'Z', Points: 10}}}
+	state.CPURack = &Rack{tiles: []Tile{{Letter: 'Z', Points: 10}}}
 	state.Bag = newTestBag(nil) // empty
 	state.HumanScore = 50
-	state.AIScore = 60
+	state.CPUScore = 60
 
 	ApplyEndgameScoring(state, SixConsecutivePasses)
 
 	if state.HumanScore != 50 {
 		t.Errorf("HumanScore = %d, want 50 (six-pass: no redistribution)", state.HumanScore)
 	}
-	if state.AIScore != 50 {
-		t.Errorf("AIScore = %d, want 50 (six-pass: loses own 10)", state.AIScore)
+	if state.CPUScore != 50 {
+		t.Errorf("CPUScore = %d, want 50 (six-pass: loses own 10)", state.CPUScore)
 	}
 }
 
@@ -643,15 +643,15 @@ func TestApplyEndgameScoring_BranchesOnReason(t *testing.T) {
 func TestApplyEndgameScoring_Idempotent(t *testing.T) {
 	state := newGameState()
 	state.HumanRack = &Rack{}
-	state.AIRack = &Rack{tiles: []Tile{{Letter: 'Q', Points: 10}}}
+	state.CPURack = &Rack{tiles: []Tile{{Letter: 'Q', Points: 10}}}
 	state.Bag = newTestBag(nil)
 
 	ApplyEndgameScoring(state, RackExhausted)
-	h, a := state.HumanScore, state.AIScore
+	h, a := state.HumanScore, state.CPUScore
 	ApplyEndgameScoring(state, RackExhausted) // must be a no-op
 
-	if state.HumanScore != h || state.AIScore != a {
-		t.Errorf("second call changed scores: (%d,%d) -> (%d,%d)", h, a, state.HumanScore, state.AIScore)
+	if state.HumanScore != h || state.CPUScore != a {
+		t.Errorf("second call changed scores: (%d,%d) -> (%d,%d)", h, a, state.HumanScore, state.CPUScore)
 	}
 }
 
@@ -662,7 +662,7 @@ func TestPlayCommand_ZeroScoringPlayIsScorelessTurn(t *testing.T) {
 	state := &GameState{
 		Board:             newFlatBoard(), // all-Normal squares: no multipliers
 		HumanRack:         &Rack{tiles: []Tile{{IsBlank: true}, {IsBlank: true}}},
-		AIRack:            &Rack{},
+		CPURack:           &Rack{},
 		Bag:               newTestBag(nil),
 		CurrentTurn:       HumanTurn,
 		ConsecutivePasses: 3,
@@ -688,7 +688,7 @@ func TestPlayCommand_ScoringPlayResetsScorelessCounter(t *testing.T) {
 	state := &GameState{
 		Board:             newFlatBoard(),
 		HumanRack:         &Rack{tiles: []Tile{{Letter: 'A', Points: 1}, {Letter: 'T', Points: 1}}},
-		AIRack:            &Rack{},
+		CPURack:           &Rack{},
 		Bag:               newTestBag(nil),
 		CurrentTurn:       HumanTurn,
 		ConsecutivePasses: 3,

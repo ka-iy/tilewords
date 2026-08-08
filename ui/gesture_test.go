@@ -106,15 +106,15 @@ func TestGestureOwnerSurvivesTouchCancel(t *testing.T) {
 	}
 }
 
-// TestAIRackSlotMakesNoClaim verifies the AI's rack, which has no drag handlers, does not claim a
+// TestCPURackSlotMakesNoClaim verifies the CPU's rack, which has no drag handlers, does not claim a
 // gesture — a touch there must leave the page free to pan.
-func TestAIRackSlotMakesNoClaim(t *testing.T) {
+func TestCPURackSlotMakesNoClaim(t *testing.T) {
 	gs := newPlacementHarness(t)
 
-	gs.aiRack[3].TouchDown(&mobile.TouchEvent{})
+	gs.cpuRack[3].TouchDown(&mobile.TouchEvent{})
 
 	if gs.gesture.current() != nil {
-		t.Error("the AI rack claimed a gesture it cannot use")
+		t.Error("the CPU rack claimed a gesture it cannot use")
 	}
 }
 
@@ -186,10 +186,10 @@ type recordingDraggable struct {
 func (r *recordingDraggable) Dragged(*fyne.DragEvent) { r.drags++ }
 func (r *recordingDraggable) DragEnd()                { r.ends++ }
 
-// TestAIRackDragPansThePage verifies the AI's rack row is not a dead zone for scrolling. Its slots
+// TestCPURackDragPansThePage verifies the CPU's rack row is not a dead zone for scrolling. Its slots
 // are draggable as a type but have nothing to move, so a drag the driver hands them must reach the
 // page rather than be absorbed.
-func TestAIRackDragPansThePage(t *testing.T) {
+func TestCPURackDragPansThePage(t *testing.T) {
 	gs := newPlacementHarness(t)
 	if gs.page == nil {
 		t.Skip("arrangement has no page scroll")
@@ -200,14 +200,14 @@ func TestAIRackDragPansThePage(t *testing.T) {
 	}
 	before := page.Offset.Y
 
-	gs.aiRack[3].Dragged(mobileDragEvent(0, -30))
+	gs.cpuRack[3].Dragged(mobileDragEvent(0, -30))
 
 	if page.Offset.Y <= before {
-		t.Errorf("page offset = %.1f, want more than %.1f: a drag on the AI rack was swallowed",
+		t.Errorf("page offset = %.1f, want more than %.1f: a drag on the CPU rack was swallowed",
 			page.Offset.Y, before)
 	}
 	if gs.ghost.Visible() {
-		t.Error("a drag on the AI rack lifted a tile")
+		t.Error("a drag on the CPU rack lifted a tile")
 	}
 }
 

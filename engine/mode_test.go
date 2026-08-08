@@ -50,7 +50,7 @@ func TestNewWithModeSetsMode(t *testing.T) {
 		t.Fatalf("board.Mode = %v, want Interesting", s.Board.Mode())
 	}
 	// Tile conservation for the Interesting economy.
-	total := s.Bag.Count() + s.HumanRack.Count() + s.AIRack.Count()
+	total := s.Bag.Count() + s.HumanRack.Count() + s.CPURack.Count()
 	if total != tileDistributionInterestingTotal {
 		t.Fatalf("interesting tile conservation: got %d, want %d", total, tileDistributionInterestingTotal)
 	}

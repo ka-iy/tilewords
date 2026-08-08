@@ -17,7 +17,7 @@ var playIconResource = &fyne.StaticResource{
 	StaticContent: []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#50DC5A" d="M8 5v14l11-7z"/></svg>`),
 }
 
-// blankIconResource is an empty glyph the play slot shows on the AI's turn. widget.Icon
+// blankIconResource is an empty glyph the play slot shows on the CPU's turn. widget.Icon
 // reserves the same inline size for any resource, so swapping to this leaves the rack
 // header layout unchanged (the play icon simply disappears in place).
 var blankIconResource = &fyne.StaticResource{

@@ -60,7 +60,7 @@ func TestFormatDefinitionEntryInflectionMerge(t *testing.T) {
 
 func TestDefinitionsBlankLineSeparation(t *testing.T) {
 	// Two turns of history, so both entries belong to turns the history still reaches.
-	gs := &gameScreen{history: []historyEntry{{player: "You"}, {player: "AI"}}}
+	gs := &gameScreen{history: []historyEntry{{player: "You"}, {player: "CPU"}}}
 	gs.appendDefinition(defsEntry{text: "UNMIX\nverb - To separate.", turn: 0})
 	gs.appendDefinition(defsEntry{text: "MOUSE\nnoun - A small rodent.", turn: 1})
 
@@ -74,11 +74,11 @@ func TestDefinitionsBlankLineSeparation(t *testing.T) {
 // turn that played it is undone, and that a lookup still in flight for that turn is refused
 // on arrival — lookups run off the UI goroutine, so one can be delivered after the undo.
 func TestDefinitionsDroppedOnUndo(t *testing.T) {
-	gs := &gameScreen{history: []historyEntry{{player: "You"}, {player: "AI"}}}
+	gs := &gameScreen{history: []historyEntry{{player: "You"}, {player: "CPU"}}}
 	gs.appendDefinition(defsEntry{text: "CRANE", turn: 0})
 	gs.appendDefinition(defsEntry{text: "ZEBRA", turn: 1})
 
-	// Undo the AI's turn.
+	// Undo the CPU's turn.
 	gs.history = gs.history[:1]
 	gs.dropUndoneDefinitions()
 
@@ -93,7 +93,7 @@ func TestDefinitionsDroppedOnUndo(t *testing.T) {
 	}
 
 	// Replaying the turn admits its definition again, exactly once.
-	gs.history = append(gs.history, historyEntry{player: "AI"})
+	gs.history = append(gs.history, historyEntry{player: "CPU"})
 	gs.appendDefinition(defsEntry{text: "ZEBRA", turn: 1})
 	if got := gs.definitionsText(); got != "CRANE\n\nZEBRA" {
 		t.Errorf("after replay definitions text = %q, want %q", got, "CRANE\n\nZEBRA")
@@ -173,7 +173,7 @@ func TestDispatchDefinitionsQueuesWords(t *testing.T) {
 func TestDispatchDefinitionsStampsPendingTurn(t *testing.T) {
 	gs := &gameScreen{
 		defsWordCh: make(chan defsRequest, defsWordBuffer),
-		history:    []historyEntry{{player: "You"}, {player: "AI"}},
+		history:    []historyEntry{{player: "You"}, {player: "CPU"}},
 	}
 	gs.dispatchDefinitions([]string{"CAT"})
 	gs.stopDefinitions()
@@ -199,9 +199,9 @@ func TestDispatchHistoryDefinitions(t *testing.T) {
 	gs := &gameScreen{
 		defsWordCh: make(chan defsRequest, defsWordBuffer),
 		history: []historyEntry{
-			{player: "AI", words: []string{"SPELLS"}},
+			{player: "CPU", words: []string{"SPELLS"}},
 			{player: "You"}, // a pass: no words
-			{player: "AI", words: []string{"OW", "DO"}},
+			{player: "CPU", words: []string{"OW", "DO"}},
 		},
 	}
 	gs.dispatchHistoryDefinitions()

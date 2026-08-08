@@ -23,20 +23,20 @@ import (
 type statusCounters struct {
 	widget.BaseWidget
 
-	you   fyne.CanvasObject
-	ai    fyne.CanvasObject
-	bag   fyne.CanvasObject
-	move  fyne.CanvasObject
-	level fyne.CanvasObject
+	you      fyne.CanvasObject
+	cpuScore fyne.CanvasObject
+	bag      fyne.CanvasObject
+	move     fyne.CanvasObject
+	level    fyne.CanvasObject
 
 	holder *fyne.Container // a stack holding the current arrangement
 	twoRow bool
 	inited bool
 }
 
-func newStatusCounters(you, ai, bag, move, level fyne.CanvasObject) *statusCounters {
+func newStatusCounters(you, cpuScore, bag, move, level fyne.CanvasObject) *statusCounters {
 	s := &statusCounters{
-		you: you, ai: ai, bag: bag, move: move, level: level,
+		you: you, cpuScore: cpuScore, bag: bag, move: move, level: level,
 		holder: container.NewStack(),
 	}
 	s.ExtendBaseWidget(s)
@@ -47,11 +47,11 @@ func newStatusCounters(you, ai, bag, move, level fyne.CanvasObject) *statusCount
 func (s *statusCounters) arrange(twoRow bool) fyne.CanvasObject {
 	if twoRow {
 		return container.NewVBox(
-			container.NewCenter(container.NewHBox(s.you, s.ai)),
+			container.NewCenter(container.NewHBox(s.you, s.cpuScore)),
 			container.NewCenter(container.NewHBox(s.bag, s.move, s.level)),
 		)
 	}
-	return container.NewCenter(container.NewHBox(s.you, s.ai, s.bag, s.move, s.level))
+	return container.NewCenter(container.NewHBox(s.you, s.cpuScore, s.bag, s.move, s.level))
 }
 
 func (s *statusCounters) set(twoRow bool) {
@@ -64,7 +64,7 @@ func (s *statusCounters) set(twoRow bool) {
 // singleRowWidth is the width the one-row arrangement needs: the label widths plus the
 // theme padding an HBox inserts between them (see layout.hBoxLayout.MinSize).
 func (s *statusCounters) singleRowWidth() float32 {
-	labels := [...]fyne.CanvasObject{s.you, s.ai, s.bag, s.move, s.level}
+	labels := [...]fyne.CanvasObject{s.you, s.cpuScore, s.bag, s.move, s.level}
 	w := float32(0)
 	for i, o := range labels {
 		w += o.MinSize().Width

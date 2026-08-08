@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/test"
 	"pgregory.net/rapid"
 
-	"tilewords/ai"
+	"tilewords/cpu"
 	"tilewords/dictionary"
 	"tilewords/engine"
 )
@@ -44,14 +44,14 @@ func TestSanitize(t *testing.T) {
 	if got := sanitize(GameSettings{Dict: "beta", Mode: engine.ClassicMode, Difficulty: 5}, testAvail); got.Dict != "beta" {
 		t.Errorf("available dict not preserved: Dict = %q, want beta", got.Dict)
 	}
-	// BR-2: a difficulty outside the AI's level range resets to the default.
-	for _, bad := range []int{0, -3, ai.MaxLevel + 1, 100} {
+	// BR-2: a difficulty outside the CPU's level range resets to the default.
+	for _, bad := range []int{0, -3, cpu.MaxLevel + 1, 100} {
 		if got := sanitize(GameSettings{Dict: "alpha", Difficulty: bad}, testAvail); got.Difficulty != def.Difficulty {
 			t.Errorf("difficulty %d: got %d, want default %d", bad, got.Difficulty, def.Difficulty)
 		}
 	}
-	// Every level the AI accepts is preserved, including the demigod-mode top level.
-	for _, ok := range []int{ai.MinLevel, 8, ai.NearBestLevel, ai.DemigodModeLevel} {
+	// Every level the CPU accepts is preserved, including the demigod-mode top level.
+	for _, ok := range []int{cpu.MinLevel, 8, cpu.NearBestLevel, cpu.DemigodModeLevel} {
 		if got := sanitize(GameSettings{Dict: "alpha", Difficulty: ok}, testAvail); got.Difficulty != ok {
 			t.Errorf("in-range difficulty %d not preserved: got %d", ok, got.Difficulty)
 		}

@@ -53,11 +53,11 @@ func TestPhoneColumnScroll_HistorySizing(t *testing.T) {
 		r.SetMinSize(fyne.NewSize(0, h))
 		return r
 	}
-	status, rack, controls, ai := mk(100), mk(80), mk(90), mk(70)
+	status, rack, controls, cpuRack := mk(100), mk(80), mk(90), mk(70)
 	histWrap := container.New(minHeightLayout{minH: portraitHistoryMinH}, mk(0))
 	column := container.New(
 		phoneColumnLayout{board: board, minBoard: minBoardPx},
-		board, status, rack, controls, ai, histWrap,
+		board, status, rack, controls, cpuRack, histWrap,
 	)
 	p := newPhoneColumnScroll(column, board, histWrap, &gestureOwner{})
 

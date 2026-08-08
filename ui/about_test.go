@@ -25,7 +25,7 @@ func TestAboutTextGenerated(t *testing.T) {
 		"FEATURES",                            // section header from FEATURES.txt
 		"LEXICON",                             // section header from LEXICON.txt
 		"crossword tile game",                 // ABOUT.txt's description of the game
-		"Selectable AI difficulty",            // a FEATURES.txt bullet
+		"Selectable CPU difficulty",           // a FEATURES.txt bullet
 		"https://github.com/wordnik/wordlist", // a LEXICON.txt source URL
 	} {
 		if !strings.Contains(aboutText, want) {

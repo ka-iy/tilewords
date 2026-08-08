@@ -188,7 +188,7 @@ func TestBagDrawNilRNGKeepsBagOrder(t *testing.T) {
 }
 
 // Replenish passes rng through to the draw, so a rack's replacement tiles come off a
-// shuffled bag too. This covers both players: the human and the AI replenish through
+// shuffled bag too. This covers both players: the human and the CPU replenish through
 // PlayCommand.Execute, which routes here.
 func TestRackReplenishDrawsRandomly(t *testing.T) {
 	const trials = 2000

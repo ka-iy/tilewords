@@ -31,9 +31,9 @@ var (
 	colorTileLetter       = color.RGBA{R: 30, G: 30, B: 30, A: 255}    // near-black letter
 	colorTileBlankLetter  = color.RGBA{R: 0, G: 80, B: 200, A: 255}    // blue — blank tile assigned letter
 	colorTilePoints       = color.RGBA{R: 80, G: 60, B: 20, A: 255}    // dark brown points value
-	colorTileFaceDown     = color.RGBA{R: 20, G: 80, B: 20, A: 255}    // dark green — hidden AI rack tile
+	colorTileFaceDown     = color.RGBA{R: 20, G: 80, B: 20, A: 255}    // dark green — hidden CPU rack tile
 	colorTileBorder       = color.RGBA{R: 160, G: 120, B: 60, A: 255}  // brown border
-	colorAILastWord       = color.RGBA{R: 220, G: 20, B: 60, A: 255}   // crimson — border on the AI's most recent word
+	colorCPULastWord      = color.RGBA{R: 220, G: 20, B: 60, A: 255}   // crimson — border on the CPU's most recent word
 )
 
 // UI control colours.
@@ -78,5 +78,5 @@ var (
 	colorTextLight  = color.RGBA{R: 45, G: 45, B: 45, A: 255}  // near-black body text on white
 	colorGreenLight = color.RGBA{R: 21, G: 122, B: 45, A: 255} // dark green cue on white
 	colorRedLight   = color.RGBA{R: 197, G: 32, B: 32, A: 255} // dark red cue on white
-	colorAmberLight = color.RGBA{R: 176, G: 106, B: 0, A: 255} // dark amber cue on white (AI points)
+	colorAmberLight = color.RGBA{R: 176, G: 106, B: 0, A: 255} // dark amber cue on white (CPU points)
 )

@@ -243,12 +243,12 @@ func TestSaveManager_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if loaded.AILevel != state.AILevel {
-		t.Fatalf("AILevel: got %d want %d", loaded.AILevel, state.AILevel)
+	if loaded.CPULevel != state.CPULevel {
+		t.Fatalf("CPULevel: got %d want %d", loaded.CPULevel, state.CPULevel)
 	}
-	if loaded.HumanScore != state.HumanScore || loaded.AIScore != state.AIScore {
-		t.Fatalf("Scores: got human=%d ai=%d want human=%d ai=%d",
-			loaded.HumanScore, loaded.AIScore, state.HumanScore, state.AIScore)
+	if loaded.HumanScore != state.HumanScore || loaded.CPUScore != state.CPUScore {
+		t.Fatalf("Scores: got human=%d cpu=%d want human=%d cpu=%d",
+			loaded.HumanScore, loaded.CPUScore, state.HumanScore, state.CPUScore)
 	}
 	if loaded.Board == nil {
 		t.Fatal("Board is nil after load")
@@ -272,7 +272,7 @@ func TestSaveManager_RoundTripMidGame(t *testing.T) {
 	state := engine.New("csw", 5, rand.New(rand.NewPCG(42, 0)))
 	state.History = []engine.MoveRecord{
 		{Player: "You", Line: "8H CAT +10", Points: 10, Cells: [][2]int{{7, 7}}, Words: []string{"CAT"}},
-		{Player: "AI", Line: "AI: passed"},
+		{Player: "CPU", Line: "CPU: passed"},
 	}
 	state.MoveNumber = 2
 
@@ -283,8 +283,8 @@ func TestSaveManager_RoundTripMidGame(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if loaded.AILevel != state.AILevel {
-		t.Fatalf("AILevel: got %d want %d", loaded.AILevel, state.AILevel)
+	if loaded.CPULevel != state.CPULevel {
+		t.Fatalf("CPULevel: got %d want %d", loaded.CPULevel, state.CPULevel)
 	}
 	if len(loaded.History) != 2 || loaded.History[0].Line != "8H CAT +10" {
 		t.Fatalf("History did not round-trip: %+v", loaded.History)

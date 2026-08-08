@@ -83,31 +83,31 @@ func TestRepro_PlaceTwo(t *testing.T) {
 	}
 }
 
-// TestRepro_PlaceAfterAITurn: simulate an AI turn (the thinking flag set, then the
+// TestRepro_PlaceAfterCPUTurn: simulate a CPU turn (the thinking flag set, then the
 // move applied) and verify the human can place again afterward.
-func TestRepro_PlaceAfterAITurn(t *testing.T) {
+func TestRepro_PlaceAfterCPUTurn(t *testing.T) {
 	gs := newPlacementHarness(t)
 
-	// Mimic startAITurn's flag and an AI reply landing via applyAIMove.
-	gs.state.CurrentTurn = engine.AITurn
-	gs.aiThinking = true
+	// Mimic startCPUTurn's flag and a CPU reply landing via applyCPUMove.
+	gs.state.CurrentTurn = engine.CPUTurn
+	gs.cpuThinking = true
 	gs.refresh()
 
-	// While the AI is "thinking", placement must be blocked.
+	// While the CPU is "thinking", placement must be blocked.
 	slot := firstNonBlankSlot(gs)
 	gs.onRackTap(slot)
 	gs.onBoardTap(7, 7)
 	if len(gs.staged) != 0 {
-		t.Fatalf("placement should be blocked during AI turn, staged=%d", len(gs.staged))
+		t.Fatalf("placement should be blocked during CPU turn, staged=%d", len(gs.staged))
 	}
 
-	// AI replies with a pass; turn returns to the human.
-	gs.applyAIMove(engine.PassMove{}, false)
-	if gs.aiThinking {
-		t.Fatal("aiThinking still set after applyAIMove")
+	// CPU replies with a pass; turn returns to the human.
+	gs.applyCPUMove(engine.PassMove{}, false)
+	if gs.cpuThinking {
+		t.Fatal("cpuThinking still set after applyCPUMove")
 	}
 	if gs.state.CurrentTurn != engine.HumanTurn {
-		t.Fatalf("after AI pass, CurrentTurn=%v want HumanTurn", gs.state.CurrentTurn)
+		t.Fatalf("after CPU pass, CurrentTurn=%v want HumanTurn", gs.state.CurrentTurn)
 	}
 
 	// Now placement must work.
@@ -115,6 +115,6 @@ func TestRepro_PlaceAfterAITurn(t *testing.T) {
 	gs.onRackTap(slot)
 	gs.onBoardTap(7, 7)
 	if len(gs.staged) != 1 {
-		t.Fatalf("placement after AI turn failed: staged=%d want 1", len(gs.staged))
+		t.Fatalf("placement after CPU turn failed: staged=%d want 1", len(gs.staged))
 	}
 }

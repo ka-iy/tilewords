@@ -29,10 +29,10 @@
 // the score/status bar and the control buttons). State changes happen in event
 // handlers; refresh() pushes the current engine.GameState into every widget.
 //
-// The AI move is computed on a background goroutine: a clone of the game state
-// is handed to ai.ChooseMove so the goroutine never shares mutable state with
+// The CPU move is computed on a background goroutine: a clone of the game state
+// is handed to cpu.ChooseMove so the goroutine never shares mutable state with
 // the UI. The result is marshalled back onto the UI goroutine with fyne.Do, and
-// a 10-second timeout converts a stuck AI into a pass.
+// a 10-second timeout converts a stuck CPU into a pass.
 //
 // # Rendering
 //

@@ -640,8 +640,8 @@ vet: $(COMPILE_ASSETS) ## Run go vet
 # so type-check the pure-Go packages for a 32-bit arch here instead. The UI packages are
 # excluded because they need cgo and an NDK toolchain to build at all.
 vet32: ## Type-check the portable packages for 32-bit targets (catches 64-bit-only constants)
-	GOOS=android GOARCH=arm go build ./dictionary ./defs ./engine ./ai ./buildinfo
-	GOOS=windows GOARCH=386 go build ./dictionary ./defs ./engine ./ai ./buildinfo
+	GOOS=android GOARCH=arm go build ./dictionary ./defs ./engine ./cpu ./buildinfo
+	GOOS=windows GOARCH=386 go build ./dictionary ./defs ./engine ./cpu ./buildinfo
 
 # clean removes only what a build produces from source that is already on disk, so
 # everything it deletes can be rebuilt with no downloads. The generated assets are left

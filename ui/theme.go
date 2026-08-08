@@ -36,7 +36,7 @@ func (tileWordsTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant)
 		case theme.ColorNameError:
 			return color.NRGBA{R: 255, G: 120, B: 120, A: 255} // bright red error
 		case theme.ColorNameWarning:
-			return color.NRGBA{R: 255, G: 190, B: 90, A: 255} // bright amber (AI points)
+			return color.NRGBA{R: 255, G: 190, B: 90, A: 255} // bright amber (CPU points)
 		}
 	} else {
 		// Light variant: darken the status colours so they stay legible on white (the

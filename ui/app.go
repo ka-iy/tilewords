@@ -209,8 +209,8 @@ func (a *App) screenToken() int { return a.nav }
 func (a *App) screenIsCurrent(token int) bool { return a.nav == token }
 
 // showGame installs the gameplay screen for an initialised state and dictionary. The
-// move-history format is taken from state.ScrabbleNotation. If it is the AI's turn (e.g.
-// the AI won the opening draw, or a saved game was the AI's move), the AI turn is started
+// move-history format is taken from state.ScrabbleNotation. If it is the CPU's turn (e.g.
+// the CPU won the opening draw, or a saved game was the CPU's move), the CPU turn is started
 // immediately.
 func (a *App) showGame(state *engine.GameState, dict *dictionary.Dictionary) {
 	a.leaveScreen()
@@ -225,10 +225,10 @@ func (a *App) showGame(state *engine.GameState, dict *dictionary.Dictionary) {
 	// any pixel and follow the cursor during a drag.
 	a.win.SetContent(container.NewStack(content, container.NewWithoutLayout(gs.ghost)))
 	// A theme change only needs to recolour this screen's canvas.Text (rack cue) and
-	// status line; gs.refresh() does exactly that without disturbing the game or the AI.
+	// status line; gs.refresh() does exactly that without disturbing the game or the CPU.
 	a.redraw = gs.refresh
-	if state.CurrentTurn == engine.AITurn {
-		gs.startAITurn()
+	if state.CurrentTurn == engine.CPUTurn {
+		gs.startCPUTurn()
 	}
 }
 
@@ -309,11 +309,11 @@ func logOpeningDraw(state *engine.GameState) {
 		return
 	}
 	firstMsg := "you go first"
-	if od.First == engine.AITurn {
-		firstMsg = "AI goes first"
+	if od.First == engine.CPUTurn {
+		firstMsg = "CPU goes first"
 	}
-	log.Printf("opening draw: you drew %s, AI drew %s - %s",
-		drawnLetterName(od.HumanLetter), drawnLetterName(od.AILetter), firstMsg)
+	log.Printf("opening draw: you drew %s, CPU drew %s - %s",
+		drawnLetterName(od.HumanLetter), drawnLetterName(od.CPULetter), firstMsg)
 }
 
 // drawnLetterName renders a drawn tile's letter for display, mapping the blank

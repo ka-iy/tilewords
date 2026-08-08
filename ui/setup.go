@@ -14,20 +14,20 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
-	"tilewords/ai"
+	"tilewords/cpu"
 	"tilewords/dictionary"
 	"tilewords/engine"
 )
 
 // difficultyLabelText renders the difficulty slider's caption. The top level is called out by
-// name rather than by number: it is the one setting that changes the AI's character rather
+// name rather than by number: it is the one setting that changes the CPU's character rather
 // than its strength, playing the single best move every turn instead of one of the near-best.
 func difficultyLabelText(level int) string {
-	if level >= ai.DemigodModeLevel {
-		return fmt.Sprintf("Difficulty: %d = DEMIGOD MODE", ai.DemigodModeLevel)
+	if level >= cpu.DemigodModeLevel {
+		return fmt.Sprintf("Difficulty: %d = DEMIGOD MODE", cpu.DemigodModeLevel)
 	}
 	return fmt.Sprintf("Difficulty: %d  (%d = easy, %d = hard, %d = DEMIGOD MODE)",
-		level, ai.MinLevel, ai.NearBestLevel, ai.DemigodModeLevel)
+		level, cpu.MinLevel, cpu.NearBestLevel, cpu.DemigodModeLevel)
 }
 
 // dictPlayableWords is the number of playable words (2–15 letters, A–Z only, after
@@ -187,10 +187,10 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		container.NewHBox(modeRadio.buttons[1], interestingInfo),
 	)
 
-	// Difficulty across the AI's full level range, via a slider with a live value label.
+	// Difficulty across the CPU's full level range, via a slider with a live value label.
 	level := gs.Difficulty
 	levelLabel := widget.NewLabelWithStyle(difficultyLabelText(level), fyne.TextAlignCenter, fyne.TextStyle{})
-	levelSlider := widget.NewSlider(ai.MinLevel, ai.MaxLevel)
+	levelSlider := widget.NewSlider(cpu.MinLevel, cpu.MaxLevel)
 	levelSlider.Step = 1
 	levelSlider.SetValue(float64(level))
 	levelSlider.OnChanged = func(v float64) {

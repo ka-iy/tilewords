@@ -39,10 +39,10 @@ func TestPBT_TileConservation(t *testing.T) {
 		state := New(testDict.Name(), 5, rng)
 
 		boardCount := countBoardTiles(state.Board)
-		total := state.Bag.Count() + state.HumanRack.Count() + state.AIRack.Count() + boardCount
+		total := state.Bag.Count() + state.HumanRack.Count() + state.CPURack.Count() + boardCount
 		if total != tileDistributionTotal {
-			t.Fatalf("tile conservation violated: bag=%d humanRack=%d aiRack=%d board=%d total=%d want=%d",
-				state.Bag.Count(), state.HumanRack.Count(), state.AIRack.Count(), boardCount,
+			t.Fatalf("tile conservation violated: bag=%d humanRack=%d cpuRack=%d board=%d total=%d want=%d",
+				state.Bag.Count(), state.HumanRack.Count(), state.CPURack.Count(), boardCount,
 				total, tileDistributionTotal)
 		}
 	})

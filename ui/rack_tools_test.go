@@ -172,12 +172,12 @@ func TestTurnCue(t *testing.T) {
 		t.Error("human turn: play icon should be shown")
 	}
 
-	gs.aiThinking = true
+	gs.cpuThinking = true
 	gs.refresh()
 	if gs.rackLabel.Color != colorText {
-		t.Errorf("AI turn: rack label colour = %v, want idle", gs.rackLabel.Color)
+		t.Errorf("CPU turn: rack label colour = %v, want idle", gs.rackLabel.Color)
 	}
 	if gs.playIcon.Resource != blankIconResource {
-		t.Error("AI turn: play icon should be blank")
+		t.Error("CPU turn: play icon should be blank")
 	}
 }

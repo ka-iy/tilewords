@@ -92,7 +92,7 @@ func (cmd *PlayCommand) Execute(state *GameState, dict *dictionary.Dictionary, r
 
 	// Replenish the rack; record drawn tiles for Undo. rng shuffles the bag before the
 	// replacement tiles are taken. This is the draw for whichever player is on turn, so the
-	// human and the AI replenish through the same path.
+	// human and the CPU replenish through the same path.
 	cmd.drawnTiles = rack.Replenish(state.Bag, rng)
 
 	// Credit the score to the current player.

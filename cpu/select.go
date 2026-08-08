@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Kartikeya IYER
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Package ai is documented in doc.go.
-package ai
+// Package cpu is documented in doc.go.
+package cpu
 
 import (
 	"math"
@@ -10,7 +10,7 @@ import (
 )
 
 // MinLevel and MaxLevel bound the difficulty levels SelectMove accepts. They are exported so
-// the UI's slider and its persisted-settings validation use the same range the AI does,
+// the UI's slider and its persisted-settings validation use the same range the CPU does,
 // rather than each restating it.
 const (
 	// MinLevel is the easiest difficulty.
@@ -19,7 +19,7 @@ const (
 	MaxLevel = DemigodModeLevel
 )
 
-// DemigodModeLevel is the difficulty at which the AI always plays the single best move available,
+// DemigodModeLevel is the difficulty at which the CPU always plays the single best move available,
 // with no randomness at all. It sits above NearBestLevel so a player who wants a perfect
 // opponent can ask for one explicitly, while the top ordinary level still plays like a strong
 // human rather than a solver.
@@ -69,7 +69,7 @@ const topPlayMargin = 0.10
 // callers must check len(candidates) > 0 (NFR-AI-R2).
 func SelectMove(candidates []MoveCandidate, level int, rng *rand.Rand) MoveCandidate {
 	if len(candidates) == 0 {
-		panic("ai.SelectMove: empty candidates slice")
+		panic("cpu.SelectMove: empty candidates slice")
 	}
 
 	// Clamp out-of-range levels (e.g. from a tampered or corrupt save) into [MinLevel, MaxLevel].

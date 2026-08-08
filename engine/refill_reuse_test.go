@@ -39,7 +39,7 @@ func TestPlayCommand_RefillsFullyWhenWordReusesBoardTile(t *testing.T) {
 	state := &GameState{
 		Board:       board,
 		HumanRack:   rack,
-		AIRack:      &Rack{},
+		CPURack:     &Rack{},
 		Bag:         bag,
 		CurrentTurn: HumanTurn,
 		DictName:    testDict.Name(),

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Kartikeya IYER
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Package ai is documented in doc.go.
-package ai
+// Package cpu is documented in doc.go.
+package cpu
 
 import (
 	"tilewords/dictionary"

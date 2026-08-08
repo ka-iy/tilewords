@@ -11,30 +11,30 @@ import (
 // TestDrawForFirstTurn_NearestToAWins verifies the opening-draw ordering: the
 // player whose drawn letter is nearest the start of the alphabet plays first, and
 // a blank (letter 0) beats any lettered tile. newTestBag draws from the end of the
-// slice, so the last two tiles are drawn[0] (human) and drawn[1] (AI) respectively.
+// slice, so the last two tiles are drawn[0] (human) and drawn[1] (CPU) respectively.
 func TestDrawForFirstTurn_NearestToAWins(t *testing.T) {
 	const blank = byte(0)
 	cases := []struct {
-		name      string
-		human, ai byte
-		wantFirst Turn
+		name             string
+		human, cpuLetter byte
+		wantFirst        Turn
 	}{
 		{"human nearer", 'A', 'B', HumanTurn},
-		{"ai nearer", 'B', 'A', AITurn},
+		{"CPU nearer", 'B', 'A', CPUTurn},
 		{"human blank beats A", blank, 'A', HumanTurn},
-		{"ai blank beats A", 'A', blank, AITurn},
-		{"far apart, ai wins", 'Z', 'Y', AITurn},
+		{"CPU blank beats A", 'A', blank, CPUTurn},
+		{"far apart, CPU wins", 'Z', 'Y', CPUTurn},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Slice order: tiles[len-2] is drawn first (human), tiles[len-1] second (AI).
-			bag := newTestBag([]Tile{{Letter: tc.human, IsBlank: tc.human == 0}, {Letter: tc.ai, IsBlank: tc.ai == 0}})
-			first, human, ai := drawForFirstTurn(bag, rand.New(rand.NewPCG(1, 0)))
+			// Slice order: tiles[len-2] is drawn first (human), tiles[len-1] second (CPU).
+			bag := newTestBag([]Tile{{Letter: tc.human, IsBlank: tc.human == 0}, {Letter: tc.cpuLetter, IsBlank: tc.cpuLetter == 0}})
+			first, human, cpuLetter := drawForFirstTurn(bag, rand.New(rand.NewPCG(1, 0)))
 			if first != tc.wantFirst {
 				t.Errorf("first = %v, want %v", first, tc.wantFirst)
 			}
-			if human != tc.human || ai != tc.ai {
-				t.Errorf("drawn letters = (%q, %q), want (%q, %q)", human, ai, tc.human, tc.ai)
+			if human != tc.human || cpuLetter != tc.cpuLetter {
+				t.Errorf("drawn letters = (%q, %q), want (%q, %q)", human, cpuLetter, tc.human, tc.cpuLetter)
 			}
 			// All tiles are returned to the bag before dealing.
 			if bag.Count() != 2 {
@@ -49,27 +49,27 @@ func TestDrawForFirstTurn_NearestToAWins(t *testing.T) {
 // the returned first player. The bag holds duplicate 'A's to force the tie path.
 func TestDrawForFirstTurn_TieRedraws(t *testing.T) {
 	bag := newTestBag([]Tile{{Letter: 'A'}, {Letter: 'B'}, {Letter: 'A'}})
-	first, human, ai := drawForFirstTurn(bag, rand.New(rand.NewPCG(7, 0)))
-	if human == ai {
-		t.Fatalf("drawn letters tied (%q == %q); a tie must be re-drawn", human, ai)
+	first, human, cpuLetter := drawForFirstTurn(bag, rand.New(rand.NewPCG(7, 0)))
+	if human == cpuLetter {
+		t.Fatalf("drawn letters tied (%q == %q); a tie must be re-drawn", human, cpuLetter)
 	}
 	wantFirst := HumanTurn
-	if ai < human {
-		wantFirst = AITurn
+	if cpuLetter < human {
+		wantFirst = CPUTurn
 	}
 	if first != wantFirst {
-		t.Errorf("first = %v, want %v for letters (%q, %q)", first, wantFirst, human, ai)
+		t.Errorf("first = %v, want %v for letters (%q, %q)", first, wantFirst, human, cpuLetter)
 	}
 	if bag.Count() != 3 {
 		t.Errorf("bag count = %d, want 3 (all tiles returned)", bag.Count())
 	}
 }
 
-// TestNew_FirstPlayerVaries is the regression guard for the reported bug ("the AI
+// TestNew_FirstPlayerVaries is the regression guard for the reported bug ("the CPU
 // always starts"): across many seeds, New must select each player first at least
 // once, and OpeningDraw must agree with CurrentTurn and the drawn letters.
 func TestNew_FirstPlayerVaries(t *testing.T) {
-	humanFirst, aiFirst := 0, 0
+	humanFirst, cpuFirst := 0, 0
 	for seed := int64(1); seed <= 300; seed++ {
 		state := New(testDict.Name(), 5, rand.New(rand.NewPCG(uint64(seed), 0)))
 
@@ -80,25 +80,25 @@ func TestNew_FirstPlayerVaries(t *testing.T) {
 		if od.First != state.CurrentTurn {
 			t.Fatalf("seed %d: OpeningDraw.First = %v but CurrentTurn = %v", seed, od.First, state.CurrentTurn)
 		}
-		if od.HumanLetter == od.AILetter {
-			t.Fatalf("seed %d: opening draw recorded a tie (%q == %q)", seed, od.HumanLetter, od.AILetter)
+		if od.HumanLetter == od.CPULetter {
+			t.Fatalf("seed %d: opening draw recorded a tie (%q == %q)", seed, od.HumanLetter, od.CPULetter)
 		}
 		wantFirst := HumanTurn
-		if od.AILetter < od.HumanLetter {
-			wantFirst = AITurn
+		if od.CPULetter < od.HumanLetter {
+			wantFirst = CPUTurn
 		}
 		if od.First != wantFirst {
-			t.Fatalf("seed %d: First = %v, want %v for letters (%q, %q)", seed, od.First, wantFirst, od.HumanLetter, od.AILetter)
+			t.Fatalf("seed %d: First = %v, want %v for letters (%q, %q)", seed, od.First, wantFirst, od.HumanLetter, od.CPULetter)
 		}
 
 		switch state.CurrentTurn {
 		case HumanTurn:
 			humanFirst++
-		case AITurn:
-			aiFirst++
+		case CPUTurn:
+			cpuFirst++
 		}
 	}
-	if humanFirst == 0 || aiFirst == 0 {
-		t.Fatalf("first player did not vary: humanFirst=%d aiFirst=%d", humanFirst, aiFirst)
+	if humanFirst == 0 || cpuFirst == 0 {
+		t.Fatalf("first player did not vary: humanFirst=%d cpuFirst=%d", humanFirst, cpuFirst)
 	}
 }

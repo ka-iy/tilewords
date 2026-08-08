@@ -48,22 +48,22 @@ func TestCheckEndGame_StaysOnScreen(t *testing.T) {
 func TestEndGameMessage(t *testing.T) {
 	gs := newPlacementHarness(t)
 	cases := []struct {
-		human, ai int
-		want      string
+		human, cpuScore int
+		want            string
 	}{
 		{200, 150, "You win!"},
-		{150, 200, "AI wins!"},
+		{150, 200, "CPU wins!"},
 		{175, 175, "tie"},
 	}
 	for _, c := range cases {
-		gs.state.HumanScore, gs.state.AIScore = c.human, c.ai
+		gs.state.HumanScore, gs.state.CPUScore = c.human, c.cpuScore
 		if got := gs.endGameMessage(); !strings.Contains(got, c.want) {
-			t.Errorf("endGameMessage(you=%d, ai=%d) = %q, want it to contain %q", c.human, c.ai, got, c.want)
+			t.Errorf("endGameMessage(you=%d, cpu=%d) = %q, want it to contain %q", c.human, c.cpuScore, got, c.want)
 		}
 	}
 }
 
-// TestDifficultyShownInTopBar: the AI difficulty appears in the top counters row.
+// TestDifficultyShownInTopBar: the CPU difficulty appears in the top counters row.
 func TestDifficultyShownInTopBar(t *testing.T) {
 	gs := newPlacementHarness(t) // built with level 5
 	if !strings.Contains(gs.levelLabel.Text, "5") {

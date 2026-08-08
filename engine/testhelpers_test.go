@@ -19,7 +19,7 @@ var engineTestWords = []string{
 	"GO", "HI", "IT", "ME", "MY", "NO", "OF", "ON", "OR", "SO",
 	"TO", "UP", "US", "WE",
 	// 3-letter words
-	"ACE", "AGO", "AID", "AIM", "APE", "APT",
+	"ACE", "AGO", "CPUD", "CPUM", "APE", "APT",
 	"BAG", "BIG", "BIT", "BOX",
 	"CAB", "CAP", "CAR", "CAT", "COB", "COD", "COP", "CUB", "CUP", "CUT",
 	"DAB", "DAD", "DAM", "DIM", "DIP", "DOG", "DOT",

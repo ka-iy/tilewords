@@ -28,7 +28,7 @@ type cellWidget struct {
 
 	tile      *engine.Tile // nil when the square is empty
 	staged    bool         // true when tile is a tentatively-placed (staged) tile
-	highlight bool         // true to outline a committed tile (the AI's most recent word)
+	highlight bool         // true to outline a committed tile (the CPU's most recent word)
 	pickedUp  bool         // true when this staged tile is tapped to move (tap-to-move)
 
 	onTap func(row, col int)
@@ -45,9 +45,9 @@ type cellWidget struct {
 	dragAbs  fyne.Position
 }
 
-// aiHighlightStrokeWidth is the border thickness used to outline the AI's most
+// cpuHighlightStrokeWidth is the border thickness used to outline the CPU's most
 // recently played word.
-const aiHighlightStrokeWidth = 3
+const cpuHighlightStrokeWidth = 3
 
 func newCellWidget(row, col int, square engine.SquareType, onTap func(int, int)) *cellWidget {
 	c := &cellWidget{row: row, col: col, square: square, onTap: onTap}
@@ -56,7 +56,7 @@ func newCellWidget(row, col int, square engine.SquareType, onTap func(int, int))
 }
 
 // setContent updates what the cell displays and refreshes it. highlight outlines a
-// committed tile in the AI-word colour; pickedUp outlines a staged tile chosen for a
+// committed tile in the CPU-word colour; pickedUp outlines a staged tile chosen for a
 // tap-to-move. Both are ignored for an empty cell.
 //
 // A cell whose contents are unchanged is left untouched. Every board refresh calls this for
@@ -185,16 +185,16 @@ func (r *cellRenderer) applyState() {
 	c := r.cell
 	if c.tile != nil {
 		styleAsTile(r.bg, r.letter, r.points, *c.tile, c.staged)
-		// Outline the AI's most recently played word in red. A staged tile is never
+		// Outline the CPU's most recently played word in red. A staged tile is never
 		// highlighted, so this never conflicts with the staged-tile border.
 		if c.highlight && !c.staged {
-			r.bg.StrokeColor = colorAILastWord
-			r.bg.StrokeWidth = aiHighlightStrokeWidth
+			r.bg.StrokeColor = colorCPULastWord
+			r.bg.StrokeWidth = cpuHighlightStrokeWidth
 		}
 		// A staged tile picked up for a tap-to-move is outlined in cyan.
 		if c.pickedUp {
 			r.bg.StrokeColor = colorPickedUp
-			r.bg.StrokeWidth = aiHighlightStrokeWidth
+			r.bg.StrokeWidth = cpuHighlightStrokeWidth
 		}
 		return
 	}

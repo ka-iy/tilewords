@@ -27,7 +27,7 @@ minimized — and is measured on the Android emulator rather than on the desktop
 
 ## Abstract
 
-TileWords embeds large word-list dictionaries as GADDAG automata for its AI move
+TileWords embeds large word-list dictionaries as GADDAG automata for its move
 generator. On Android, loading a second dictionary (the "load saved game" flow) crashed
 the app: the process was terminated by the low-memory killer at ~2.4 GB resident. We
 trace the failure to two independent causes — a memory-heavy in-memory representation
@@ -53,7 +53,7 @@ Our central findings are:
    automata are **un-minimized prefix tries**. Classical minimization (suffix sharing)
    shrinks each dictionary ~10× in nodes and edges — ~7× on disk and ~8× resident, the
    difference being that minimized graphs carry more edges per node — requires no change to
-   the traversal API or the AI, and adds no load-time cost.
+   the traversal API or the move generator, and adds no load-time cost.
 5. Once the graph is minimal, the remaining cost is its *encoding*. Storing per-node edge
    counts instead of absolute offsets shrinks the assets a further 33.6% (20.05 MB →
    13.31 MB) and streaming the read instead of buffering a `gob` message removes a ~2×
@@ -83,7 +83,7 @@ Lexicon):
 | `atebits-letterpress` | 270,652 | largest; the outlier in overlap |
 
 Each is compiled offline into a serialized GADDAG (§9) and embedded in the binary via
-`//go:embed`. The AI move generator (`ai/generate.go`, `ai/traverse.go`) consumes a
+`//go:embed`. The move generator (`cpu/generate.go`, `cpu/traverse.go`) consumes a
 dictionary only through three methods:
 
 ```
@@ -92,7 +92,7 @@ Successor(node NodeID, letter byte) (NodeID, bool)
 IsTerminal(node NodeID) bool
 ```
 
-Cross-word validation (`ai/crosscheck.go`) and candidate validation
+Cross-word validation (`cpu/crosscheck.go`) and candidate validation
 (`engine.ValidatePlacement`) go through `Dictionary.Validate`, which is itself a GADDAG
 walk. The narrow interface means the *representation* of the automaton
 can change freely as long as those three methods are preserved.
@@ -216,7 +216,7 @@ current list, as serialized by gob, the encoding of the time (§9):
 | On-disk asset (gob) | 76.2 MB | 59.1 MB |
 
 This ~12× resident reduction is a pure representation change; the automaton, the API, the
-AI, and word acceptance are all identical. It **independently eliminates the OOM**: even an
+move generator, and word acceptance are all identical. It **independently eliminates the OOM**: even an
 uncached double-load is ~136 MB, well below the watermark of §1.1.
 
 ---
@@ -281,7 +281,7 @@ runtime. With the single-slot cache only one dictionary is ever resident, so the
 
 ### 6.3 The structural catch
 
-A split dictionary is **two automata, not one**. The AI's traversal walks a single graph by
+A split dictionary is **two automata, not one**. The move generator's traversal walks a single graph by
 node id, and node ids are not comparable across the two files. Supporting a split
 dictionary therefore requires either (a) running move generation once per graph and
 unioning candidates (correct, since each word lives wholly in one graph, and cross-checks
@@ -292,7 +292,7 @@ or (b) composing the two graphs into one at load time (§7).
 
 ## 7. Optimization IV — runtime composition via product construction *(investigated)*
 
-Merging `common` + `<dict>_unique` into a single GADDAG at load would leave the AI
+Merging `common` + `<dict>_unique` into a single GADDAG at load would leave the move generator
 untouched, since it would see one graph as before.
 
 ### 7.1 The merge
@@ -401,7 +401,7 @@ from the root renumbers the surviving nodes (root → `RootNodeID`) into the CSR
 child-id > parent-id property of the builder makes the bottom-up pass a plain descending
 loop. Determinism is preserved: the BFS follows edges in ascending letter order, so map
 iteration order never reaches the output. The load path, the traversal API, `Validate`, and
-the AI are untouched — a minimized dictionary is simply a smaller CSR graph.
+the move generator are untouched — a minimized dictionary is simply a smaller CSR graph.
 
 Rebuilding the three embedded assets with the minimizing `Build` gives the measured
 results below (the trie-CSR column is a *structural estimate*, since the build now always
@@ -418,7 +418,7 @@ the encoding of the time — §9 shrinks them by a further third):
 The largest dictionary is now **8.4 MB resident** (measured `HeapAlloc` after GC), down from
 68 MB (CSR trie) and 843 MB (original nested maps). Correctness was re-verified after
 implementation: all 270,652 `atebits-letterpress` words are accepted (0 missing), negative
-controls are rejected, the full test suite passes — including the AI move-generation tests,
+controls are rejected, the full test suite passes — including the move-generation tests,
 which confirm the minimized DAWG is behaviourally identical for move generation — and a
 regression test (`TestBuild_Minimized`) asserts the accept sinks are merged so minimization
 cannot be silently disabled.
@@ -526,7 +526,7 @@ performed: it validated offsets and array lengths, but never the edge targets.
 
 ## 10. Results: the full comparison
 
-| Strategy | Embedded (3 dicts) | Resident (active dict) | AI change | Load cost | Status |
+| Strategy | Embedded (3 dicts) | Resident (active dict) | Move-gen change | Load cost | Status |
 | --- | ---: | ---: | --- | --- | --- |
 | Original (nested maps, trie) | —† | 843 MB | — | baseline | replaced |
 | **I. CSR** | 136 MB | **68 MB** | none | faster decode | **done** |
@@ -545,7 +545,7 @@ set; CSR (Strategy I) is the first re-derivable embedded baseline.
 
 End-to-end, CSR + minimization takes the largest dictionary from **843 MB → 8.4 MB resident
 (~100×)**, and the embedded assets from **136 MB (CSR trie) → 20.05 MB minimized → 13.31 MB
-streamed (~10× overall)**, with no change to the traversal API or the AI. Process peak on the
+streamed (~10× overall)**, with no change to the traversal API or the move generator. Process peak on the
 emulator, with the definitions asset also resident, is **43.1 MB** (§9.4, Appendix A.5).
 These are the final implemented figures.
 
@@ -591,17 +591,17 @@ directly.
 The recommendation was to implement **minimization inside `dictionary.Build`** (Revuz
 bottom-up hash-consing, using the existing child-id > parent-id ordering) and regenerate the
 embedded assets, and **not** to pursue the cross-dictionary split (runtime-neutral,
-complicates the AI) or the runtime merge (reintroduces a load-time memory spike), since
+complicates the move generator) or the runtime merge (reintroduces a load-time memory spike), since
 minimization dominates both.
 
 **This has been done.** Minimization is implemented in `minimizeTrie` and the assets are
 regenerated (§8.2). The change was contained:
 
-- The load path, the `Root`/`Successor`/`IsTerminal` API, `Validate`, and the entire AI are
+- The load path, the `Root`/`Successor`/`IsTerminal` API, `Validate`, and the entire move generator are
   unchanged — a minimized automaton is simply a smaller CSR graph.
 - No runtime merge, no two-graph bookkeeping, no load-time spike; decode is faster.
 - Correctness is confirmed by full-corpus acceptance parity, the property-based tests, the
-  AI move-generation tests, and a minimization regression guard (§8.2).
+  move-generation tests, and a minimization regression guard (§8.2).
 
 Serialization (§9) was then changed for the same reasons in a narrower place: the encoding,
 not the graph. Storing per-node edge counts rather than absolute offsets, and streaming the

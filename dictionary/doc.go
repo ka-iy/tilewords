@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Package dictionary implements the GADDAG word-graph data structure and provides
-// word validation and AI traversal support for the TileWords crossword board game.
+// word validation and move-generator traversal support for the TileWords crossword board game.
 //
 // # GADDAG Algorithm
 //
@@ -13,7 +13,7 @@
 //
 // For a word w₁…wₙ the GADDAG stores n strings:
 //
-//	k=1..n-1:  wₖ wₖ₋₁…w₁ '+' wₖ₊₁…wₙ   (enables left extensions during AI move gen)
+//	k=1..n-1:  wₖ wₖ₋₁…w₁ '+' wₖ₊₁…wₙ   (enables left extensions during CPU move gen)
 //	k=n:       wₙ wₙ₋₁…w₁                  (full-reverse path; terminal marks a valid word)
 //
 // # Word List Assets
@@ -32,7 +32,7 @@
 //	    fmt.Println("valid word")
 //	}
 //
-// For AI move generation, obtain the underlying graph:
+// For CPU move generation, obtain the underlying graph:
 //
 //	g := dict.GADDAG()
 //	node, ok := g.Successor(g.Root(), 'Q')

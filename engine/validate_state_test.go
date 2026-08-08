@@ -13,7 +13,7 @@ func validState() *GameState {
 	return &GameState{
 		Board:     newFlatBoard(),
 		HumanRack: &Rack{tiles: []Tile{{Letter: 'A', Points: 1}, {IsBlank: true}}},
-		AIRack:    &Rack{tiles: []Tile{{Letter: 'Z', Points: 10}}},
+		CPURack:   &Rack{tiles: []Tile{{Letter: 'Z', Points: 10}}},
 		Bag:       newTestBag([]Tile{{Letter: 'E', Points: 1}, {IsBlank: true}}),
 	}
 }
@@ -41,7 +41,7 @@ func TestValidateDecodedState_AcceptsPlayedBlank(t *testing.T) {
 // TestValidateDecodedState_RejectsUnplayableTiles verifies that a tile no game could have
 // produced is refused wherever it is held. A decoded save is outside data, and the letter is
 // used to index letter-keyed arrays downstream, so accepting one crashes the process later
-// — from the AI goroutine, where nothing recovers.
+// — from the CPU goroutine, where nothing recovers.
 func TestValidateDecodedState_RejectsUnplayableTiles(t *testing.T) {
 	// A rack blank whose IsBlank flag is lost decodes as exactly this tile.
 	poison := Tile{Letter: 0, IsBlank: false}
@@ -52,7 +52,7 @@ func TestValidateDecodedState_RejectsUnplayableTiles(t *testing.T) {
 		want    string
 	}{
 		{"human rack", func(s *GameState) { s.HumanRack.tiles = append(s.HumanRack.tiles, poison) }, "human rack"},
-		{"AI rack", func(s *GameState) { s.AIRack.tiles = append(s.AIRack.tiles, poison) }, "AI rack"},
+		{"CPU rack", func(s *GameState) { s.CPURack.tiles = append(s.CPURack.tiles, poison) }, "CPU rack"},
 		// The bag matters as much as the racks: a malformed tile there is drawn onto a rack
 		// turns later, so the crash it causes is delayed rather than avoided.
 		{"bag", func(s *GameState) { s.Bag.tiles = append(s.Bag.tiles, poison) }, "bag"},
@@ -61,8 +61,8 @@ func TestValidateDecodedState_RejectsUnplayableTiles(t *testing.T) {
 			s.HumanRack.tiles = append(s.HumanRack.tiles, Tile{Letter: 'a'})
 		}, "human rack"},
 		{"letter past Z", func(s *GameState) {
-			s.AIRack.tiles = append(s.AIRack.tiles, Tile{Letter: '\\'})
-		}, "AI rack"},
+			s.CPURack.tiles = append(s.CPURack.tiles, Tile{Letter: '\\'})
+		}, "CPU rack"},
 		{"blank with a bogus assignment", func(s *GameState) {
 			s.HumanRack.tiles = append(s.HumanRack.tiles, Tile{IsBlank: true, AssignedLetter: '!'})
 		}, "human rack"},
@@ -86,7 +86,7 @@ func TestValidateDecodedState_RejectsUnplayableTiles(t *testing.T) {
 // Such a rack cannot be played: an exchange removes the selected tiles, draws that many
 // back, and then cannot fit them, which the command layer treats as unreachable.
 func TestValidateDecodedState_RejectsOversizedRack(t *testing.T) {
-	for _, which := range []string{"human", "AI"} {
+	for _, which := range []string{"human", "CPU"} {
 		t.Run(which, func(t *testing.T) {
 			s := validState()
 			big := make([]Tile, MaxRackSize+3)
@@ -96,7 +96,7 @@ func TestValidateDecodedState_RejectsOversizedRack(t *testing.T) {
 			if which == "human" {
 				s.HumanRack.tiles = big
 			} else {
-				s.AIRack.tiles = big
+				s.CPURack.tiles = big
 			}
 			err := ValidateDecodedState(s)
 			if err == nil {
@@ -121,7 +121,7 @@ func TestValidateDecodedState_RejectsMissingFields(t *testing.T) {
 	}{
 		{"board", func(s *GameState) { s.Board = nil }},
 		{"human rack", func(s *GameState) { s.HumanRack = nil }},
-		{"AI rack", func(s *GameState) { s.AIRack = nil }},
+		{"CPU rack", func(s *GameState) { s.CPURack = nil }},
 		{"bag", func(s *GameState) { s.Bag = nil }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -139,9 +139,9 @@ func TestValidateDecodedState_RejectsMissingFields(t *testing.T) {
 // is carried by default; this pins that, and pins the deep copies it must still make.
 func TestClone_CarriesEveryField(t *testing.T) {
 	s := validState()
-	s.HumanScore, s.AIScore = 40, 25
-	s.ConsecutivePasses, s.MoveNumber, s.AILevel = 2, 9, 7
-	s.CurrentTurn = AITurn
+	s.HumanScore, s.CPUScore = 40, 25
+	s.ConsecutivePasses, s.MoveNumber, s.CPULevel = 2, 9, 7
+	s.CurrentTurn = CPUTurn
 	s.Mode = InterestingMode
 	s.EndgameScored = true
 	s.ScrabbleNotation = true
@@ -162,17 +162,17 @@ func TestClone_CarriesEveryField(t *testing.T) {
 	if c.Mode != InterestingMode {
 		t.Errorf("Clone Mode = %v, want InterestingMode", c.Mode)
 	}
-	if c.HumanScore != 40 || c.AIScore != 25 || c.ConsecutivePasses != 2 ||
-		c.MoveNumber != 9 || c.AILevel != 7 || c.CurrentTurn != AITurn {
+	if c.HumanScore != 40 || c.CPUScore != 25 || c.ConsecutivePasses != 2 ||
+		c.MoveNumber != 9 || c.CPULevel != 7 || c.CurrentTurn != CPUTurn {
 		t.Error("Clone dropped a scalar field")
 	}
 
-	// History is deliberately not shared: the UI appends to it while the AI holds the clone.
+	// History is deliberately not shared: the UI appends to it while the CPU holds the clone.
 	if c.History != nil {
-		t.Errorf("Clone shared History (%v); the UI would append to it under the AI goroutine", c.History)
+		t.Errorf("Clone shared History (%v); the UI would append to it under the CPU goroutine", c.History)
 	}
 	// The mutable game objects must be independent copies.
-	if c.Board == s.Board || c.HumanRack == s.HumanRack || c.AIRack == s.AIRack || c.Bag == s.Bag {
+	if c.Board == s.Board || c.HumanRack == s.HumanRack || c.CPURack == s.CPURack || c.Bag == s.Bag {
 		t.Fatal("Clone shared a mutable game object with the original")
 	}
 	if err := c.Board.Place(0, 0, Tile{Letter: 'X', Points: 8}); err != nil {

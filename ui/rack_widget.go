@@ -14,7 +14,7 @@ import (
 )
 
 // rackSlotWidget is a single tappable rack slot. It displays an empty slot, a
-// face-down tile (hidden AI rack), or a face-up tile with optional selection or
+// face-down tile (hidden CPU rack), or a face-up tile with optional selection or
 // exchange highlight. It reports taps with its slot index.
 type rackSlotWidget struct {
 	widget.BaseWidget
@@ -22,7 +22,7 @@ type rackSlotWidget struct {
 	idx int
 
 	tile        *engine.Tile // nil = empty slot or staged-out
-	faceDown    bool         // hide the letter (AI rack while concealed)
+	faceDown    bool         // hide the letter (CPU rack while concealed)
 	selected    bool         // currently selected for placement
 	exchangeSel bool         // selected for exchange
 
@@ -34,7 +34,7 @@ type rackSlotWidget struct {
 	onDragEnd func(idx int, abs fyne.Position)
 
 	// onUnusableDrag receives a drag this slot cannot act on, which is any drag when neither drag
-	// handler is wired — a slot that shows a tile without offering to move it, i.e. the AI's rack.
+	// handler is wired — a slot that shows a tile without offering to move it, i.e. the CPU's rack.
 	// The controller pans the page with it, so that row is not a dead zone for scrolling.
 	onUnusableDrag func(e *fyne.DragEvent)
 
@@ -134,7 +134,7 @@ func (s *rackSlotWidget) DragEnd() {
 // the one fact that identifies where a gesture started. See gestureOwner for why inferring it from
 // the drag events instead does not work.
 func (s *rackSlotWidget) TouchDown(*mobile.TouchEvent) {
-	// Only a slot that handles drags claims the gesture; the AI's rack does not.
+	// Only a slot that handles drags claims the gesture; the CPU's rack does not.
 	if s.gesture != nil && (s.onDrag != nil || s.onDragEnd != nil) {
 		s.gesture.claim(s)
 	}
@@ -179,7 +179,7 @@ func (r *rackSlotRenderer) applyState() {
 		return
 	}
 
-	// Hidden AI tile.
+	// Hidden CPU tile.
 	if s.faceDown {
 		r.bg.FillColor = colorTileFaceDown
 		r.bg.StrokeColor = colorTileBorder

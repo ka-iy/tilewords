@@ -9,25 +9,25 @@ import (
 	"tilewords/engine"
 )
 
-// TestApplyAIMove_ClearsStaleStaged verifies the human's turn always begins with no
-// staged tiles: a stale staged entry lingering when the AI's move is applied (which
+// TestApplyCPUMove_ClearsStaleStaged verifies the human's turn always begins with no
+// staged tiles: a stale staged entry lingering when the CPU's move is applied (which
 // would otherwise blank a rack slot and make the rack look short, with the recall
 // button wrongly enabled) is cleared.
-func TestApplyAIMove_ClearsStaleStaged(t *testing.T) {
+func TestApplyCPUMove_ClearsStaleStaged(t *testing.T) {
 	gs := newPlacementHarness(t)
 	stageOneTile(t, gs, 7, 7)
 	if len(gs.staged) == 0 {
 		t.Fatal("setup: expected a staged tile")
 	}
 
-	// Simulate that it is now the AI's turn (as if the human had moved) and the AI
+	// Simulate that it is now the CPU's turn (as if the human had moved) and the CPU
 	// replies with a pass, handing the turn back to the human.
-	gs.state.CurrentTurn = engine.AITurn
-	gs.aiThinking = true
-	gs.applyAIMove(engine.PassMove{}, false)
+	gs.state.CurrentTurn = engine.CPUTurn
+	gs.cpuThinking = true
+	gs.applyCPUMove(engine.PassMove{}, false)
 
 	if gs.state.CurrentTurn != engine.HumanTurn {
-		t.Fatalf("after AI pass, turn = %v, want HumanTurn", gs.state.CurrentTurn)
+		t.Fatalf("after CPU pass, turn = %v, want HumanTurn", gs.state.CurrentTurn)
 	}
 	if len(gs.staged) != 0 {
 		t.Fatalf("the human's turn began with %d stale staged tile(s); the rack would look short", len(gs.staged))

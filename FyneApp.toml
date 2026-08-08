@@ -10,7 +10,7 @@ Version = "1.0.0"
 Build = 1
 
 # Opt into Fyne's fyne.Do threading model: all UI mutations from background goroutines
-# (dictionary load, AI move application, press-flash revert) are marshalled onto the UI
+# (dictionary load, CPU move application, press-flash revert) are marshalled onto the UI
 # goroutine via fyne.Do, so the launch-time "not migrated" warning is suppressed. Read by
 # `go run`/`go build` at runtime (meta_development.go) and baked in by `fyne package`.
 [Migrations]

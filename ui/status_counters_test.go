@@ -16,10 +16,10 @@ import (
 func newTestCounters() *statusCounters {
 	return newStatusCounters(
 		widget.NewLabel("▶ You: 0"),
-		widget.NewLabel("AI: 0"),
+		widget.NewLabel("CPU: 0"),
 		widget.NewLabel("Bag: 86"),
 		widget.NewLabel("Move: 0"),
-		widget.NewLabel("AI Lv: 5"),
+		widget.NewLabel("CPU Lv: 5"),
 	)
 }
 

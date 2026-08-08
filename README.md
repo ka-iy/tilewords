@@ -30,7 +30,7 @@ All other external-entity trademarks, names, logos, and service marks (collectiv
 - **Word definitions:** the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and other libre / public-domain glossaries. Words with no definition are noted rather than silently skipped.
    - Like the word lists, the definitions artefact is stored in a compact flat form and streamed in at load, so ~147,000 headwords cost about 19 MB of memory rather than the ~52 MB a conventional map of objects would. See the appendix to [OPTIMIZING_THE_GADDAGS.md](OPTIMIZING_THE_GADDAGS.md).
 - **Two game modes:** Classic Mode uses the standard 15x15 premium-square layout and tile economy, while Interesting Mode uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
-- **Selectable AI difficulty:** choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard). Even at level 10, the AI is not infallible - just like a human being. At level 11, it is - this is Demigod Mode (for the AI, not you). To quote from `This is Spinal Tap`: _"Why don't you just make 10 louder and make 10 be the top number?"_ **/** _"...These go to ELEVEN!"_
+- **Selectable CPU difficulty:** choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard). Even at level 10, the CPU is not infallible - just like a human being. At level 11, it is - this is Demigod Mode (for the CPU, not you). To quote from `This is Spinal Tap`: _"Why don't you just make 10 louder and make 10 be the top number?"_ **/** _"...These go to ELEVEN!"_
 - **Multiple ways to interact with the tiles and game board:**
    - To place a rack tile on the board, drag it onto the board, or click/press on the tile and then the board square to place it at that square.
    - Double-tap a placed but not played board tile to return it to your rack.
@@ -44,7 +44,7 @@ All other external-entity trademarks, names, logos, and service marks (collectiv
 - **Remembered setup defaults:** optionally save your New Game choices - word list, game mode, difficulty, and notation - so that starting another game is a single tap.
 - **Cross-platform:** runs on desktop and Android from a single codebase. Written in Go using the Fyne UI toolkit. MacOS may be supported at some time in the future, but iOS will probably never be - the Apple Store hates open source, the GPL, and developers who don't kowtow to them. Gurgle and Android are going the same way, sadly, in a horrifying game of simian mirror-neuron idiocy.
 - **About and Lexicon:** an in-app dialog crediting the word lists and dictionaries, with the source links copyable to the clipboard.
-- **Show/Hide AI rack:** for those times when you need to get a leg (or at least a toe) up on a frighteningly capable machine opponent.
+- **Show/Hide CPU rack:** for those times when you need to get a leg (or at least a toe) up on a frighteningly capable machine opponent.
 
 ## How's It Built (on Linux)?
 

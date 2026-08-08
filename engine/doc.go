@@ -13,8 +13,8 @@
 // # Thread Safety
 //
 // GameState is owned by the UI goroutine and is not safe for concurrent use.
-// The AI goroutine receives a deep copy via GameState.Clone() before the goroutine
-// is started. The clone is independent; the AI reads it without synchronisation.
+// The CPU goroutine receives a deep copy via GameState.Clone() before the goroutine
+// is started. The clone is independent; the CPU reads it without synchronisation.
 //
 // # Usage
 //

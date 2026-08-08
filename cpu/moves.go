@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Kartikeya IYER
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Package ai is documented in doc.go.
-package ai
+// Package cpu is documented in doc.go.
+package cpu
 
 import "tilewords/engine"
 
@@ -50,7 +50,7 @@ type moveKey string
 // letter cannot be played, and indexing by it would run off the end of the array. Racks
 // decoded from a save file are not guaranteed to hold only well-formed tiles (a single
 // flipped bit in the encoded IsBlank flag turns a blank into Letter 0), and byte
-// subtraction wraps, so an unchecked index here would abort the process from the AI
+// subtraction wraps, so an unchecked index here would abort the process from the CPU
 // goroutine — where there is no recover — leaving a save that crashes on every load.
 func rackToCountArray(rack *engine.Rack) rackCounts {
 	var counts rackCounts

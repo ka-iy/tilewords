@@ -14,7 +14,7 @@ import (
 )
 
 // TestSaveManager_PersistsMoveHistory verifies that the move history — and the status
-// summary and AI-word highlight derived from it — survive a save/load round trip, while the
+// summary and CPU-word highlight derived from it — survive a save/load round trip, while the
 // restored moves are not undoable.
 func TestSaveManager_PersistsMoveHistory(t *testing.T) {
 	_ = test.NewApp()
@@ -23,7 +23,7 @@ func TestSaveManager_PersistsMoveHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	state := engine.New(dict.Name(), 5, rand.New(rand.NewPCG(1, 0)))
-	state.OpeningDraw = &engine.OpeningDraw{HumanLetter: 'C', AILetter: 'T', First: engine.HumanTurn}
+	state.OpeningDraw = &engine.OpeningDraw{HumanLetter: 'C', CPULetter: 'T', First: engine.HumanTurn}
 	state.CurrentTurn = engine.HumanTurn
 	gs := newGameScreen(nil, state, dict)
 	gs.build()
@@ -32,7 +32,7 @@ func TestSaveManager_PersistsMoveHistory(t *testing.T) {
 		Placed:      []engine.PlacedTile{{Tile: engine.Tile{Letter: 'C'}, Row: 7, Col: 7}},
 		WordsFormed: []string{"CAT"}, Score: 5,
 	}})
-	gs.logCommand("AI", &engine.PlayCommand{Move: engine.PlayMove{
+	gs.logCommand("CPU", &engine.PlayCommand{Move: engine.PlayMove{
 		Placed:      []engine.PlacedTile{{Tile: engine.Tile{Letter: 'Q'}, Row: 8, Col: 8}},
 		WordsFormed: []string{"QI"}, Score: 22,
 	}})
@@ -72,13 +72,13 @@ func TestSaveManager_PersistsMoveHistory(t *testing.T) {
 	}
 
 	// Status summary derived from the restored history.
-	if gs2.lastHumanPts != 5 || gs2.lastAIPts != 22 {
-		t.Errorf("restored points = You %d / AI %d, want 5 / 22", gs2.lastHumanPts, gs2.lastAIPts)
+	if gs2.lastHumanPts != 5 || gs2.lastCPUPts != 22 {
+		t.Errorf("restored points = You %d / CPU %d, want 5 / 22", gs2.lastHumanPts, gs2.lastCPUPts)
 	}
 
-	// AI-word highlight restored from the stored cells.
-	if !gs2.aiLastPlaced[[2]int{8, 8}] {
-		t.Errorf("AI highlight not restored: %v", gs2.aiLastPlaced)
+	// CPU-word highlight restored from the stored cells.
+	if !gs2.cpuLastPlaced[[2]int{8, 8}] {
+		t.Errorf("CPU highlight not restored: %v", gs2.cpuLastPlaced)
 	}
 
 	// Restored entries carry no command, so they are not undoable.

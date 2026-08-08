@@ -57,10 +57,10 @@ func TestApplyEndgameScoring_NotOverIsNoOp(t *testing.T) {
 	state := &GameState{
 		Board:      NewBoard(),
 		HumanRack:  &Rack{tiles: []Tile{{Letter: 'Q', Points: 10}}},
-		AIRack:     &Rack{tiles: []Tile{{Letter: 'Z', Points: 10}}},
+		CPURack:    &Rack{tiles: []Tile{{Letter: 'Z', Points: 10}}},
 		Bag:        newTestBag([]Tile{{Letter: 'E', Points: 1}}),
 		HumanScore: 100,
-		AIScore:    100,
+		CPUScore:   100,
 	}
 	over, reason := IsGameOver(state)
 	if over {
@@ -69,8 +69,8 @@ func TestApplyEndgameScoring_NotOverIsNoOp(t *testing.T) {
 
 	ApplyEndgameScoring(state, reason)
 
-	if state.HumanScore != 100 || state.AIScore != 100 {
-		t.Errorf("scores changed on a live game: human=%d ai=%d, want 100/100", state.HumanScore, state.AIScore)
+	if state.HumanScore != 100 || state.CPUScore != 100 {
+		t.Errorf("scores changed on a live game: human=%d cpu=%d, want 100/100", state.HumanScore, state.CPUScore)
 	}
 	if state.EndgameScored {
 		t.Fatal("EndgameScored latched on a live game; the real endgame adjustment would never apply")
@@ -84,7 +84,7 @@ func TestApplyEndgameScoring_NotOverIsNoOp(t *testing.T) {
 		t.Fatalf("IsGameOver = %v,%v; want true,RackExhausted", over, reason)
 	}
 	ApplyEndgameScoring(state, reason)
-	if state.HumanScore != 110 || state.AIScore != 90 {
-		t.Errorf("going-out scoring = human %d / ai %d, want 110/90", state.HumanScore, state.AIScore)
+	if state.HumanScore != 110 || state.CPUScore != 90 {
+		t.Errorf("going-out scoring = human %d / cpu %d, want 110/90", state.HumanScore, state.CPUScore)
 	}
 }

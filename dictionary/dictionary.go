@@ -26,6 +26,6 @@ func (d *Dictionary) Validate(word string) bool {
 	return d.gaddag.contains(toUpper(word))
 }
 
-// GADDAG returns the underlying graph for direct traversal by the AI move generator.
+// GADDAG returns the underlying graph for direct traversal by the CPU move generator.
 // The returned pointer is read-only; callers must not modify the graph.
 func (d *Dictionary) GADDAG() *GADDAG { return d.gaddag }
