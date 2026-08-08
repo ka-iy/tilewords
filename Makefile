@@ -103,21 +103,40 @@ ANDROID_NDK_HOME ?= $(ANDROID_HOME)/ndk/$(shell ls $(ANDROID_HOME)/ndk 2>/dev/nu
 ANDROID_BUILD_TOOLS ?= $(ANDROID_HOME)/build-tools/$(shell ls $(ANDROID_HOME)/build-tools 2>/dev/null | sort -V | tail -1)
 APKSIGNER            = $(ANDROID_BUILD_TOOLS)/apksigner
 
-# Silencing the JDK 24+ JEP 472 warning ("restricted method … System::loadLibrary … by
-# org.conscrypt … apksigner.jar"): apksigner's Conscrypt provider loads a native library the
-# JVM warns about unless native access is granted. This affects apksigner however it is
-# launched — the Makefile's own re-signing call below, and (the usual source of the warning)
-# the apksigner that 'fyne package'/'fyne release' and 'bundletool' spawn internally. The same
-# flag is applied in two forms:
-#   - APKSIGNER_JVM_OPTS: the apksigner wrapper forwards a leading -J<opt> to the JVM adding
-#     one dash, so -J-enable-native-access=ALL-UNNAMED reaches it as
-#     --enable-native-access=ALL-UNNAMED. It must precede the apksigner subcommand.
-#   - JVM_NATIVE_ACCESS: the plain flag, exported via JAVA_TOOL_OPTIONS to fyne and bundletool
-#     (bare 'java -jar' wrappers with no -J hook) so the signer they spawn inherits it. The JVM
-#     prints one benign "Picked up JAVA_TOOL_OPTIONS: …" line per spawned tool in exchange.
-# Override either to empty on a JDK that does not recognise the flag.
+# Silencing two JDK warnings the Android toolchain raises. Both are the JDK tightening access
+# to its internals, neither reports anything this project does, and both are suppressed the
+# same way: as a JVM flag, either through apksigner's -J hook or exported in JAVA_TOOL_OPTIONS
+# for the tools that have no such hook ('fyne' and 'bundletool' are bare 'java -jar' wrappers).
+# The JVM prints one benign "Picked up JAVA_TOOL_OPTIONS: …" line per spawned tool in exchange.
+#
+# Override any of these to empty on a JDK that does not recognise its flag: an unrecognised
+# JVM option stops the JVM from starting at all, which is a build failure rather than a warning.
+
+# APKSIGNER_JVM_OPTS silences the JDK 24+ JEP 472 warning ("restricted method …
+# System::loadLibrary … by org.conscrypt … apksigner.jar") for the re-signing call below:
+# apksigner's Conscrypt provider loads a native library the JVM warns about unless native
+# access is granted. The apksigner wrapper forwards a leading -J<opt> to the JVM adding one
+# dash, so this reaches it as --enable-native-access=ALL-UNNAMED; it must precede the
+# apksigner subcommand.
 APKSIGNER_JVM_OPTS ?= -J-enable-native-access=ALL-UNNAMED
-JVM_NATIVE_ACCESS  ?= --enable-native-access=ALL-UNNAMED
+
+# JVM_NATIVE_ACCESS is that same JEP 472 flag in the plain form JAVA_TOOL_OPTIONS takes, for
+# the apksigner that 'fyne package', 'fyne release' and 'bundletool' spawn internally — the
+# usual source of the warning, since that copy is launched with no -J hook to forward.
+JVM_NATIVE_ACCESS ?= --enable-native-access=ALL-UNNAMED
+
+# JVM_UNSAFE_ACCESS silences the JDK 24+ JEP 498 warning ("A terminally deprecated method in
+# sun.misc.Unsafe has been called … by com.google.protobuf.UnsafeUtil$MemoryAccessor"), which
+# bundletool raises while reading an .aab: the protobuf runtime shaded into bundletool-all.jar
+# reaches into arrays through sun.misc.Unsafe. It is protobuf's to fix and ours only to
+# silence, so 'allow' restores the pre-JDK-24 quiet until a bundletool ships a protobuf that
+# no longer does it. A JDK that has removed those methods will reject 'allow' rather than
+# ignore it, which is the point at which this has to go empty and the warning become real.
+JVM_UNSAFE_ACCESS ?= --sun-misc-unsafe-memory-access=allow
+
+# JVM_TOOL_OPTS is what the JAVA_TOOL_OPTIONS-based recipes export: both plain flags above, so
+# a tool spawned by fyne or bundletool inherits every suppression rather than some of them.
+JVM_TOOL_OPTS = $(JVM_NATIVE_ACCESS) $(JVM_UNSAFE_ACCESS)
 
 # bundletool — required by the android-release* (.aab) and android-release-apk* targets.
 # Expected on PATH (e.g. 'brew install bundletool'); override if it lives elsewhere.
@@ -773,7 +792,7 @@ define fyne-package-apk
 cd $(CMD) && \
 ANDROID_HOME=$(ANDROID_HOME) \
 ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
-JAVA_TOOL_OPTIONS='$(JVM_NATIVE_ACCESS)' \
+JAVA_TOOL_OPTIONS='$(JVM_TOOL_OPTS)' \
 GOFLAGS="$(BUILD_INFO_GOFLAGS_DEBUG)" \
 fyne package \
 	-os $(1) \
@@ -826,7 +845,7 @@ define fyne-release-aab
 cd $(CMD) && \
 ANDROID_HOME=$(ANDROID_HOME) \
 ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
-JAVA_TOOL_OPTIONS='$(JVM_NATIVE_ACCESS)' \
+JAVA_TOOL_OPTIONS='$(JVM_TOOL_OPTS)' \
 GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" \
 fyne release \
 	-os $(1) \
@@ -851,7 +870,7 @@ endef
 # readable in the process list for as long as signing takes.
 define bundletool-release-apk
 @$(keystore-pass-file); \
-JAVA_TOOL_OPTIONS='$(JVM_NATIVE_ACCESS)' $(BUNDLETOOL) build-apks \
+JAVA_TOOL_OPTIONS='$(JVM_TOOL_OPTS)' $(BUNDLETOOL) build-apks \
 	--bundle=$(BINARY)-release-$(1).aab \
 	--output=$(BINARY)-release-$(1).apks \
 	--mode=universal \
