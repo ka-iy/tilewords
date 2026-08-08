@@ -643,15 +643,54 @@ vet32: ## Type-check the portable packages for 32-bit targets (catches 64-bit-on
 	GOOS=android GOARCH=arm go build ./dictionary ./defs ./engine ./cpu ./buildinfo
 	GOOS=windows GOARCH=386 go build ./dictionary ./defs ./engine ./cpu ./buildinfo
 
-# clean removes only what a build produces from source that is already on disk, so
-# everything it deletes can be rebuilt with no downloads. The generated assets are left
-# alone — see clean-all-the-things for those.
+# FYNE_STAGED are the names the fyne CLI writes into whichever directory it is run from.
+# 'fyne package' has no -o flag, so each packaging target builds inside $(CMD) and moves the
+# result out afterwards; a run that fails before that move leaves its output sitting there.
+# An Android build is the usual casualty, being by far the longest.
+#
+# Every name here is $(APP_NAME)'s. No artifact this Makefile keeps is named that way — those
+# are all named for $(BINARY) — so removing one of these by name can never reach a finished
+# build output.
+FYNE_STAGED := $(APP_NAME).apk $(APP_NAME).apk.idsig $(APP_NAME).aab $(APP_NAME).exe
+
+# clean removes what a build produces from source that is already on disk, plus every
+# temporary a failed or interrupted run leaves behind. Nothing it deletes has to be fetched
+# again: it never touches a completed download, and the partial ones it does take are never
+# resumed anyway (every curl here runs without -C), so the next attempt restarts from zero
+# whether or not clean ran. The generated assets are left alone — see clean-all-the-things.
 clean: ## Remove built binaries and packages (cheap to rebuild)
 	rm -f $(BINARY) $(BUILDGADDAG_BIN) $(BINARY).apk $(BINARY)-*.apk $(BINARY)-*.apk.idsig
 # Desktop binaries for this host, plus every Windows .exe (any architecture, either type).
 	rm -f $(DESKTOP_BIN) $(DESKTOP_BIN_DEBUG) $(BINARY)-windows-*.exe
 # Release bundles, plus the APK Set intermediate a failed bundletool run can leave.
 	rm -f $(BINARY)-release*.aab $(BINARY)-release*.apks
+# Packaging leftovers, wherever fyne was run. The whole tree is searched rather than $(CMD)
+# alone, so a second main package added later is covered without a change here. Each hit is
+# printed: a file disappearing from a source directory should not be silent.
+	@for f in $(FYNE_STAGED); do \
+		find . -type f -name "$$f" -print -delete; \
+	done
+# The FyneApp.toml that install-desktop stages into $(CMD) for the length of the build. That
+# recipe removes it even when the build itself fails, but not when make is interrupted first.
+# The search starts below the root so it cannot reach the repo's own copy, which is the file
+# being staged rather than a leftover.
+	@find . -mindepth 2 -type f -name FyneApp.toml -print -delete
+# Staging files the asset tools write beside their output and rename into place on success:
+# buildgaddag and builddefs write <output>.tmp, mergedefs its own .mergedefs-*.tmp. Each run
+# writes one from scratch rather than continuing an earlier one, so a leftover is dead weight.
+	rm -f $(DICT_DIR)/*.bin.tmp $(DEFS_ASSET).tmp $(DEFS_STAGE) $(DEFS_STAGE).tmp
+	rm -f $(DEFS_DIR)/.mergedefs-*.tmp
+# Partial downloads. Every fetch stages through a .part and renames only once complete, so a
+# .part is always this Makefile's own temporary wherever it sits, never a source you supplied.
+# The whole tree is swept because they are not all in one place: the word lists leave theirs
+# in wordlists/, the WordNet fetch leaves one a level further down, and an overridden
+# KAIKKI_EXTRACT / WEBSTER_JSON leaves one whereever it points.
+	@find . -type f -name '*.part' -print -delete
+# Those two overrides can name a path outside the repo, which the sweep above cannot reach.
+	rm -f $(KAIKKI_EXTRACT).part $(WEBSTER_JSON).part
+# The directory the WordNet fetch untars into before moving dict/ out of it. Its rule clears
+# and recreates it on every run, so a leftover is never an input to anything.
+	rm -rf $(DEFS_SRC_WORDNET)/stage
 
 # clean-all-the-things additionally drops the generated assets — every GADDAG, the
 # definitions asset and the About text — and, via clean-defs-sources, the downloaded
@@ -659,17 +698,12 @@ clean: ## Remove built binaries and packages (cheap to rebuild)
 # several GB and reprocesses it. Use plain 'clean' unless the assets themselves are what you
 # need to rebuild.
 clean-all-the-things: clean clean-defs-sources ## Remove the above PLUS every generated asset and downloaded source
-	rm -f $(DICT_DIR)/*.bin $(DICT_DIR)/*.bin.tmp
-# The asset, plus the staging file and the temporaries the tools write beside it.
-	rm -f $(DEFS_ASSET) $(DEFS_ASSET).tmp $(DEFS_STAGE) $(DEFS_STAGE).tmp
-# Partial downloads beside a source kept elsewhere: clean-defs-sources handles the default
-# locations, but an overridden KAIKKI_EXTRACT / WEBSTER_JSON can have left a .part of its
-# own. A .part is always this Makefile's temporary, wherever it sits, so removing it cannot
-# touch a source you supplied.
-	rm -f $(KAIKKI_EXTRACT).part $(WEBSTER_JSON).part
-# Every download temporary under wordlists/, whichever fetch left it: the word lists stage
-# through .part too, and a .part is never a source in its own right.
-	rm -f $(WORDLISTS_DIR)/*.part
+	rm -f $(DICT_DIR)/*.bin
+# The asset itself. The staging files that sit beside it are already gone: clean is a
+# prerequisite of this target, and takes them along with every other build temporary.
+	rm -f $(DEFS_ASSET)
+# Partial downloads are already gone, wherever they sat: clean is a prerequisite of this
+# target and sweeps them along with every other build temporary.
 	rm -f $(TEXT_ASSETS)
 	@echo ''
 	@echo '>> WARNING: every generated asset is now gone, along with the downloaded definition'

@@ -57,3 +57,9 @@ buildgaddag
 
 # .claude dir - let users use their own customizations
 .claude
+
+# Gurgle Signing key verification f*ckery.
+# You'll need the file below if you're trying to register your own app from
+# these sources, BUT since this will contain your specific developer code,
+# it needs to be gitignored so it doesn't get committed.
+/cmd/tilewords/assets/adi-registration.properties
