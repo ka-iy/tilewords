@@ -315,6 +315,9 @@ TileWords is built on freely available word lists and dictionaries. Grateful ack
 - **Princeton WordNet 3.1:** Copyright 2011 by Princeton University, all rights reserved, used under the WordNet License (permissive, with attribution). <https://wordnet.princeton.edu/>
 - **An Etymological Dictionary of the Scottish Language:** by John Jamieson, public domain (Project Gutenberg eBook #40521). <https://www.gutenberg.org/ebooks/40521>
 - **Glossary to Edmund Spenser's "The Faerie Queene", Book I:** public domain, via Wikisource. <https://en.wikisource.org/wiki/The_Faerie_Queene_(unsourced)/Book_I/Glossary>
+- **Joseph Petree's OWL 2.1 from WOW24:** definitions by Joseph Petree, with his name recorded here as he asks and with his definitions unaltered, also as he asks. Obtained via the WOW24 import compiled by Mitch Bayersdorfer, (C) 2026, released under CC BY-SA 4.0, which also credits the Word Game Players Organization (WOW24 lexicon) and Wiktionary amongst others. Note that ONLY Jospeh Petree's definitions are used - NOTHING ELSE from the WOW24 import. <https://pdxscrabble.neocities.org/word-lists/WOW24-Dictionary-Import>
+- **Webster's New Modern English Dictionary (1922):** public domain, OCR text via the Internet Archive. <https://archive.org/details/webstersnewmoder00web>
+- **The Online Plain Text English Dictionary (OPTED) v0.03:** by Ralph S. Sutherland, public domain, derived from the Project Gutenberg etext of Webster's Unabridged Dictionary (1913). <https://www.mso.anu.edu.au/~ralph/OPTED/>
 
 Definitions are shown for reference during play. Where more than one source defines a word, the Wiktionary sense is preferred; Webster's 1913, WordNet, and the glossaries fill gaps for archaic and dialectal words.
 
