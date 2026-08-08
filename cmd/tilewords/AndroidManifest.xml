@@ -54,7 +54,7 @@
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	package="fyi.tilewords.game"
 	android:versionCode="1"
-	android:versionName="1.0.0">
+	android:versionName="0.1.0">
 
 	<uses-sdk android:targetSdkVersion="36" />
 
