@@ -5,5 +5,7 @@ https://www.gnu.org/licenses/gpl-3.0.html
 Source code available at:
 https://github.com/ka-iy/tilewords
 
-Assets are licensed separately; see:
+Assets are licensed separately (libre); see:
 https://github.com/ka-iy/tilewords/ASSET-LICENSES.md
+
+TileWords is written in the Go programming language and uses the Fyne UI toolkit to provide all the pretty things.
