@@ -5,10 +5,13 @@ A free, fully open-source, fully offline Scrabble®-like crossword tile game, wr
 See the note at the very bottom for why I felt the need to make this. And yes, this was built using AI. The note explains that too.
 
 <p align="center">
-  <a href="SCREENSHOTS/gameboard-wide-movehist-normal.jpg"><img src="SCREENSHOTS/gameboard-wide-movehist-normal.jpg" width="33%" alt="Wide layout showing the move history panel" /></a>
-  <a href="SCREENSHOTS/gameboard-wide-defs.jpg"><img src="SCREENSHOTS/gameboard-wide-defs.jpg" width="33%" alt="Wide layout showing the definitions panel" /></a>
-  <a href="SCREENSHOTS/gameboard-narrow-movehist-normal.jpg"><img src="SCREENSHOTS/gameboard-narrow-movehist-normal.jpg" width="15%" alt="Narrow phone layout showing the move history panel" /></a>
-  <a href="SCREENSHOTS/gameboard-narrow-defs.jpg"><img src="SCREENSHOTS/gameboard-narrow-defs.jpg" width="15%" alt="Narrow phone layout showing the definitions panel" /></a>
+  <a href="SCREENSHOTS/gameboard-wide-movehist-normal.jpg"><img src="SCREENSHOTS/gameboard-wide-movehist-normal.jpg" width="22%" alt="Wide layout showing the move history panel" /></a>
+  &emsp;&emsp;&emsp;
+  <a href="SCREENSHOTS/gameboard-wide-defs.jpg"><img src="SCREENSHOTS/gameboard-wide-defs.jpg" width="22%" alt="Wide layout showing the definitions panel" /></a>
+  &emsp;&emsp;&emsp;
+  <a href="SCREENSHOTS/gameboard-narrow-movehist-normal.jpg"><img src="SCREENSHOTS/gameboard-narrow-movehist-normal.jpg" width="10%" alt="Narrow phone layout showing the move history panel" /></a>
+  &emsp;&emsp;&emsp;
+  <a href="SCREENSHOTS/gameboard-narrow-defs.jpg"><img src="SCREENSHOTS/gameboard-narrow-defs.jpg" width="10%" alt="Narrow phone layout showing the definitions panel" /></a>
 </p>
 
 <p align="center"><em>Wide and narrow layouts, each with the move-history and definitions panels. Click any image for the full-size version.</em></p>
