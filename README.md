@@ -48,6 +48,14 @@ All other external-entity trademarks, names, logos, and service marks (collectiv
 
 ## How's It Built (on Linux)?
 
+This section is written for building on Linux. You can probably adapt the instructions here to
+build on Windows or on a Mac, although that's not been tested and of course you or may not have
+the libraries required to cross-compile for the other desktop operating systems.
+
+A `Makefile` is provided as your one-stop-shop build harness.
+Run `make help` to see the list of available build targets.
+You should _make_ sure (heh heh) to install the pre-requisites before using the `Makefile`.
+
 The three word lists (`wordlists/*.txt`) are committed to the repository, so a from-scratch
 build is: install the [prerequisites](#prerequisites), then run `make`.
 
@@ -180,8 +188,8 @@ make defs-audit
 ### Build and run
 
 ```bash
-make              # (or: make linux) debug build of the Linux desktop binary
-make linux-prod   # production build: stamped as production, stripped, -trimpath
+make               # (or: make linux) debug build of the Linux desktop binary
+make linux-release # production build: stamped as production, stripped, -trimpath
 ```
 
 Binaries are named for the platform they were built for, `tilewords-<goos>-<goarch>`, with
@@ -204,8 +212,8 @@ make vet                     # run go vet
 make clean                   # remove built binaries and packages
 make clean-defs-sources      # remove the downloaded definition sources (frees GBs)
 make clean-all-the-things    # the above plus every generated asset (needs re-downloads)
-make debug-all               # debug build for desktop + Windows + Android
-make release-all             # release build for desktop + Windows + Android
+make debug-all               # debug build for Linux + Windows + Android
+make release-all             # release build for Linux + Windows + Android
 make help                    # list every target with a description
 ```
 
@@ -271,8 +279,13 @@ make install-mobile-tools     # install the fyne + gomobile CLIs
 **Debug APK** (self-signed with a throwaway debug key, for local testing):
 
 ```bash
-make android                  # debug APK for arm64-v8a
+make android-debug            # 4 debug APKs (see below)
 ```
+
+That builds four APKs: one for each of the three ABIs, plus a universal one holding every
+ABI in a single file (roughly four times the size). To iterate on a device, build just the
+one you need — `make android-debug-arm64-v8a` for a modern phone, or
+`make android-debug-x86_64` for an emulator.
 
 **Signed release build.** A release build must be signed, so it **requires a valid Java
 keystore and signing certificate** that you generate yourself and keep private (never
@@ -287,16 +300,18 @@ Then build, supplying the keystore path, its password, and the key alias (these 
 to `release.keystore` / `changeme` / `tilewords`, so override at least `KEYSTORE_PASS`):
 
 ```bash
-# signed .aab for all ABIs
+# 4 .aab files: one per ABI, plus one universal holding them all
 make android-release \
   KEYSTORE=release.keystore KEYSTORE_PASS=<your-password> KEY_ALIAS=tilewords
 
-# signed universal APK (needs bundletool on PATH: brew install bundletool)
+# 4 APKs, split the same way (needs bundletool: brew install bundletool)
 make android-release-apk \
   KEYSTORE=release.keystore KEYSTORE_PASS=<your-password> KEY_ALIAS=tilewords
 ```
 
-Run `make help` for the full list of per-ABI debug and release targets.
+Each of those targets builds four artifacts: one per ABI, plus a universal one holding
+every ABI in a single file. To produce only one, name it — `make android-release-arm64-v8a`
+for a single-ABI bundle, or `make android-release-universal` for the universal one alone.
 
 ## My Word!
 

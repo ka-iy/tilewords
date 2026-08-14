@@ -2,8 +2,8 @@
 #
 # Run 'make help' to list every target with a one-line description.
 #
-# Quick start (no licensed word lists required):
-#   make gaddag-free && make   → downloads ENABLE (public domain) then builds
+# Quick start: run 'make' to build the Linux binary. It compiles a GADDAG for each word
+# list first, and downloads any shipped list that is missing.
 #
 # Adding a dictionary: drop <name>.txt into wordlists/ (it is compiled to a GADDAG
 # asset automatically) and register <name> in dictionary.AllDictNames so the game
@@ -12,18 +12,19 @@
 # First-time mobile setup:
 #   make install-mobile-tools     # then set ANDROID_HOME and ANDROID_NDK_HOME
 
-.PHONY: all linux linux-prod test vet vet32 clean clean-all-the-things clean-defs-sources \
-        gaddag gaddag-free download-wordlists defs defs-asset help \
+.PHONY: linux linux-release test vet vet32 clean clean-all-the-things clean-defs-sources \
+        gaddag download-wordlists defs defs-asset help \
         debug-all release-all \
         windows-debug windows-release \
-        android android-arm64-v8a android-x86_64 android-armeabi-v7a android-universal \
+        android-debug android-debug-arm64-v8a android-debug-x86_64 \
+        android-debug-armeabi-v7a android-debug-universal \
         android-release android-release-arm64-v8a android-release-x86_64 \
         android-release-armeabi-v7a android-release-universal \
         android-release-apk android-release-apk-arm64-v8a android-release-apk-x86_64 \
         android-release-apk-armeabi-v7a android-release-apk-universal \
         install-mobile-tools install-desktop
 
-.DEFAULT_GOAL := all
+.DEFAULT_GOAL := linux
 
 # ── Infra ─────────────────────────────────────────────────────────────────────
 
@@ -211,9 +212,9 @@ help: ## Show this help (targets grouped by section)
 # first leg that fails, leaving the later ones unbuilt, so build a single target directly
 # when it is one platform you care about.
 
-debug-all: linux windows-debug android ## Build every debug artifact (desktop, Windows, Android)
+debug-all: linux windows-debug android-debug ## Build every debug artifact (Linux, Windows, Android)
 
-release-all: linux-prod windows-release android-release ## Build every release artifact (desktop, Windows, Android)
+release-all: linux-release windows-release android-release ## Build every release artifact (Linux, Windows, Android)
 
 # ── Assets ────────────────────────────────────────────────────────────────────
 ##@ Assets
@@ -275,8 +276,6 @@ GADDAG_ATEBITS := $(DICT_DIR)/atebits-letterpress.bin
 GADDAG_SHIPPED := $(GADDAG_ENABLE) $(GADDAG_WORDNIK) $(GADDAG_ATEBITS)
 
 gaddag: $(GADDAG_SHIPPED) $(GADDAG_ASSETS) ## Build a GADDAG for every wordlists/*.txt (plus the shipped lists)
-
-gaddag-free: $(GADDAG_ENABLE) ## Download ENABLE and build only its GADDAG asset
 
 download-wordlists: $(WORDLIST_DOWNLOADS) ## Download any missing shipped word list (ENABLE, Wordnik, atebits)
 
@@ -526,8 +525,6 @@ clean-defs-sources: ## Remove the downloaded definition sources (frees GBs; 'mak
 # ── Linux desktop ─────────────────────────────────────────────────────────────
 ##@ Linux desktop
 
-all: linux ## Build the Linux desktop binary (default target)
-
 # Artifact names. The desktop binaries carry the platform they were built for, and every
 # debug artifact ends in -debug, so a debug and a release build (and builds for different
 # platforms) sit side by side instead of overwriting each other.
@@ -563,12 +560,13 @@ linux: $(BUILD_PREREQS) ## Build the Linux desktop binary (debug)
 	GOOS=$(LINUX_GOOS) GOARCH=$(LINUX_GOARCH) GOFLAGS="$(BUILD_INFO_GOFLAGS_DEBUG)" fyne build \
 		--src $(CMD) --tags migrated_fynedo -o $(CURDIR)/$(DESKTOP_BIN_DEBUG)
 
-# linux-prod differs from linux in stamping the binary as a production build and having fyne
-# strip it (-s -w) and build it with -trimpath.
+# linux-release differs from linux in stamping the binary as a production build and having fyne
+# strip it (-s -w) and build it with -trimpath. It is named to match every other release target
+# (windows-release, android-release-*).
 #
 # Code that branches on buildinfo.IsProductionBuild() only takes its production path in a
 # binary built this way, so this is the target to use when testing that behavior.
-linux-prod: $(BUILD_PREREQS) ## Build the Linux desktop binary (production, stripped)
+linux-release: $(BUILD_PREREQS) ## Build the Linux desktop binary (production, stripped)
 	GOOS=$(LINUX_GOOS) GOARCH=$(LINUX_GOARCH) GOFLAGS="$(BUILD_INFO_GOFLAGS_PROD)" fyne build \
 		--src $(CMD) --tags migrated_fynedo --release -o $(CURDIR)/$(DESKTOP_BIN)
 
@@ -626,6 +624,7 @@ define fyne-package-windows
 	echo "  Install it (Debian/Ubuntu: sudo apt install gcc-mingw-w64-x86-64),"; \
 	echo "  or point WINDOWS_CC at your own toolchain."; \
 	exit 1; }
+$(clear-staged)
 cd $(CMD) && \
 CGO_ENABLED=1 \
 CC=$(WINDOWS_CC) \
@@ -683,10 +682,22 @@ vet32: ## Type-check the portable packages for 32-bit targets (catches 64-bit-on
 # result out afterwards; a run that fails before that move leaves its output sitting there.
 # An Android build is the usual casualty, being by far the longest.
 #
-# Every name here is $(APP_NAME)'s. No artifact this Makefile keeps is named that way — those
-# are all named for $(BINARY) — so removing one of these by name can never reach a finished
-# build output.
-FYNE_STAGED := $(APP_NAME).apk $(APP_NAME).apk.idsig $(APP_NAME).aab $(APP_NAME).exe
+# All but one are $(APP_NAME)'s own names, and no artifact this Makefile keeps is named that
+# way — those are all named for $(BINARY) — so removing one by name cannot reach a finished
+# build output. base.zip is the exception: it is the module archive fyne hands to bundletool,
+# it carries no app name, and fyne removes it only when the build gets far enough to reach the
+# deferred cleanup. No file in this repository is named base.zip.
+FYNE_STAGED := $(APP_NAME).apk $(APP_NAME).apk.idsig $(APP_NAME).aab $(APP_NAME).exe base.zip
+
+# clear-staged empties the staging directory before a packaging run.
+#
+# Neither fyne nor the bundletool it calls will overwrite an artifact that is already there:
+# 'bundletool build-bundle' takes no --overwrite flag, so it stops with "File 'TileWords.aab'
+# already exists". A run that fails anywhere after the bundle is written — the signing step, or
+# make itself stopping before the mv — therefore poisons every later release build until the
+# file is removed by hand. Starting from an empty directory makes each packaging target
+# repeatable no matter how the one before it ended.
+clear-staged = rm -f $(addprefix $(CMD)/,$(FYNE_STAGED))
 
 # clean removes what a build produces from source that is already on disk, plus every
 # temporary a failed or interrupted run leaves behind. Nothing it deletes has to be fetched
@@ -814,6 +825,7 @@ install-mobile-tools: ## Install the fyne + gomobile CLIs for mobile builds
 # zipalignment and regenerates the .idsig for the new key); otherwise the fyne signature is
 # kept as-is.
 define fyne-package-apk
+$(clear-staged)
 cd $(CMD) && \
 ANDROID_HOME=$(ANDROID_HOME) \
 ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) \
@@ -866,6 +878,7 @@ endef
 # its argument vector only, and documents that it takes the password from stdin when the flag
 # is omitted, so the password is piped in rather than passed.
 define fyne-release-aab
+$(clear-staged)
 @$(keystore-pass-file); \
 cd $(CMD) && \
 ANDROID_HOME=$(ANDROID_HOME) \
@@ -883,6 +896,9 @@ fyne release \
 	-keyName $(KEY_ALIAS) \
 	< "$$KSPASS"
 mv $(CMD)/$(APP_NAME).aab $(BINARY)-release-$(2).aab
+# A release build writes an intermediate .apk beside the bundle and never removes it, so it
+# would be left to collide with the next build (a debug package, or the pre-clear above).
+rm -f $(CMD)/$(APP_NAME).apk $(CMD)/base.zip
 endef
 
 # bundletool-release-apk: convert a signed release .aab into a signed release APK.
@@ -910,40 +926,45 @@ endef
 
 ##@ Android — debug APKs
 # Signed with $(DEBUG_KEYSTORE) if present, else the fyne debug key/cert. 'adb install'-able.
-android-arm64-v8a: $(BUILD_PREREQS) ## Debug APK for arm64-v8a (modern phones)
+android-debug-arm64-v8a: $(BUILD_PREREQS) ## One debug APK, arm64-v8a only (modern phones)
 	$(call fyne-package-apk,android/arm64,arm64-v8a)
 
-android-x86_64: $(BUILD_PREREQS) ## Debug APK for x86_64 (emulators / x86 devices)
+android-debug-x86_64: $(BUILD_PREREQS) ## One debug APK, x86_64 only (emulators / x86)
 	$(call fyne-package-apk,android/amd64,x86_64)
 
 # vet32 runs first on every target that includes the 32-bit ABI: a constant or size
 # computation that only fits a 64-bit int fails to compile for android/arm and nowhere else,
 # and catching that in a two-second type-check beats discovering it part-way through an APK
 # build that needs the NDK.
-android-armeabi-v7a: vet32 $(BUILD_PREREQS) ## Debug APK for armeabi-v7a (old 32-bit devices)
+android-debug-armeabi-v7a: vet32 $(BUILD_PREREQS) ## One debug APK, armeabi-v7a only (old 32-bit)
 	$(call fyne-package-apk,android/arm,armeabi-v7a)
 
 # Universal bundles include android/arm, so they need the 32-bit check too.
-android-universal: vet32 $(BUILD_PREREQS) ## Debug APK for all ABIs (universal, ~4x size)
+android-debug-universal: vet32 $(BUILD_PREREQS) ## One debug APK holding every ABI (~4x the size)
 	$(call fyne-package-apk,android,universal)
 
-android: android-arm64-v8a ## Debug APK for arm64-v8a (alias for android-arm64-v8a)
+# android-debug, android-release and android-release-apk each build every ABI. Each per-ABI target
+# stays available on its own for a quicker edit-and-test cycle.
+#
+# Do NOT run these with -j. Every packaging target stages through the same fixed filenames in
+# $(CMD) (see FYNE_STAGED), so two builds at once overwrite each other's artifact.
+android-debug: android-debug-arm64-v8a android-debug-x86_64 android-debug-armeabi-v7a android-debug-universal ## Runs the 4 targets above: 4 separate APKs
 
 ##@ Android — signed release App Bundles (.aab)
 # Need KEYSTORE / KEYSTORE_PASS / KEY_ALIAS (see the release-signing config above).
-android-release-arm64-v8a: $(BUILD_PREREQS) ## Signed release .aab for arm64-v8a
+android-release-arm64-v8a: $(BUILD_PREREQS) ## One signed .aab, arm64-v8a only
 	$(call fyne-release-aab,android/arm64,arm64-v8a)
 
-android-release-x86_64: $(BUILD_PREREQS) ## Signed release .aab for x86_64
+android-release-x86_64: $(BUILD_PREREQS) ## One signed .aab, x86_64 only
 	$(call fyne-release-aab,android/amd64,x86_64)
 
-android-release-armeabi-v7a: vet32 $(BUILD_PREREQS) ## Signed release .aab for armeabi-v7a
+android-release-armeabi-v7a: vet32 $(BUILD_PREREQS) ## One signed .aab, armeabi-v7a only
 	$(call fyne-release-aab,android/arm,armeabi-v7a)
 
-android-release-universal: vet32 $(BUILD_PREREQS) ## Signed release .aab for all ABIs (universal)
+android-release-universal: vet32 $(BUILD_PREREQS) ## One signed .aab holding every ABI
 	$(call fyne-release-aab,android,universal)
 
-android-release: android-release-universal ## Signed release .aab for all ABIs (alias for android-release-universal)
+android-release: android-release-arm64-v8a android-release-x86_64 android-release-armeabi-v7a android-release-universal ## Runs the 4 targets above: 4 separate .aab files
 
 # ── Android release APKs ──────────────────────────────────────────────────────
 #
@@ -962,17 +983,17 @@ android-release: android-release-universal ## Signed release .aab for all ABIs (
 # (see the release-signing config above) just like the .aab targets.
 
 ##@ Android — release APKs (requires bundletool)
-android-release-apk-arm64-v8a: android-release-arm64-v8a ## Signed release APK for arm64-v8a
+android-release-apk-arm64-v8a: android-release-arm64-v8a ## One signed release APK, arm64-v8a only
 	$(call bundletool-release-apk,arm64-v8a)
 
-android-release-apk-x86_64: android-release-x86_64 ## Signed release APK for x86_64
+android-release-apk-x86_64: android-release-x86_64 ## One signed release APK, x86_64 only
 	$(call bundletool-release-apk,x86_64)
 
-android-release-apk-armeabi-v7a: android-release-armeabi-v7a ## Signed release APK for armeabi-v7a
+android-release-apk-armeabi-v7a: android-release-armeabi-v7a ## One signed release APK, armeabi-v7a only
 	$(call bundletool-release-apk,armeabi-v7a)
 
-android-release-apk-universal: android-release-universal ## Signed release APK for all ABIs (universal)
+android-release-apk-universal: android-release-universal ## One signed release APK holding every ABI
 	$(call bundletool-release-apk,universal)
 
-android-release-apk: android-release-apk-universal ## Signed release APK, all ABIs (alias for android-release-apk-universal)
+android-release-apk: android-release-apk-arm64-v8a android-release-apk-x86_64 android-release-apk-armeabi-v7a android-release-apk-universal ## Runs the 4 targets above: 4 separate APKs
 
