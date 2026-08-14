@@ -206,17 +206,24 @@ const phoneColGap = 4
 type phoneColumnLayout struct {
 	board    fyne.CanvasObject
 	minBoard float32
+
+	// lastWidth is the column width the most recent Layout ran at, and 0 before the first one.
+	// MinSize has no width of its own, but the board's height is its width, so without this the
+	// column would report a height computed from a board that is not the one on screen. See
+	// MinSize for what that costs.
+	lastWidth float32
 }
 
 // boardSide returns the square edge for a column of the given width: the board always
 // fills the full column width. On a screen narrower than the board's preferred minimum
 // (minBoard) the cells shrink to fit rather than the board overflowing the viewport —
 // the column lives in a vertical-only scroll, so any horizontal overflow is clipped.
-func (p phoneColumnLayout) boardSide(width float32) float32 {
+func (p *phoneColumnLayout) boardSide(width float32) float32 {
 	return width
 }
 
-func (p phoneColumnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+func (p *phoneColumnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	p.lastWidth = size.Width
 	y := float32(0)
 	first := true
 	for _, o := range objs {
@@ -245,7 +252,7 @@ func (p phoneColumnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	}
 }
 
-func (p phoneColumnLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
+func (p *phoneColumnLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	// The width floor is zero, so the column never advertises a minimum wider than the
 	// viewport. The column lives in a vertical scroll, which sizes its content to
 	// MinSize().Max(viewport): any positive width floor larger than the viewport — such as
@@ -268,7 +275,14 @@ func (p phoneColumnLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 		}
 		first = false
 		if o == p.board {
-			total += p.minBoard
+			// The board is laid out square at the column's full width, so its height is that
+			// width and not minBoard. Charging minBoard here would under-report the column by
+			// (width - minBoard) on any phone wider than it, and container.Scroll clamps the
+			// scroll offset against MinSize rather than the laid-out extent — so exactly that
+			// much of the bottom of the page, the tail of the history and definitions pane,
+			// could never be scrolled into view. Before the first Layout there is no width to
+			// go on, and minBoard is the floor Layout would scale up from anyway.
+			total += fyne.Max(p.minBoard, p.lastWidth)
 		} else {
 			total += o.MinSize().Height
 		}

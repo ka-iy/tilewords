@@ -41,6 +41,13 @@ type cellWidget struct {
 	// Nil outside the game screen.
 	gesture *gestureOwner
 
+	// touchRowShift is 1 when the touch that began the current gesture was really on the row
+	// below this cell, and 0 otherwise. See Tapped for the bias it compensates. Tapped works the
+	// same correction out from the tap's own position, but the driver delivers no Tapped once a
+	// gesture moves far enough to become a drag, so TouchDown records it here for the drag
+	// handlers. It stays 0 on desktop, where TouchDown never fires.
+	touchRowShift int
+
 	dragging bool
 	dragAbs  fyne.Position
 }
@@ -91,17 +98,36 @@ func (c *cellWidget) Tapped(ev *fyne.PointEvent) {
 		return
 	}
 	row := c.row
-	if ev != nil && deviceIsMobile() {
-		// Zero height means the cell has never been laid out (a press cannot have reached
-		// it), so there is no geometry to correct against.
-		if h := c.Size().Height; h > 0 && ev.Position.Y+touchYCompensation >= h {
-			row++
-		}
+	if ev != nil && c.touchWasOnRowBelow(ev.Position.Y) {
+		row++
 	}
 	if row >= boardDim {
 		return
 	}
 	c.onTap(row, c.col)
+}
+
+// touchWasOnRowBelow reports whether a touch this cell was given at y within itself was in fact
+// made on the row below it, which the driver's upward compensation makes possible (see Tapped).
+// Zero height means the cell has never been laid out — a press cannot have reached it — so there
+// is no geometry to correct against.
+func (c *cellWidget) touchWasOnRowBelow(y float32) bool {
+	if !deviceIsMobile() {
+		return false
+	}
+	h := c.Size().Height
+	return h > 0 && y+touchYCompensation >= h
+}
+
+// gestureRow returns the board row the gesture in progress belongs to: this cell's own row, or
+// the one below it when TouchDown found the finger there.
+//
+// Every handler for one gesture must agree on the row, which is why the shift is recorded once
+// at TouchDown rather than recomputed per event: onBoardDragEnd compares the row it is given
+// against the drag source recorded from onBoardDrag, and a row that changed mid-gesture would
+// read as a different gesture entirely.
+func (c *cellWidget) gestureRow() int {
+	return c.row + c.touchRowShift
 }
 
 // Dragged records the live pointer position and reports it. The controller starts a
@@ -119,7 +145,7 @@ func (c *cellWidget) Dragged(e *fyne.DragEvent) {
 	c.dragAbs = dragAbsPosition(c, c.dragging, c.dragAbs, e)
 	c.dragging = true
 	if c.onDrag != nil {
-		c.onDrag(c.row, c.col, c.dragAbs)
+		c.onDrag(c.gestureRow(), c.col, c.dragAbs)
 	}
 }
 
@@ -143,13 +169,29 @@ func (c *cellWidget) DragEnd() {
 		}
 	}
 	if c.dragging && c.onDragEnd != nil {
-		c.onDragEnd(c.row, c.col, c.dragAbs)
+		c.onDragEnd(c.gestureRow(), c.col, c.dragAbs)
 	}
 	c.dragging = false
+	// Release here as well as in TouchUp: the driver delivers no TouchUp for a gesture that
+	// became a drag, so this is the only end-of-gesture this cell sees for every drag it owns.
+	// Without it the claim outlives the gesture and redirects a later one.
+	if c.gesture != nil {
+		c.gesture.releaseIf(c)
+	}
 }
 
-// TouchDown claims the gesture for this cell; see rackSlotWidget.TouchDown.
-func (c *cellWidget) TouchDown(*mobile.TouchEvent) {
+// TouchDown claims the gesture for this cell (see rackSlotWidget.TouchDown) and records which
+// row the finger was really on, for the handlers that never see a Tapped.
+//
+// The correction is capped at the last row: a press below the board hit-tests into the bottom
+// row and would otherwise be credited to a row that does not exist. Tapped drops such a press
+// outright, but a drag has already begun by the time this runs, so the gesture is kept and
+// resolved against the cell it was delivered to rather than abandoned half-way.
+func (c *cellWidget) TouchDown(ev *mobile.TouchEvent) {
+	c.touchRowShift = 0
+	if ev != nil && c.row+1 < boardDim && c.touchWasOnRowBelow(ev.Position.Y) {
+		c.touchRowShift = 1
+	}
 	if c.gesture != nil {
 		c.gesture.claim(c)
 	}

@@ -12,6 +12,11 @@ import (
 // player whose drawn letter is nearest the start of the alphabet plays first, and
 // a blank (letter 0) beats any lettered tile. newTestBag draws from the end of the
 // slice, so the last two tiles are drawn[0] (human) and drawn[1] (CPU) respectively.
+//
+// The rng is nil so that mapping actually holds. Bag.Draw shuffles before it pops, and
+// Bag.Shuffle is a no-op for a nil rng, so a nil rng is what makes "the last two tiles, in
+// order" true. With a seeded rng the two-element shuffle may swap them, and each case would
+// then assert whichever way that particular seed happened to fall rather than the rule.
 func TestDrawForFirstTurn_NearestToAWins(t *testing.T) {
 	const blank = byte(0)
 	cases := []struct {
@@ -29,7 +34,7 @@ func TestDrawForFirstTurn_NearestToAWins(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Slice order: tiles[len-2] is drawn first (human), tiles[len-1] second (CPU).
 			bag := newTestBag([]Tile{{Letter: tc.human, IsBlank: tc.human == 0}, {Letter: tc.cpuLetter, IsBlank: tc.cpuLetter == 0}})
-			first, human, cpuLetter := drawForFirstTurn(bag, rand.New(rand.NewPCG(1, 0)))
+			first, human, cpuLetter := drawForFirstTurn(bag, nil)
 			if first != tc.wantFirst {
 				t.Errorf("first = %v, want %v", first, tc.wantFirst)
 			}

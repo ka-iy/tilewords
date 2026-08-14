@@ -482,7 +482,7 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 			// so the rack sits closer to the current-move line than the other sections.
 			statusAndRack := container.New(tightColumnLayout{gaps: []float32{statusRackGap}}, statusBar, humanRackBox)
 			column := container.New(
-				phoneColumnLayout{board: board, minBoard: minBoardPx},
+				&phoneColumnLayout{board: board, minBoard: minBoardPx},
 				board,
 				statusAndRack,
 				controls,

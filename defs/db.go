@@ -599,5 +599,31 @@ func Decode(r io.Reader) (*DB, error) {
 		return nil, fmt.Errorf("defs.Decode: %w", err)
 	}
 
+	// findHead and findForm binary-search these two blobs, so each must be strictly ascending.
+	// Every count, length and index above is checked, but corruption that leaves all of those
+	// consistent can still reorder the entries, and a binary search over unsorted data does not
+	// fail — it silently misses words that are present and, through formLemma, reports a
+	// definition belonging to a different headword. A lookup answering with the wrong word is
+	// worse than a load that refuses the asset, so it is refused here.
+	if err := checkAscending(db.Len(), db.headAt, "headword"); err != nil {
+		return nil, fmt.Errorf("defs.Decode: %w", err)
+	}
+	if err := checkAscending(db.FormCount(), db.formAt, "form"); err != nil {
+		return nil, fmt.Errorf("defs.Decode: %w", err)
+	}
+
 	return db, nil
+}
+
+// checkAscending reports an error unless at(0..n-1) is strictly ascending by byte order, which is
+// the invariant the binary searches in findHead and findForm rely on. what names the sequence for
+// the error message.
+func checkAscending(n int, at func(int) []byte, what string) error {
+	for i := 1; i < n; i++ {
+		if bytes.Compare(at(i-1), at(i)) >= 0 {
+			return fmt.Errorf("%s %d (%q) does not sort strictly after %s %d (%q)",
+				what, i, at(i), what, i-1, at(i-1))
+		}
+	}
+	return nil
 }

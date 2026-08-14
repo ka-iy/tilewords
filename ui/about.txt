@@ -84,7 +84,7 @@ DEFINITIONS
 
 • Glossary to Edmund Spenser's "The Faerie Queene", Book I: public domain, via Wikisource. https://en.wikisource.org/wiki/The_Faerie_Queene_(unsourced)/Book_I/Glossary
 
-• Joseph Petree's OWL 2.1 from WOW24: definitions by Joseph Petree, with his name recorded here as he asks and with his definitions unaltered, also as he asks. Obtained via the WOW24 import compiled by Mitch Bayersdorfer, (C) 2026, released under CC BY-SA 4.0, which also credits the Word Game Players Organization (WOW24 lexicon) and Wiktionary amongst others. Note that ONLY Jospeh Petree's definitions are used - NOTHING ELSE from the WOW24 import. https://pdxscrabble.neocities.org/word-lists/WOW24-Dictionary-Import
+• Joseph Petree's OWL 2.1 from WOW24: definitions by Joseph Petree, with his name recorded here as he asks and with his definitions unaltered (only formatting was stripped), also as he asks. Obtained via the WOW24 import compiled by Mitch Bayersdorfer, (C) 2026, released under CC BY-SA 4.0, which also credits the Word Game Players Organization (WOW24 lexicon) and Wiktionary amongst others. Note that ONLY Joseph Petree's definitions are used - NOTHING ELSE from the WOW24 import. https://pdxscrabble.neocities.org/word-lists/WOW24-Dictionary-Import
 
 • Webster's New Modern English Dictionary (1922): public domain, OCR text via the Internet Archive. https://archive.org/details/webstersnewmoder00web
 
