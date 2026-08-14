@@ -32,6 +32,13 @@
 # need (ICON and the keystore paths are handed to tools that run from another directory, so
 # they must be absolute). Assigning it would shadow the built-in and break them.
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
+# repoPath resolves a path against this Makefile's own directory, leaving an absolute one
+# alone. Every destructive command below goes through it, because a recipe's relative path is
+# interpreted against make's WORKING directory, not the Makefile's: 'make -f /path/to/TileWords/
+# Makefile clean-defs-sources' run from elsewhere would otherwise delete that directory's
+# wordlists/ tree and leave the repo's untouched.
+repoPath = $(if $(filter /%,$(1)),$(1),$(MAKEFILE_DIR)$(1))
 MODNAME := $(shell grep ^module $(MAKEFILE_DIR)go.mod | awk '{print $$2}')
 
 # ----- Build info to embed into the built binary -----
@@ -40,7 +47,7 @@ MODNAME := $(shell grep ^module $(MAKEFILE_DIR)go.mod | awk '{print $$2}')
 # without support for this (e.g. Windows cmd/powershell) will result in
 # undefined behavior. MSYS2 on Windows supports the GNU coreutils date command.
 BUILD_TIMESTAMP := $(shell date -u +"%Y-%m-%d_%H:%M:%S_%Z")
-BUILD_VERSION := $(shell git describe --tags --long --dirty --always)
+BUILD_VERSION := $(shell git -C $(MAKEFILE_DIR) describe --tags --long --dirty --always 2>/dev/null)
 
 # Linker ldflags directives for build info.
 # The bits after -X to the left of the "=" refer to variables defined in the 
@@ -171,8 +178,8 @@ KEY_ALIAS          ?= tilewords
 # present — so they are passed explicitly. Keep in sync with FyneApp.toml.
 APP_NAME    := TileWords
 APP_ID      := fyi.tilewords.game
-APP_VERSION := 1.0.0
-APP_BUILD   := 1
+APP_VERSION := 0.1.1
+APP_BUILD   := 2
 ICON        := $(CURDIR)/ui/Icon.png
 
 # ── Help ──────────────────────────────────────────────────────────────────────
@@ -343,7 +350,16 @@ MISSAUDIT  := go run ./tools/missaudit
 
 # Staging path for the asset while it is built. Both stages write here and it is moved into
 # place only once all of them have succeeded (see the $(DEFS_ASSET) rule).
-DEFS_STAGE := $(DEFS_ASSET).stage
+#
+# It deliberately sits BESIDE $(DEFS_DIR) rather than inside it, because defs/loader.go embeds
+# that directory with '//go:embed all:', and the 'all:' prefix takes dot-prefixed files too. Both
+# asset writers stage next to their output — builddefs writes <output>.tmp, mergedefs its own
+# .mergedefs-*.tmp — so staging inside the directory puts those temporaries where the compiler
+# collects them. A defs build killed part-way then leaves them behind, 'make defs-asset' only
+# tests that the finished asset exists, and the next APK silently ships megabytes of build
+# scratch with no error anywhere. Staging one level up keeps the embedded directory holding
+# only what is meant to be shipped.
+DEFS_STAGE := $(dir $(DEFS_DIR))definitions.bin.gz.stage
 
 # Where a download puts each source when the variables below are left at their defaults.
 # clean-defs-sources deletes these paths and only these: they are what this Makefile
@@ -421,7 +437,7 @@ defs: $(DEFS_ASSET) ## Build the complete definitions asset, fetching each sourc
 # Rebuilding an asset that already exists is what 'make defs' is for: it depends on the file,
 # so it still regenerates when a word list or a source is newer.
 defs-asset: ## Build the definitions asset if it is missing (what the build targets use)
-	@test -f $(DEFS_ASSET) || $(MAKE) $(DEFS_ASSET)
+	@test -f $(call repoPath,$(DEFS_ASSET)) || $(MAKE) -C $(MAKEFILE_DIR) $(DEFS_ASSET)
 
 # Both stages write to $(DEFS_STAGE), which is moved into place only once every stage has
 # succeeded — a failure part-way through must not leave a partial asset that make would
@@ -503,9 +519,9 @@ defs-audit: ## Report per-list definition coverage and the deduplicated set of u
 # are repository content, not downloads. The generated assets are not touched either — that
 # is clean-all-the-things, under Development, which folds this target in.
 clean-defs-sources: ## Remove the downloaded definition sources (frees GBs; 'make defs' re-fetches)
-	rm -f $(DEFS_SRC_KAIKKI) $(DEFS_SRC_KAIKKI).part
-	rm -f $(DEFS_SRC_WEBSTER) $(DEFS_SRC_WEBSTER).part
-	rm -rf $(DEFS_SRC_WORDNET)
+	rm -f $(call repoPath,$(DEFS_SRC_KAIKKI)) $(call repoPath,$(DEFS_SRC_KAIKKI)).part
+	rm -f $(call repoPath,$(DEFS_SRC_WEBSTER)) $(call repoPath,$(DEFS_SRC_WEBSTER)).part
+	rm -rf $(call repoPath,$(DEFS_SRC_WORDNET))
 
 # ── Linux desktop ─────────────────────────────────────────────────────────────
 ##@ Linux desktop
@@ -519,7 +535,7 @@ all: linux ## Build the Linux desktop binary (default target)
 # else: on a Windows or macOS host they cross-compile rather than silently producing a binary
 # for that host, and every target in this Makefile now states the GOOS it builds for. GOARCH
 # defaults to amd64 and is overridable, so an arm64 Linux machine builds for itself with
-# 'make LINUX_GOARCH=arm64 build' — pinning that too would make such a host cross-compile
+# 'make LINUX_GOARCH=arm64 linux' — pinning that too would make such a host cross-compile
 # unusably.
 LINUX_GOOS   := linux
 LINUX_GOARCH ?= amd64
@@ -678,38 +694,47 @@ FYNE_STAGED := $(APP_NAME).apk $(APP_NAME).apk.idsig $(APP_NAME).aab $(APP_NAME)
 # resumed anyway (every curl here runs without -C), so the next attempt restarts from zero
 # whether or not clean ran. The generated assets are left alone — see clean-all-the-things.
 clean: ## Remove built binaries and packages (cheap to rebuild)
-	rm -f $(BINARY) $(BUILDGADDAG_BIN) $(BINARY).apk $(BINARY)-*.apk $(BINARY)-*.apk.idsig
+	rm -f $(call repoPath,$(BINARY)) $(call repoPath,$(BUILDGADDAG_BIN)) $(call repoPath,$(BINARY)).apk $(call repoPath,$(BINARY))-*.apk $(call repoPath,$(BINARY))-*.apk.idsig
 # Desktop binaries for this host, plus every Windows .exe (any architecture, either type).
-	rm -f $(DESKTOP_BIN) $(DESKTOP_BIN_DEBUG) $(BINARY)-windows-*.exe
+	rm -f $(call repoPath,$(DESKTOP_BIN)) $(call repoPath,$(DESKTOP_BIN_DEBUG)) $(call repoPath,$(BINARY))-windows-*.exe
 # Release bundles, plus the APK Set intermediate a failed bundletool run can leave.
-	rm -f $(BINARY)-release*.aab $(BINARY)-release*.apks
+	rm -f $(call repoPath,$(BINARY))-release*.aab $(call repoPath,$(BINARY))-release*.apks
 # Packaging leftovers, wherever fyne was run. The whole tree is searched rather than $(CMD)
 # alone, so a second main package added later is covered without a change here. Each hit is
 # printed: a file disappearing from a source directory should not be silent.
+#
+# Every sweep below is rooted at $(MAKEFILE_DIR), the directory holding this Makefile, and
+# never at '.'. A recursive -delete rooted at the working directory would follow 'make -f
+# /path/to/TileWords/Makefile clean' out of the repo and delete matching files under whatever
+# directory make happened to be started from — and '.part', swept further down, is the
+# in-progress-download suffix used by Firefox and wget. Anchoring to the Makefile keeps clean
+# operating on this repo no matter where it is invoked from.
 	@for f in $(FYNE_STAGED); do \
-		find . -type f -name "$$f" -print -delete; \
+		find "$(MAKEFILE_DIR)" -type f -name "$$f" -print -delete; \
 	done
 # The FyneApp.toml that install-desktop stages into $(CMD) for the length of the build. That
 # recipe removes it even when the build itself fails, but not when make is interrupted first.
-# The search starts below the root so it cannot reach the repo's own copy, which is the file
-# being staged rather than a leftover.
-	@find . -mindepth 2 -type f -name FyneApp.toml -print -delete
+# The search starts below the repo root so it cannot reach the repo's own copy, which is the
+# file being staged rather than a leftover.
+	@find "$(MAKEFILE_DIR)" -mindepth 2 -type f -name FyneApp.toml -print -delete
 # Staging files the asset tools write beside their output and rename into place on success:
 # buildgaddag and builddefs write <output>.tmp, mergedefs its own .mergedefs-*.tmp. Each run
 # writes one from scratch rather than continuing an earlier one, so a leftover is dead weight.
-	rm -f $(DICT_DIR)/*.bin.tmp $(DEFS_ASSET).tmp $(DEFS_STAGE) $(DEFS_STAGE).tmp
-	rm -f $(DEFS_DIR)/.mergedefs-*.tmp
+	rm -f $(call repoPath,$(DICT_DIR))/*.bin.tmp $(call repoPath,$(DEFS_ASSET)).tmp $(call repoPath,$(DEFS_STAGE)) $(call repoPath,$(DEFS_STAGE)).tmp
+	rm -f $(call repoPath,$(dir $(DEFS_DIR)))/.mergedefs-*.tmp $(call repoPath,$(DEFS_DIR))/.mergedefs-*.tmp
 # Partial downloads. Every fetch stages through a .part and renames only once complete, so a
 # .part is always this Makefile's own temporary wherever it sits, never a source you supplied.
 # The whole tree is swept because they are not all in one place: the word lists leave theirs
 # in wordlists/, the WordNet fetch leaves one a level further down, and an overridden
 # KAIKKI_EXTRACT / WEBSTER_JSON leaves one whereever it points.
-	@find . -type f -name '*.part' -print -delete
+	@find "$(MAKEFILE_DIR)" -type f -name '*.part' -print -delete
 # Those two overrides can name a path outside the repo, which the sweep above cannot reach.
-	rm -f $(KAIKKI_EXTRACT).part $(WEBSTER_JSON).part
+# Quoted because an override may contain a space, which would otherwise split into two
+# unrelated rm targets.
+	rm -f "$(call repoPath,$(KAIKKI_EXTRACT)).part" "$(call repoPath,$(WEBSTER_JSON)).part"
 # The directory the WordNet fetch untars into before moving dict/ out of it. Its rule clears
 # and recreates it on every run, so a leftover is never an input to anything.
-	rm -rf $(DEFS_SRC_WORDNET)/stage
+	rm -rf $(call repoPath,$(DEFS_SRC_WORDNET))/stage
 
 # clean-all-the-things additionally drops the generated assets — every GADDAG, the
 # definitions asset and the About text — and, via clean-defs-sources, the downloaded
@@ -717,13 +742,13 @@ clean: ## Remove built binaries and packages (cheap to rebuild)
 # several GB and reprocesses it. Use plain 'clean' unless the assets themselves are what you
 # need to rebuild.
 clean-all-the-things: clean clean-defs-sources ## Remove the above PLUS every generated asset and downloaded source
-	rm -f $(DICT_DIR)/*.bin
+	rm -f $(call repoPath,$(DICT_DIR))/*.bin
 # The asset itself. The staging files that sit beside it are already gone: clean is a
 # prerequisite of this target, and takes them along with every other build temporary.
-	rm -f $(DEFS_ASSET)
+	rm -f $(call repoPath,$(DEFS_ASSET))
 # Partial downloads are already gone, wherever they sat: clean is a prerequisite of this
 # target and sweeps them along with every other build temporary.
-	rm -f $(TEXT_ASSETS)
+	rm -f $(foreach a,$(TEXT_ASSETS),$(call repoPath,$(a)))
 	@echo ''
 	@echo '>> WARNING: every generated asset is now gone, along with the downloaded definition'
 	@echo '>>   sources. The next build recompiles a GADDAG for each wordlists/*.txt, and'

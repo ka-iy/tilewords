@@ -53,6 +53,19 @@ func (g *gestureOwner) release() {
 	g.owner = nil
 }
 
+// releaseIf forgets the current owner only when it is still receiver.
+//
+// A gesture that is ending must not clear a claim that belongs to a later one. The driver keeps
+// replaying a fast release as decaying drag events for up to about half a second after the finger
+// is gone (see pageDragRouter.Dragged), so a second touch can land, and claim, while an earlier
+// gesture is still delivering. An unconditional release at that point would strip the new gesture
+// of its owner and hand its drag to the page instead.
+func (g *gestureOwner) releaseIf(receiver fyne.Draggable) {
+	if g.owner == receiver {
+		g.owner = nil
+	}
+}
+
 // deliverTo reports whether receiver should hand this drag to another widget, returning that
 // widget. A widget calls it on its own drag events: the answer is nil when it owns the gesture
 // itself (the ordinary case) or when nothing claimed one.
@@ -83,6 +96,15 @@ type pageDragRouter struct {
 
 	// gesture is the shared record of which widget the current gesture began on.
 	gesture *gestureOwner
+
+	// routed is the widget this router latched onto when the drag now in progress began. It is
+	// nil both between drags and while the router is panning the page itself, which is why
+	// routing distinguishes the two.
+	routed fyne.Draggable
+
+	// routing reports whether a drag is in progress, i.e. whether routed has been latched. It is
+	// set at the first Dragged of a gesture and cleared at its DragEnd.
+	routing bool
 }
 
 // pageDragRouter routes drags and observes touch phases. It implements no tap interface, so taps
@@ -116,9 +138,21 @@ func (r *pageDragRouter) TouchUp(*mobile.TouchEvent) {
 func (r *pageDragRouter) TouchCancel(*mobile.TouchEvent) {}
 
 // Dragged hands the drag to the widget the gesture began on, or pans the page when there is none.
+//
+// The owner is latched at the first event of the drag and reused for the rest of it, rather than
+// looked up again per event. The driver does not stop delivering when the finger lifts: a release
+// with any speed spawns a goroutine that replays Dragged every 16 ms with a decaying delta, then
+// DragEnd, for up to about half a second. Re-reading the shared owner on each of those would let a
+// second touch landing inside that window take over the tail of the first gesture — flick the page
+// to scroll, grab a rack tile, and the tile would be lifted and dropped at the coordinates where
+// the flick was released. Latching keeps a gesture's events with the gesture that started it.
 func (r *pageDragRouter) Dragged(e *fyne.DragEvent) {
-	if owner := r.gesture.current(); owner != nil {
-		owner.Dragged(e)
+	if !r.routing {
+		r.routed = r.gesture.current()
+		r.routing = true
+	}
+	if r.routed != nil {
+		r.routed.Dragged(e)
 		return
 	}
 	r.pan(e)
@@ -138,11 +172,18 @@ func (r *pageDragRouter) pan(e *fyne.DragEvent) {
 
 // DragEnd completes a routed gesture. Panning is applied incrementally in Dragged, so only a
 // forwarded gesture needs anything here.
+//
+// It ends the gesture Dragged latched onto, not whichever is current: this DragEnd can arrive from
+// the driver's post-release replay, by which time a second touch may already own the next gesture.
+// releaseIf leaves that newer claim alone.
 func (r *pageDragRouter) DragEnd() {
-	if owner := r.gesture.current(); owner != nil {
+	owner := r.routed
+	r.routed = nil
+	r.routing = false
+	if owner != nil {
 		owner.DragEnd()
 	}
-	r.gesture.release()
+	r.gesture.releaseIf(owner)
 }
 
 // CreateRenderer returns a transparent renderer: the router is invisible and only routes drags.

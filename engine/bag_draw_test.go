@@ -77,12 +77,17 @@ func TestBagDrawIsUniformAtEveryDrawPosition(t *testing.T) {
 // of Fisher-Yates, and Intn takes a different route to a bounded integer than the one
 // rand.Shuffle uses internally, so the two agree only if both are genuinely uniform.
 //
-// It is aimed at the shape players actually notice — how many copies of one letter, and of
-// one vowel, land on a rack together. Those rates are naturally high (E alone is 12 of the
-// 100 tiles), so a report of "too many duplicate vowels" can only be settled by comparing
-// against a known-good sampler rather than against intuition.
+// Two kinds of statistic are compared, because neither alone covers the ground:
+//
+//   - the shape players actually notice — how many copies of one letter, and of one vowel, land
+//     on a rack together. Those rates are naturally high (E alone is 12 of the 100 tiles), so a
+//     report of "too many duplicate vowels" can only be settled against a known-good sampler
+//     rather than against intuition;
+//   - the per-letter rate at which each tile is dealt at all. The shape statistics are nearly
+//     blind to a shuffle that favours particular positions, which is the failure mode
+//     Bag.Shuffle's doc warns about, and this catches it.
 func TestBagDrawMatchesReferenceSampler(t *testing.T) {
-	const trials = 50000
+	const trials = 200000
 
 	var pool []Tile
 	for _, spec := range tileDistribution {
@@ -99,7 +104,21 @@ func TestBagDrawMatchesReferenceSampler(t *testing.T) {
 	// counts[k] = racks whose most-repeated letter appeared k times; same for vowels.
 	var bagLetter, refLetter [MaxRackSize + 1]int
 	var bagVowel, refVowel [MaxRackSize + 1]int
+	// tally[letter] = how many tiles of that letter were dealt across every trial, blanks in
+	// slot 0. See the per-letter comparison below for why the shape statistics need this
+	// alongside them.
+	var bagTally, refTally [27]int
 	work := make([]Tile, len(pool))
+
+	tally := func(dst *[27]int, tiles []Tile) {
+		for _, t := range tiles {
+			if t.IsBlank {
+				dst[0]++
+				continue
+			}
+			dst[t.Letter-'A'+1]++
+		}
+	}
 
 	for i := 0; i < trials; i++ {
 		rack := &Rack{}
@@ -107,6 +126,7 @@ func TestBagDrawMatchesReferenceSampler(t *testing.T) {
 		hand := rack.Tiles()
 		bagLetter[maxRepeat(hand, false)]++
 		bagVowel[maxRepeat(hand, true)]++
+		tally(&bagTally, hand)
 
 		copy(work, pool)
 		for k := len(work) - 1; k > 0; k-- {
@@ -116,6 +136,30 @@ func TestBagDrawMatchesReferenceSampler(t *testing.T) {
 		ref := work[:MaxRackSize]
 		refLetter[maxRepeat(ref, false)]++
 		refVowel[maxRepeat(ref, true)]++
+		tally(&refTally, ref)
+	}
+
+	// Per-letter marginals, compared the same way. The two shape statistics above are counts of
+	// how many copies of *some* letter share a rack, which barely moves when a shuffle is biased
+	// towards particular positions: the pool is laid out letter by letter, so such a bias shows
+	// up as some letters being dealt too often and others too rarely, while the number of
+	// duplicates per rack stays about the same. A whole-slice Fisher-Yates index — the exact
+	// error Bag.Shuffle's doc warns about — passes both shape checks and fails this one.
+	chiLetters, dfLetters := 0.0, 0
+	for k := 0; k < len(bagTally); k++ {
+		b, r := float64(bagTally[k]), float64(refTally[k])
+		if b+r < 50 {
+			continue
+		}
+		chiLetters += (b - r) * (b - r) / (b + r)
+		dfLetters++
+	}
+	if dfLetters > 1 {
+		dfLetters--
+	}
+	if norm := chiLetters / float64(dfLetters); norm > 4 {
+		t.Errorf("per-letter deal rates differ from the reference sampler: chi2/df = %.2f (df=%d)\n bag=%v\n ref=%v",
+			norm, dfLetters, bagTally, refTally)
 	}
 
 	for _, tc := range []struct {

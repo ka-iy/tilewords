@@ -23,7 +23,7 @@ import (
 func TestPhoneColumn_BoardFillsWidth(t *testing.T) {
 	board := canvas.NewRectangle(color.Black)
 	other := canvas.NewRectangle(color.White)
-	l := phoneColumnLayout{board: board, minBoard: minBoardPx}
+	l := &phoneColumnLayout{board: board, minBoard: minBoardPx}
 
 	l.Layout([]fyne.CanvasObject{other, board}, fyne.NewSize(390, 1000))
 	if board.Size().Width != 390 || board.Size().Height != 390 {
@@ -56,7 +56,7 @@ func TestPhoneColumnScroll_HistorySizing(t *testing.T) {
 	status, rack, controls, cpuRack := mk(100), mk(80), mk(90), mk(70)
 	histWrap := container.New(minHeightLayout{minH: portraitHistoryMinH}, mk(0))
 	column := container.New(
-		phoneColumnLayout{board: board, minBoard: minBoardPx},
+		&phoneColumnLayout{board: board, minBoard: minBoardPx},
 		board, status, rack, controls, cpuRack, histWrap,
 	)
 	p := newPhoneColumnScroll(column, board, histWrap, &gestureOwner{})
@@ -88,7 +88,7 @@ func TestPhoneColumnScroll_HistorySizing(t *testing.T) {
 func TestPhoneColumn_FitsSubMinimumViewport(t *testing.T) {
 	board := canvas.NewRectangle(color.Black)
 	board.SetMinSize(fyne.NewSize(minBoardPx, minBoardPx))
-	l := phoneColumnLayout{board: board, minBoard: minBoardPx}
+	l := &phoneColumnLayout{board: board, minBoard: minBoardPx}
 	const viewport = minBoardPx - 8 // a viewport just under the board's preferred minimum
 
 	if w := l.MinSize([]fyne.CanvasObject{board}).Width; w > viewport {
@@ -109,7 +109,7 @@ func TestPhoneColumn_MinWidthIgnoresWideChildren(t *testing.T) {
 	board.SetMinSize(fyne.NewSize(minBoardPx, minBoardPx))
 	wide := canvas.NewRectangle(color.White)
 	wide.SetMinSize(fyne.NewSize(minBoardPx*2, 40)) // far wider than any phone viewport
-	l := phoneColumnLayout{board: board, minBoard: minBoardPx}
+	l := &phoneColumnLayout{board: board, minBoard: minBoardPx}
 	objs := []fyne.CanvasObject{board, wide}
 
 	if w := l.MinSize(objs).Width; w != 0 {
@@ -159,5 +159,32 @@ func TestGameScreen_ResponsiveFitsPhone(t *testing.T) {
 	content.Resize(fyne.NewSize(390, 844))
 	if w := content.MinSize().Width; w > phoneWidth {
 		t.Errorf("after switching back to phone size, min width %v exceeds %d", w, phoneWidth)
+	}
+}
+
+// TestPhoneColumn_MinHeightMatchesLaidOutBoard verifies the column reports the height it is
+// actually laid out at, on a phone wider than the board's minimum.
+//
+// The board is laid out square at the full column width, so its height is that width. Reporting
+// minBoard instead understates the column by (width - minBoard), and container.Scroll clamps the
+// scroll offset against MinSize rather than against the laid-out extent — so that many DIP of the
+// bottom of the page, the tail of the history and definitions pane, could never be scrolled to.
+func TestPhoneColumn_MinHeightMatchesLaidOutBoard(t *testing.T) {
+	const viewport = 412 // a Pixel-class phone, comfortably wider than minBoardPx
+
+	board := canvas.NewRectangle(color.Black)
+	board.SetMinSize(fyne.NewSize(minBoardPx, minBoardPx))
+	other := canvas.NewRectangle(color.White)
+	other.SetMinSize(fyne.NewSize(0, 100))
+
+	l := &phoneColumnLayout{board: board, minBoard: minBoardPx}
+	objs := []fyne.CanvasObject{board, other}
+
+	l.Layout(objs, fyne.NewSize(viewport, 2000))
+
+	laidOut := board.Size().Height + phoneColGap + other.Size().Height
+	if got := l.MinSize(objs).Height; got < laidOut {
+		t.Errorf("MinSize height = %.1f but the column lays out %.1f tall; the bottom %.1f DIP "+
+			"could not be scrolled into view", got, laidOut, laidOut-got)
 	}
 }

@@ -59,10 +59,13 @@ func TestFormatDefinitionEntryInflectionMerge(t *testing.T) {
 }
 
 func TestDefinitionsBlankLineSeparation(t *testing.T) {
-	// Two turns of history, so both entries belong to turns the history still reaches.
-	gs := &gameScreen{history: []historyEntry{{player: "You"}, {player: "CPU"}}}
-	gs.appendDefinition(defsEntry{text: "UNMIX\nverb - To separate.", turn: 0})
-	gs.appendDefinition(defsEntry{text: "MOUSE\nnoun - A small rodent.", turn: 1})
+	// Two turns of history, so both entries belong to plays the history still holds.
+	gs := &gameScreen{history: []historyEntry{
+		{player: "You", words: []string{"UNMIX"}},
+		{player: "CPU", words: []string{"MOUSE"}},
+	}}
+	gs.appendDefinition(defsEntry{text: "UNMIX\nverb - To separate.", turn: 0, word: "UNMIX"})
+	gs.appendDefinition(defsEntry{text: "MOUSE\nnoun - A small rodent.", turn: 1, word: "MOUSE"})
 
 	want := "UNMIX\nverb - To separate.\n\nMOUSE\nnoun - A small rodent."
 	if got := gs.definitionsText(); got != want {
@@ -74,9 +77,12 @@ func TestDefinitionsBlankLineSeparation(t *testing.T) {
 // turn that played it is undone, and that a lookup still in flight for that turn is refused
 // on arrival — lookups run off the UI goroutine, so one can be delivered after the undo.
 func TestDefinitionsDroppedOnUndo(t *testing.T) {
-	gs := &gameScreen{history: []historyEntry{{player: "You"}, {player: "CPU"}}}
-	gs.appendDefinition(defsEntry{text: "CRANE", turn: 0})
-	gs.appendDefinition(defsEntry{text: "ZEBRA", turn: 1})
+	gs := &gameScreen{history: []historyEntry{
+		{player: "You", words: []string{"CRANE"}},
+		{player: "CPU", words: []string{"ZEBRA"}},
+	}}
+	gs.appendDefinition(defsEntry{text: "CRANE", turn: 0, word: "CRANE"})
+	gs.appendDefinition(defsEntry{text: "ZEBRA", turn: 1, word: "ZEBRA"})
 
 	// Undo the CPU's turn.
 	gs.history = gs.history[:1]
@@ -87,16 +93,49 @@ func TestDefinitionsDroppedOnUndo(t *testing.T) {
 	}
 
 	// A late arrival for the undone turn must not reinstate it.
-	gs.appendDefinition(defsEntry{text: "ZEBRA", turn: 1})
+	gs.appendDefinition(defsEntry{text: "ZEBRA", turn: 1, word: "ZEBRA"})
 	if got := gs.definitionsText(); got != "CRANE" {
 		t.Errorf("a late lookup for an undone turn was appended: %q", got)
 	}
 
-	// Replaying the turn admits its definition again, exactly once.
-	gs.history = append(gs.history, historyEntry{player: "CPU"})
-	gs.appendDefinition(defsEntry{text: "ZEBRA", turn: 1})
+	// Replaying the same word at that turn admits its definition again, exactly once.
+	gs.history = append(gs.history, historyEntry{player: "CPU", words: []string{"ZEBRA"}})
+	gs.appendDefinition(defsEntry{text: "ZEBRA", turn: 1, word: "ZEBRA"})
 	if got := gs.definitionsText(); got != "CRANE\n\nZEBRA" {
 		t.Errorf("after replay definitions text = %q, want %q", got, "CRANE\n\nZEBRA")
+	}
+}
+
+// TestDefinitionsRefusedForReplacedTurn verifies a lookup in flight across an undo is refused when
+// the turn it belongs to has been replaced by a DIFFERENT play.
+//
+// The turn index is a position, not an identity: the replacement play takes the index the undone
+// one had, so a length check alone readmits the old word once the history regrows past it. The
+// panel would then describe a word that was never on the board. The window is real at startup,
+// where the worker blocks on the one-time decode of the definitions asset while every dispatched
+// word waits in the queue.
+func TestDefinitionsRefusedForReplacedTurn(t *testing.T) {
+	gs := &gameScreen{history: []historyEntry{
+		{player: "You", words: []string{"CRANE"}},
+		{player: "You", words: []string{"DOG"}},
+		{player: "CPU", words: []string{"OX"}},
+	}}
+	gs.appendDefinition(defsEntry{text: "CRANE", turn: 0, word: "CRANE"})
+
+	// Undo back past DOG, then play PIG instead and let the CPU reply. History is the same
+	// length it was, so a positional check would admit the queued DOG lookup.
+	gs.history = gs.history[:1]
+	gs.dropUndoneDefinitions()
+	gs.history = append(gs.history,
+		historyEntry{player: "You", words: []string{"PIG"}},
+		historyEntry{player: "CPU", words: []string{"OX"}},
+	)
+
+	gs.appendDefinition(defsEntry{text: "DOG", turn: 1, word: "DOG"})
+
+	if got := gs.definitionsText(); got != "CRANE" {
+		t.Errorf("definitions text = %q, want %q: the panel described DOG, which the replacement "+
+			"play never formed", got, "CRANE")
 	}
 }
 
@@ -113,8 +152,8 @@ func TestDefinitionsScrollClampedOnUndo(t *testing.T) {
 	// Enough entries that the panel is taller than its viewport and scrolled to the bottom.
 	const turns = 50
 	for i := 0; i < turns; i++ {
-		gs.history = append(gs.history, historyEntry{player: "You"})
-		gs.appendDefinition(defsEntry{text: "CRANE\nnoun - A tall wading bird.", turn: i})
+		gs.history = append(gs.history, historyEntry{player: "You", words: []string{"CRANE"}})
+		gs.appendDefinition(defsEntry{text: "CRANE\nnoun - A tall wading bird.", turn: i, word: "CRANE"})
 	}
 	viewH := gs.defsScroll.Size().Height
 	if gs.defsLabel.MinSize().Height <= viewH {

@@ -55,8 +55,11 @@ func TestPanelsFollowEndAcrossLayoutChange(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		gs.logCommand("You", &engine.PassCommand{})
 	}
+	// A pass forms no word, so give each logged turn one: appendDefinition admits an entry only
+	// for a word the play at that turn actually formed.
 	for i := range gs.history {
-		gs.appendDefinition(defsEntry{text: longGloss, turn: i})
+		gs.history[i].words = []string{"CRANE"}
+		gs.appendDefinition(defsEntry{text: longGloss, turn: i, word: "CRANE"})
 	}
 	checkScrolledToEnd(t, gs.historyScroll, "move history")
 	checkScrolledToEnd(t, gs.defsScroll, "definitions")

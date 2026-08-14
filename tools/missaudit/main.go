@@ -150,14 +150,23 @@ func scanWords(path string) ([]string, error) {
 // writeMisses emits the deduplicated, sorted miss list to dest ("" means stdout).
 // With tag set, each line is the word followed by the tab-separated base names of
 // the lists it was missing in; otherwise each line is just the word.
-func writeMisses(dest string, misses []string, missIn map[string]map[int]bool, lists []string, tag bool) error {
+func writeMisses(dest string, misses []string, missIn map[string]map[int]bool, lists []string, tag bool) (err error) {
 	out := os.Stdout
 	if dest != "" {
-		f, err := os.Create(dest)
-		if err != nil {
-			return fmt.Errorf("create %q: %w", dest, err)
+		f, createErr := os.Create(dest)
+		if createErr != nil {
+			return fmt.Errorf("create %q: %w", dest, createErr)
 		}
-		defer f.Close()
+		// The Close is reported rather than dropped: a write can fail for the first time at
+		// close, since a delayed-allocation or network filesystem reports ENOSPC there and not
+		// at the write itself. Dropping it would exit 0 having written a truncated miss list
+		// that the next stage of the pipeline reads as complete. An error already on its way
+		// out wins, being the one that explains what went wrong. Stdout is not ours to close.
+		defer func() {
+			if closeErr := f.Close(); closeErr != nil && err == nil {
+				err = fmt.Errorf("close %q: %w", dest, closeErr)
+			}
+		}()
 		out = f
 	}
 

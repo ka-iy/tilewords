@@ -127,6 +127,12 @@ func (s *rackSlotWidget) DragEnd() {
 		s.onDragEnd(s.idx, s.dragAbs)
 	}
 	s.dragging = false
+	// Release here as well as in TouchUp: the driver delivers no TouchUp for a gesture that
+	// became a drag, so this is the only end-of-gesture this slot sees for every drag it owns.
+	// Without it the claim outlives the gesture and redirects a later one.
+	if s.gesture != nil {
+		s.gesture.releaseIf(s)
+	}
 }
 
 // TouchDown claims the gesture for this slot. It is the whole point of implementing

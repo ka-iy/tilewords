@@ -5,6 +5,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -49,6 +50,9 @@ type defsEntry struct {
 	text string
 	// turn is the history index of the play that formed the word; see defsRequest.turn.
 	turn int
+	// word is the word looked up. It identifies which play the entry came from, which the turn
+	// index alone cannot do — see appendDefinition.
+	word string
 }
 
 // dispatchHistoryDefinitions queues the words of every play already in the move history
@@ -130,7 +134,7 @@ func (gs *gameScreen) runDefinitionsWorker() {
 		return
 	}
 	for req := range gs.defsWordCh {
-		entry := defsEntry{text: formatDefinitionEntry(db, req.word), turn: req.turn}
+		entry := defsEntry{text: formatDefinitionEntry(db, req.word), turn: req.turn, word: req.word}
 		fyne.Do(func() { gs.appendDefinition(entry) })
 	}
 }
@@ -141,11 +145,21 @@ func (gs *gameScreen) runDefinitionsWorker() {
 // An entry whose turn the history no longer reaches is dropped: lookups run off the UI
 // goroutine, so one dispatched before an undo can arrive after it, and appending it would
 // put an undone word back into the panel that dropUndoneDefinitions had just cleaned.
+//
+// Reaching that index is not on its own enough, because the index is a position rather than an
+// identity. An undone turn is replaced by whatever is played next, which takes the same index, so
+// a lookup dispatched before the undo would be admitted against a play that never formed its word
+// — the panel would describe a word that was never on the board. The word must therefore still be
+// one the play now occupying that turn formed. A word genuinely replayed at the same index still
+// matches, which is the case dropUndoneDefinitions is written to allow.
 func (gs *gameScreen) appendDefinition(entry defsEntry) {
 	if gs.abandoned {
 		return
 	}
 	if entry.turn >= len(gs.history) {
+		return
+	}
+	if !slices.Contains(gs.history[entry.turn].words, entry.word) {
 		return
 	}
 	gs.defsEntries = append(gs.defsEntries, entry)

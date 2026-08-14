@@ -26,6 +26,17 @@ func dragEventAt(x, y float32) *fyne.DragEvent {
 	return &fyne.DragEvent{PointEvent: fyne.PointEvent{AbsolutePosition: fyne.NewPos(x, y)}}
 }
 
+// wantDropAt is the position a drag ending at the driver-reported point resolves to. On mobile
+// that reported point sits touchYCompensation above the finger and dragAbsPosition corrects it,
+// so a test asserting where the drop lands has to expect the corrected value on that platform
+// and the raw one on desktop.
+func wantDropAt(x, y float32) fyne.Position {
+	if deviceIsMobile() {
+		y += touchYCompensation
+	}
+	return fyne.NewPos(x, y)
+}
+
 // TestCellWidget_DragEndReportsPosition: a cell drag reports its coordinates and final
 // pointer position to the controller, and only after a real drag.
 func TestCellWidget_DragEndReportsPosition(t *testing.T) {
@@ -41,8 +52,8 @@ func TestCellWidget_DragEndReportsPosition(t *testing.T) {
 
 	c.Dragged(dragEventAt(20, 40))
 	c.DragEnd()
-	if gotR != 3 || gotC != 5 || gotPos != fyne.NewPos(20, 40) {
-		t.Fatalf("cell DragEnd reported (%d,%d,%v), want (3,5,(20,40))", gotR, gotC, gotPos)
+	if want := wantDropAt(20, 40); gotR != 3 || gotC != 5 || gotPos != want {
+		t.Fatalf("cell DragEnd reported (%d,%d,%v), want (3,5,%v)", gotR, gotC, gotPos, want)
 	}
 }
 
@@ -61,8 +72,8 @@ func TestRackSlot_DragEndReportsPosition(t *testing.T) {
 
 	s.Dragged(dragEventAt(12, 34))
 	s.DragEnd()
-	if gotIdx != 4 || gotPos != fyne.NewPos(12, 34) {
-		t.Fatalf("DragEnd reported (idx=%d, pos=%v), want (4, (12,34))", gotIdx, gotPos)
+	if want := wantDropAt(12, 34); gotIdx != 4 || gotPos != want {
+		t.Fatalf("DragEnd reported (idx=%d, pos=%v), want (4, %v)", gotIdx, gotPos, want)
 	}
 }
 
