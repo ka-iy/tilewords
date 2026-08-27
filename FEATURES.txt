@@ -25,3 +25,5 @@
 • About and Lexicon: an in-app dialog crediting the word lists and dictionaries, with the source links copyable to the clipboard.
 
 • Show/Hide CPU rack: For those times when you need to get a leg (or at least a toe) up on a frighteningly capable machine opponent.
+
+• Narrow and Wide views: On mobile devices, the game automatically switches between the narrow and wide views depending upon the available screen real estate. For foldable mobile devices, the view automatically switches to the wide view when the device is switched to using the unfolded inner screen. Desktop versions are always in wide view mode.

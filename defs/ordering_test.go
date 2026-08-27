@@ -18,7 +18,7 @@ func reorderedAsset(t *testing.T) []byte {
 	db := NewDB(map[string]*Entry{
 		"cat": {Word: "cat", Senses: []Sense{{POS: "noun", Gloss: "feline"}}},
 		"dog": {Word: "dog", Senses: []Sense{{POS: "noun", Gloss: "canine"}}},
-	}, map[string]string{"cats": "cat"})
+	}, map[string]Inflection{"cats": {Lemma: "cat"}})
 
 	var enc bytes.Buffer
 	if err := db.Encode(&enc); err != nil {
@@ -76,7 +76,7 @@ func TestDecodeAcceptsSortedAsset(t *testing.T) {
 	db := NewDB(map[string]*Entry{
 		"cat": {Word: "cat", Senses: []Sense{{POS: "noun", Gloss: "feline"}}},
 		"dog": {Word: "dog", Senses: []Sense{{POS: "noun", Gloss: "canine"}}},
-	}, map[string]string{"cats": "cat"})
+	}, map[string]Inflection{"cats": {Lemma: "cat"}})
 	var enc bytes.Buffer
 	if err := db.Encode(&enc); err != nil {
 		t.Fatalf("encode: %v", err)

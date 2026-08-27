@@ -74,12 +74,26 @@ func main() {
 			s := res.Entry.Senses[0]
 			gloss = strings.TrimSpace(s.POS + " " + s.Gloss)
 		}
-		fmt.Printf("%-24s  [%-6s -> %-20s] %s\n", w, res.Kind, res.Headword, gloss)
+		label := ""
+		if res.Kind == defs.MatchFormOf {
+			label = relation(res.Relation)
+		}
+		fmt.Printf("%-24s  [%-6s -> %-20s] %s%s\n", w, res.Kind, res.Headword, label, gloss)
 		if res.AlsoForm != nil && len(res.AlsoForm.Senses) > 0 {
 			s := res.AlsoForm.Senses[0]
-			fmt.Printf("%-24s     also form of %-13s %s\n", "", res.AlsoFormWord, strings.TrimSpace(s.POS+" "+s.Gloss))
+			fmt.Printf("%-24s     also %s%-13s %s\n", "",
+				relation(res.AlsoFormRelation), res.AlsoFormWord, strings.TrimSpace(s.POS+" "+s.Gloss))
 		}
 	}
+}
+
+// relation renders how a form relates to the headword it resolved to, for the lines above.
+// An edge the extract left undescribed prints as the plain "form of" the game shows.
+func relation(rel string) string {
+	if rel == "" {
+		return "form of "
+	}
+	return rel + " of "
 }
 
 // audit prints every word in the list that resolves via the named match kind,

@@ -124,6 +124,10 @@ func printReport(r *defs.Report, outPath string) {
 			c.Name, c.Total, c.Exact, c.FormOf, c.Stem, c.Fuzzy, c.Miss, pct)
 	}
 
+	fmt.Printf("\n  senses that only point at another word : %d\n", r.RedirectSenses)
+	fmt.Printf("    extra headwords kept to join them on: %d\n", r.RedirectTargets)
+	fmt.Printf("  initialism senses dropped             : %d\n", r.DroppedInitialisms)
+
 	fmt.Printf("\n  base asset: %d headwords, %d inflection edges -> %s\n",
 		r.ShippedHeadwords, r.ShippedForms, outPath)
 

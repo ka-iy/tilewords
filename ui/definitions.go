@@ -196,6 +196,10 @@ func (gs *gameScreen) scrollDefinitionsToEnd() {
 // in upper case, then each sense on its own line (part of speech and gloss), then any
 // "form of" reading for a word that is also an inflection of another lemma. A word
 // with no definition still gets an entry, so the panel accounts for every word played.
+//
+// A played word Wiktionary records as an inflection has no definition of its own — the
+// senses shown belong to the lemma — so the first line names the lemma ahead of them:
+// "plural of cat: A small feline".
 func formatDefinitionEntry(db *defs.DB, word string) string {
 	header := strings.ToUpper(word)
 	res, ok := db.Lookup(word)
@@ -204,19 +208,34 @@ func formatDefinitionEntry(db *defs.DB, word string) string {
 	}
 	var b strings.Builder
 	b.WriteString(header)
-	for _, s := range res.Entry.Senses {
+	for i, s := range res.Entry.Senses {
 		b.WriteByte('\n')
 		if s.POS != "" {
 			b.WriteString(s.POS)
 			b.WriteString(" - ")
 		}
+		if i == 0 && res.Kind == defs.MatchFormOf {
+			b.WriteString(inflectionLabel(res.Relation, res.Headword))
+			b.WriteString(": ")
+		}
 		b.WriteString(s.Gloss)
 	}
 	if res.AlsoForm != nil && len(res.AlsoForm.Senses) > 0 {
-		b.WriteString("\nalso form of ")
-		b.WriteString(res.AlsoFormWord)
+		b.WriteString("\nalso ")
+		b.WriteString(inflectionLabel(res.AlsoFormRelation, res.AlsoFormWord))
 		b.WriteString(": ")
 		b.WriteString(res.AlsoForm.Senses[0].Gloss)
 	}
 	return b.String()
+}
+
+// inflectionLabel names how a played word reaches the lemma whose senses are being shown:
+// Wiktionary's own description of the inflection when the asset carries one ("plural of
+// cat"), and a plain "form of cat" when it does not, which says only what is known rather
+// than guessing at which inflection it is.
+func inflectionLabel(relation, lemma string) string {
+	if relation == "" {
+		return "form of " + lemma
+	}
+	return relation + " of " + lemma
 }
