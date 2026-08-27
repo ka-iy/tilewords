@@ -29,6 +29,4 @@ DEFINITIONS
 • The Online Plain Text English Dictionary (OPTED) v0.03: by Ralph S. Sutherland, public domain, derived from the Project Gutenberg etext of Webster's Unabridged Dictionary (1913). https://www.mso.anu.edu.au/~ralph/OPTED/
 
 
-Definitions are shown for reference during play. Where more than one source defines a word, the Wiktionary sense is preferred; Webster's 1913, WordNet, and the glossaries fill gaps for archaic, dialectal, and tournament-lexicon words.
-
-While (almost) every effort has been made to fill the gaps in the definitions, gaps do remain; where a played word has no definition that could be found, such will be indicated in the "Definitions" tab on the game screen.
+Definitions are shown for reference during play. Where more than one source defines a word, the Wiktionary sense is preferred; Webster's 1913, WordNet, and the glossaries fill gaps for archaic, dialectal, and tournament-lexicon words. Should a played word ever lack a definition, that is shown in the "Definitions" tab rather than passed over in silence.

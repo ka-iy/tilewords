@@ -39,7 +39,7 @@ All other external-entity trademarks, names, logos, and service marks (collectiv
 - **Free, offline and private:** the game is open-source, requires no payment, and will never track you or show you ads. It needs no network connection and requests no internet permission. Everything runs on your device.
 - **Free and libre word lists:** at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the [My Word!](#my-word) section.
    - The word list artefacts created during the build process are in an optimized form to minimize disk and memory usage on mobile devices.
-- **Word definitions:** the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and other libre / public-domain glossaries. Words with no definition are noted rather than silently skipped.
+- **Word definitions:** the meaning of each word played is shown, drawn from Wiktionary, Webster's 1913, WordNet, and other libre / public-domain glossaries. The UI shows "no definition found" for a word that lacks a definition.
    - Like the word lists, the definitions artefact is stored in a compact flat form and streamed in at load, decreasing memory requirements.
 - **Two game modes:** Classic Mode uses the standard 15x15 premium-square layout and tile economy, while Interesting Mode uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
 - **Selectable CPU difficulty:** choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard). Even at level 10, the CPU is not infallible - just like a human being. At level 11, it is - this is Demigod Mode (for the CPU, not you). To quote from `This is Spinal Tap`: _"Why don't you just make 10 louder and make 10 be the top number?"_ **/** _"...These go to ELEVEN!"_
@@ -165,9 +165,12 @@ recorded in [`defs/assets/definitions/SOURCES.md`](defs/assets/definitions/SOURC
 - **Webster's Revised Unabridged Dictionary, 1913** (public domain) - archaic and
   technical headwords Wiktionary does not define.
 - **Princeton WordNet 3.1** (WordNet licence) - headwords neither source above covers.
-- **Curated public-domain glossaries**, committed as `defs/supplemental-glossary.tsv`
-  (Jamieson's Scots dictionary and a Spenser glossary). Hand-checked, so it lives in the
-  repository rather than being scraped at build time.
+- **The committed glossary**, `defs/supplemental-glossary.tsv` - 8,796 entries that
+  close the rest of the gap. It is committed as plain reviewable text, rather than being
+  scraped at build time, so every gloss the game ships can be read and corrected. Most of
+  it is the obscure tournament vocabulary the three sources above simply do not carry; the
+  remainder comes from curated public-domain glossaries (Jamieson's Scots dictionary, a
+  Spenser glossary, and others). Each section names its own source.
 
 The first three are downloaded on demand and are git-ignored rather than committed. Be
 aware that the Wiktionary extract alone is several GB, so a run that has to fetch it takes
@@ -197,6 +200,10 @@ Report per-list coverage and the words that still have no definition:
 ```bash
 make defs-audit
 ```
+
+As of the current asset that reports 100% on all three lists. The only words it still
+counts as missing are the ones listed in `defs/possibly_invalid_words.txt`, which
+`buildgaddag` drops from the compiled dictionaries, so they are never playable.
 
 ### Build and run
 
@@ -349,7 +356,7 @@ TileWords is built on freely available word lists and dictionaries. Grateful ack
 
 Definitions are shown for reference during play. Where more than one source defines a word, the Wiktionary sense is preferred; Webster's 1913, WordNet, and the glossaries fill gaps for archaic and dialectal words.
 
-While (almost) every effort has been made to fill the gaps in the definitions, gaps do remain; where a played word has no definition that could be found, such will be indicated in the "Definitions" tab on the game screen.
+Every word the shipped lists accept now has a definition: coverage is 100% across `enable`, `wordnik` and `atebits-letterpress`. A handful of words that no source anywhere defines were found to be spurious; they are listed in `defs/possibly_invalid_words.txt` and dropped from the compiled dictionaries, so the game will not offer a word it cannot explain. Should a played word ever lack a definition, that is shown in the "Definitions" tab rather than passed over in silence.
 
 ----------
 

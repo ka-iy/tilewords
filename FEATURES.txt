@@ -2,7 +2,7 @@
 
 • Free and libre word lists: at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the Lexicon.
 
-• Word definitions: the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and other libre / public-domain glossaries. Words with no definition are noted rather than silently skipped.
+• Word definitions: the meaning of each word played is shown, drawn from Wiktionary, Webster's 1913, WordNet, and other libre / public-domain glossaries. The UI shows "no definition found" for a word that lacks a definition.
 
 • Two game modes: Classic Mode uses the standard 15x15 premium-square layout and tile economy, while Interesting Mode uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
 

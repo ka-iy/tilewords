@@ -1,0 +1,29 @@
+# Words carried by a shipped word list that no dictionary defines.
+#
+# Format: one entry per line, "<word>\t<comma-separated source word lists>". Lines
+# starting with # and blank lines are ignored. Consumed by tools/buildgaddag via
+# -exclude, which drops each listed word from every compiled GADDAG asset, so the game
+# neither accepts the word as a play nor has to show it with no meaning.
+#
+# An entry earns its place here only after every definition source has been searched
+# and none carries the headword: Wiktionary, Webster's 1913, WordNet, the curated
+# glossary, and internet searches across dictionary and reference sites. Each is
+# recorded with the reason it is believed to be spurious rather than merely obscure.
+# A word later found to be genuine should be removed from this file, with its gloss
+# added to supplemental-glossary.tsv.
+#
+# Every entry below comes from wordnik.txt alone. That list is crowd-sourced, and the
+# shapes here (a doubled plural, an unattested spelling) are consistent with
+# collection artefacts rather than with real headwords.
+
+# A doubled plural: LUDS is already the plural of LUD, a minced form of "lord".
+ludss	wordnik
+# No English headword found. Attested only as the ISO 639 code for Karakalpak, which
+# is a language tag rather than an English word.
+kaa	wordnik
+# No English headword found. Senses exist in Turkish, Norwegian and several Indian
+# languages, but none in English; possibly a stray form of KOS, an Indian unit of length.
+kose	wordnik
+# No English headword found in any mineralogical or general source; the nearest
+# attested names are SAPONITE and SCAPOLITE, neither of which is spelled this way.
+soapolite	wordnik

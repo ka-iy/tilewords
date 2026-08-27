@@ -29,10 +29,12 @@ Thumbs.db
 .*.swo
 .idea/
 
-# binaries
+# binaries. Each is anchored with a leading slash so it matches only the compiled
+# artifact at the repo root: unanchored, 'buildgaddag' also matches the tools/buildgaddag/
+# source directory and silently keeps the tool out of the repo.
 *.apk
 *.apk.idsig
-buildgaddag
+/buildgaddag
 /tilewords*
 
 # raw definition sources fetched on demand by `make defs` (see

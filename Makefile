@@ -305,9 +305,16 @@ $(WL_ATEBITS): | $(WORDLISTS_DIR)
 	curl -fsSL -o $@.part $(WL_ATEBITS_URL)
 	mv $@.part $@
 
+# Words a shipped list carries that no dictionary defines. buildgaddag drops each one
+# from every asset it compiles, so the game does not accept as a play a word it could
+# only ever show with no meaning. It is a prerequisite of the rule below, so editing it
+# recompiles every GADDAG.
+EXCLUDE_WORDS := defs/possibly_invalid_words.txt
+
 # Compile any word list into its GADDAG asset. The stem ($*) is the dictionary name.
-$(DICT_DIR)/%.bin: $(WORDLISTS_DIR)/%.txt | $(DICT_DIR)
-	$(BUILDGADDAG) -input $< -output $@ -name $*
+# $< is the word list alone, so naming $(EXCLUDE_WORDS) second leaves -input unaffected.
+$(DICT_DIR)/%.bin: $(WORDLISTS_DIR)/%.txt $(EXCLUDE_WORDS) | $(DICT_DIR)
+	$(BUILDGADDAG) -input $< -output $@ -name $* -exclude $(EXCLUDE_WORDS)
 
 # ── Definitions asset ─────────────────────────────────────────────────────────
 #

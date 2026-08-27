@@ -77,6 +77,24 @@ requirement of the respective sources.
       via Wikisource. Covers Spenserian archaisms (`teene`, `talaunts`,
       `counterfesaunce`).
       https://en.wikisource.org/wiki/The_Faerie_Queene_(unsourced)/Book_I/Glossary
+    - **Internet-sourced paraphrase** (`# --- internet-sourced-paraphrase ---`) — glosses
+      researched from internet searches across dictionary and reference sites and then
+      written independently for this project. They close the remaining coverage gap: the
+      obscure vocabulary the shipped lists carry that none of the sources above defines
+      (`abeigh`, `ablutomane`, `farnarkel`, `quilliq`). No source's wording is reproduced;
+      each gloss states the meaning in its own words. Where a gloss is a bare synonym that
+      cannot be reworded without changing the sense (`a wasp`, `(Scots) bright`), the plain
+      wording stands, being a statement of fact rather than anyone's expression.
+
+## Words no source defines
+
+A word a shipped list carries that no source above defines, and that internet searches
+also fail to attest, is recorded in `defs/possibly_invalid_words.txt` with the word list
+it came from and the reason it is believed spurious. `tools/buildgaddag` reads that file
+via `-exclude` and drops each listed word from every GADDAG asset it compiles, so the
+game neither accepts the word as a play nor has to show it with no meaning. No gloss is
+ever invented for such a word. A word later shown to be genuine should be removed from
+that file and given a gloss in `supplemental-glossary.tsv` instead.
 
 ## Precedence and integrity
 
