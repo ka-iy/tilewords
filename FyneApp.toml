@@ -6,8 +6,8 @@ Website = "https://github.com/tilewords"
 Icon = "ui/Icon.png"
 Name = "TileWords"
 ID = "fyi.tilewords.game"
-Version = "0.1.1"
-Build = 2
+Version = "0.1.2"
+Build = 3
 
 # Opt into Fyne's fyne.Do threading model: all UI mutations from background goroutines
 # (dictionary load, CPU move application, press-flash revert) are marshalled onto the UI
