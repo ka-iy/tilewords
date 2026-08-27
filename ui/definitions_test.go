@@ -19,7 +19,35 @@ func testDefsDB() *defs.DB {
 		"unmix": {Word: "unmix", Senses: []defs.Sense{{POS: "verb", Gloss: "To separate what has been mixed."}}},
 		"mouse": {Word: "mouse", Senses: []defs.Sense{{POS: "noun", Gloss: "A small rodent."}}},
 		"mice":  {Word: "mice", Senses: []defs.Sense{{POS: "verb", Gloss: "To hunt mice."}}},
-	}, map[string]string{"mice": "mouse"})
+		"cat":   {Word: "cat", Senses: []defs.Sense{{POS: "noun", Gloss: "A small feline."}}},
+		"abac":  {Word: "abac", Senses: []defs.Sense{{POS: "noun", Gloss: "Synonym of nomogram."}}},
+		"nomogram": {Word: "nomogram", Senses: []defs.Sense{
+			{POS: "noun", Gloss: "A diagram of the relationship between variables."}}},
+	}, map[string]defs.Inflection{
+		"mice": {Lemma: "mouse", Relation: "plural"},
+		"cats": {Lemma: "cat", Relation: "plural"},
+	})
+}
+
+// TestFormatDefinitionEntryInflection covers a played word that only Wiktionary's own
+// inflection edge explains: the senses shown are the lemma's, so the entry has to say
+// whose they are.
+func TestFormatDefinitionEntryInflection(t *testing.T) {
+	got := formatDefinitionEntry(testDefsDB(), "CATS")
+	if !strings.Contains(got, "noun - plural of cat: A small feline.") {
+		t.Errorf("entry does not name the lemma the senses belong to; got %q", got)
+	}
+}
+
+// TestFormatDefinitionEntryRedirect covers the other half: a word whose own sense only
+// points at another word arrives from Lookup with that word's definition already joined
+// on, and is rendered as the single line it is.
+func TestFormatDefinitionEntryRedirect(t *testing.T) {
+	got := formatDefinitionEntry(testDefsDB(), "ABAC")
+	want := "noun - Synonym of nomogram: A diagram of the relationship between variables."
+	if !strings.Contains(got, want) {
+		t.Errorf("entry = %q, want it to contain %q", got, want)
+	}
 }
 
 func TestFormatDefinitionEntry(t *testing.T) {
@@ -53,7 +81,7 @@ func TestFormatDefinitionEntryInflectionMerge(t *testing.T) {
 	if !strings.Contains(got, "verb - To hunt mice.") {
 		t.Errorf("entry missing the word's own sense; got %q", got)
 	}
-	if !strings.Contains(got, "also form of mouse: A small rodent.") {
+	if !strings.Contains(got, "also plural of mouse: A small rodent.") {
 		t.Errorf("entry missing the inflection reading; got %q", got)
 	}
 }

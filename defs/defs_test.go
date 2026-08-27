@@ -90,7 +90,7 @@ func TestShortClassicalPluralsResolveByFormOf(t *testing.T) {
 	entries := map[string]*Entry{
 		"cactus": {Word: "cactus", Senses: []Sense{{POS: "noun", Gloss: "a spiny plant"}}},
 	}
-	db := NewDB(entries, map[string]string{"cacti": "cactus"})
+	db := NewDB(entries, map[string]Inflection{"cacti": {Lemma: "cactus", Relation: "plural"}})
 
 	res, ok := db.Lookup("cacti")
 	if !ok {
@@ -132,7 +132,7 @@ func TestLookupLayers(t *testing.T) {
 		"flavor": {Word: "flavor", Senses: []Sense{{POS: "noun", Gloss: "taste"}}},
 		"child":  {Word: "child", Senses: []Sense{{POS: "noun", Gloss: "a young human"}}},
 	}
-	formOf := map[string]string{"children": "child"}
+	formOf := map[string]Inflection{"children": {Lemma: "child", Relation: "plural"}}
 	db := NewDB(entries, formOf)
 
 	cases := []struct {
@@ -172,7 +172,7 @@ func TestLookupExactMergesInflection(t *testing.T) {
 		"mouse": {Word: "mouse", Senses: []Sense{{POS: "noun", Gloss: "a small rodent"}}},
 		"cat":   {Word: "cat", Senses: []Sense{{POS: "noun", Gloss: "a small feline"}}},
 	}
-	db := NewDB(entries, map[string]string{"mice": "mouse"})
+	db := NewDB(entries, map[string]Inflection{"mice": {Lemma: "mouse", Relation: "plural"}})
 
 	res, ok := db.Lookup("mice")
 	if !ok || res.Kind != MatchExact || res.Headword != "mice" {
@@ -194,7 +194,7 @@ func TestWithSupplement(t *testing.T) {
 		map[string]*Entry{
 			"cat": {Word: "cat", Senses: []Sense{{POS: "noun", Gloss: "authoritative feline"}}},
 		},
-		map[string]string{"cats": "cat"},
+		map[string]Inflection{"cats": {Lemma: "cat", Relation: "plural"}},
 	)
 
 	sup := base.WithSupplement(
@@ -204,11 +204,11 @@ func TestWithSupplement(t *testing.T) {
 			// Collides with an existing headword — base must win, not be overwritten.
 			"cat": {Word: "cat", Senses: []Sense{{Gloss: "lower-priority feline"}}},
 		},
-		map[string]string{
+		map[string]Inflection{
 			// New edge for a word the base cannot resolve — must be added.
-			"abreges": "abrege",
+			"abreges": {Lemma: "abrege"},
 			// Collides with an existing edge — base edge must win.
-			"cats": "dog",
+			"cats": {Lemma: "dog"},
 		},
 	)
 
@@ -241,7 +241,7 @@ func TestEncodeDecodeRoundTrip(t *testing.T) {
 		"cat":   {Word: "cat", Senses: []Sense{{POS: "noun", Gloss: "a small feline"}}},
 		"child": {Word: "child", Senses: []Sense{{POS: "noun", Gloss: "a young human"}}},
 	}
-	db := NewDB(entries, map[string]string{"children": "child"})
+	db := NewDB(entries, map[string]Inflection{"children": {Lemma: "child", Relation: "plural"}})
 
 	var buf bytes.Buffer
 	if err := db.Encode(&buf); err != nil {
@@ -270,7 +270,7 @@ func TestEncodeIsDeterministic(t *testing.T) {
 		"cat":   {Word: "cat", Senses: []Sense{{POS: "noun", Gloss: "a small feline"}}},
 		"child": {Word: "child", Senses: []Sense{{POS: "noun", Gloss: "a young human"}}},
 		"dog":   {Word: "dog", Senses: []Sense{{POS: "noun", Gloss: "a canine"}, {POS: "verb", Gloss: "to follow"}}},
-	}, map[string]string{"children": "child", "dogs": "dog"})
+	}, map[string]Inflection{"children": {Lemma: "child"}, "dogs": {Lemma: "dog"}})
 
 	var first, second bytes.Buffer
 	if err := db.Encode(&first); err != nil {
@@ -290,7 +290,7 @@ func TestEncodeIsDeterministic(t *testing.T) {
 func TestNewDBDropsUnresolvableEdge(t *testing.T) {
 	db := NewDB(
 		map[string]*Entry{"child": {Word: "child", Senses: []Sense{{POS: "noun", Gloss: "a young human"}}}},
-		map[string]string{"children": "child", "geese": "goose"},
+		map[string]Inflection{"children": {Lemma: "child"}, "geese": {Lemma: "goose"}},
 	)
 
 	if got, want := db.FormCount(), 1; got != want {
@@ -312,6 +312,7 @@ type rawAsset struct {
 	nSense     uint64
 	nForm      uint64
 	posTable   []string
+	relTable   []string
 	headBlob   string
 	headLens   []uint64
 	senseCount []uint64
@@ -321,6 +322,7 @@ type rawAsset struct {
 	formBlob   string
 	formLens   []uint64
 	formLemma  []uint64
+	formRel    []uint64
 }
 
 // validAsset describes a two-headword, one-edge asset that Decode must accept.
@@ -331,6 +333,7 @@ func validAsset() rawAsset {
 		nSense:     2,
 		nForm:      1,
 		posTable:   []string{"noun"},
+		relTable:   []string{"", "plural"},
 		headBlob:   "catchild",
 		headLens:   []uint64{3, 5},
 		senseCount: []uint64{1, 1},
@@ -340,6 +343,7 @@ func validAsset() rawAsset {
 		formBlob:   "children",
 		formLens:   []uint64{8},
 		formLemma:  []uint64{1},
+		formRel:    []uint64{1},
 	}
 }
 
@@ -367,13 +371,16 @@ func (a rawAsset) encode(t *testing.T) *bytes.Buffer {
 	put(a.nSense)
 	put(a.nForm)
 	put(uint64(len(a.posTable)))
+	put(uint64(len(a.relTable)))
 	put(uint64(len(a.headBlob)))
 	put(uint64(len(a.glossBlob)))
 	put(uint64(len(a.formBlob)))
-	for _, pos := range a.posTable {
-		put(uint64(len(pos)))
-		if _, err := gz.Write([]byte(pos)); err != nil {
-			t.Fatalf("write pos: %v", err)
+	for _, table := range [][]string{a.posTable, a.relTable} {
+		for _, str := range table {
+			put(uint64(len(str)))
+			if _, err := gz.Write([]byte(str)); err != nil {
+				t.Fatalf("write string table: %v", err)
+			}
 		}
 	}
 	write := func(s string) {
@@ -390,6 +397,7 @@ func (a rawAsset) encode(t *testing.T) *bytes.Buffer {
 	write(a.formBlob)
 	putAll(a.formLens)
 	putAll(a.formLemma)
+	putAll(a.formRel)
 	if err := gz.Close(); err != nil {
 		t.Fatalf("close fixture: %v", err)
 	}
@@ -406,8 +414,12 @@ func TestDecodeAcceptsValidAsset(t *testing.T) {
 	if db.Len() != 2 || db.FormCount() != 1 {
 		t.Errorf("decoded (%d headwords, %d forms), want (2, 1)", db.Len(), db.FormCount())
 	}
-	if res, ok := db.Lookup("children"); !ok || res.Headword != "child" || res.Kind != MatchFormOf {
+	res, ok := db.Lookup("children")
+	if !ok || res.Headword != "child" || res.Kind != MatchFormOf {
 		t.Errorf("Lookup(children) = %+v,%v", res, ok)
+	}
+	if res.Relation != "plural" {
+		t.Errorf("Lookup(children) Relation = %q, want %q", res.Relation, "plural")
 	}
 	if res, ok := db.Lookup("cat"); !ok || len(res.Entry.Senses) != 1 || res.Entry.Senses[0].Gloss != "feline" {
 		t.Errorf("Lookup(cat) = %+v,%v", res, ok)
@@ -432,7 +444,9 @@ func TestDecodeRejectsMalformedAsset(t *testing.T) {
 		{"form lengths overrun", func(a *rawAsset) { a.formLens = []uint64{99} }, "form lengths overrun"},
 		{"pos index out of range", func(a *rawAsset) { a.sensePOS = []uint64{0, 7} }, "part-of-speech index"},
 		{"form lemma out of range", func(a *rawAsset) { a.formLemma = []uint64{9} }, "form lemma"},
-		{"truncated mid-stream", func(a *rawAsset) { a.formLemma = nil }, "form lemma"},
+		{"truncated mid-stream", func(a *rawAsset) { a.formLemma, a.formRel = nil, nil }, "form lemma"},
+		{"inflection-description index out of range", func(a *rawAsset) { a.formRel = []uint64{7} },
+			"form inflection description"},
 		// A count is rejected before it is allocated from. Without a bound tight enough to
 		// keep the value inside an int, a 32-bit build (armeabi-v7a) converts it to a
 		// negative length and make() panics instead of the asset being reported as corrupt;
@@ -485,6 +499,48 @@ func TestFormTargetGlossFallback(t *testing.T) {
 	s := kaikkiSense{Glosses: []string{"simple past of bake"}, Tags: []string{"form-of", "past"}}
 	if lemma, ok := formTarget(s); !ok || lemma != "bake" {
 		t.Errorf("formTarget fallback = %q,%v; want bake,true", lemma, ok)
+	}
+}
+
+func TestInflectionRelation(t *testing.T) {
+	cases := []struct{ gloss, want string }{
+		{"plural of cat", "plural"},
+		{"simple past and past participle of abandon", "simple past and past participle"},
+		{"third-person singular simple present indicative of pie",
+			"third-person singular simple present indicative"},
+		{"Plural of Cat.", "plural"},
+		// Nothing before the lemma to describe the inflection with.
+		{"of cat", ""},
+		// Not of the shape at all.
+		{"a small feline", ""},
+		// Long enough to be a definition rather than a label.
+		{"the act of doing something at very considerable and quite unreasonable length of pie", ""},
+	}
+	for _, c := range cases {
+		if got := inflectionRelation(c.gloss); got != c.want {
+			t.Errorf("inflectionRelation(%q) = %q, want %q", c.gloss, got, c.want)
+		}
+	}
+}
+
+func TestTagRelation(t *testing.T) {
+	cases := []struct {
+		tags []string
+		want string
+	}{
+		{[]string{"plural"}, "plural"},
+		{[]string{"past", "participle"}, "past participle"},
+		// Assembled in inflectionTagOrder, not the order the row listed them in.
+		{[]string{"participle", "past"}, "past participle"},
+		// Tags that name no inflection are left out.
+		{[]string{"canonical", "plural"}, "plural"},
+		{[]string{"canonical"}, ""},
+		{nil, ""},
+	}
+	for _, c := range cases {
+		if got := tagRelation(c.tags); got != c.want {
+			t.Errorf("tagRelation(%v) = %q, want %q", c.tags, got, c.want)
+		}
 	}
 }
 

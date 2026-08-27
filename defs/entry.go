@@ -48,6 +48,16 @@ type Entry struct {
 	Senses []Sense
 }
 
+// Inflection is what an inflected form resolves to: the lemma it inflects, and how.
+type Inflection struct {
+	// Lemma is the headword the form inflects.
+	Lemma string
+	// Relation names the inflection in Wiktionary's own words ("plural", "simple past
+	// and past participle"), or is empty when the extract described none. It is a label
+	// for the edge, not a definition: the meaning is the lemma's.
+	Relation string
+}
+
 // MatchKind records how DB.Lookup resolved a query to an Entry.
 type MatchKind uint8
 
@@ -95,4 +105,17 @@ type Result struct {
 	AlsoForm *Entry
 	// AlsoFormWord is the lemma AlsoForm belongs to, or "" when AlsoForm is nil.
 	AlsoFormWord string
+	// Relation names the inflection that reaches Headword, in Wiktionary's own words
+	// ("plural", "simple past and past participle"), so a caller can say what the queried
+	// word is to the headword whose senses it is showing.
+	//
+	// It is set only when Kind is MatchFormOf, the one layer where the extract records the
+	// relationship for the queried word itself, and is empty there when the extract
+	// described none. The stem and fuzzy layers derive their rewrite from a rule rather
+	// than reading it from the extract, so they leave it empty rather than assert an
+	// inflection nothing recorded.
+	Relation string
+	// AlsoFormRelation names AlsoForm's inflection the way Relation does, and is empty
+	// when AlsoForm is nil or the extract described none.
+	AlsoFormRelation string
 }

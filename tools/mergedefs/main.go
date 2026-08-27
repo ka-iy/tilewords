@@ -158,7 +158,7 @@ func run() error {
 	misses := computeMisses(base, lists)
 
 	addedEntries := make(map[string]*defs.Entry)
-	addedForms := make(map[string]string)
+	addedForms := make(map[string]defs.Inflection)
 	perSource := make(map[string]int)
 	resolved := 0
 
@@ -183,7 +183,9 @@ func run() error {
 		// has that key, so an edge can never dangle and the base always wins.
 		addedEntries[hw] = supEntries[hw]
 		if hw != m {
-			addedForms[m] = hw
+			// A supplemental source records only which word defines the miss, not how the
+			// two are related, so the edge carries no description.
+			addedForms[m] = defs.Inflection{Lemma: hw}
 		}
 		resolved++
 		perSource[srcOf[hw]]++

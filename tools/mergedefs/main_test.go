@@ -295,7 +295,7 @@ func TestReportMergeShowsFinalCoverageAboveBase(t *testing.T) {
 func TestComputeMissesIgnoresIndirectResolution(t *testing.T) {
 	// "cats" resolves only as a form of "cat", so it is not defined in its own right.
 	db := defs.NewDB(map[string]*defs.Entry{"cat": entry("cat", "A small feline.")},
-		map[string]string{"cats": "cat"})
+		map[string]defs.Inflection{"cats": {Lemma: "cat"}})
 
 	misses := computeMisses(db, []namedList{{Name: "l", Words: []string{"cat", "cats"}}})
 

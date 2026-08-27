@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -52,6 +53,14 @@ type DB struct {
 	formOff []uint32
 	// formLemma[k] is the index of the headword that form k resolves to.
 	formLemma []uint32
+	// formRel[k] is form k's inflection description, as an index into relTable.
+	formRel []uint32
+	// relTable holds the distinct inflection descriptions. Wiktionary phrases them from a
+	// handful of templates — "plural" alone covers most of them — so interning keeps one
+	// copy of each instead of one per form, which is what makes the labels cost a byte an
+	// edge rather than the thirty their text would. Index 0 is always "", the description
+	// for a form the extract left unlabelled.
+	relTable []string
 }
 
 // The on-disk asset is a gzip-compressed byte stream, written and read field by field in
@@ -62,13 +71,16 @@ type DB struct {
 // keeps, each sized exactly from a count read before it.
 //
 //	magic      assetMagic
-//	counts     headword, sense and form counts; part-of-speech count; the three blob sizes
+//	counts     headword, sense and form counts; part-of-speech and inflection-description
+//	           counts; the three blob sizes
 //	posTable   each part of speech as a length-prefixed string
 //	headBlob   the headword bytes, then one length per headword
 //	senses     one sense count per headword
 //	glossBlob  the gloss bytes, then one length per sense
 //	sensePOS   one part-of-speech index per sense
-//	formBlob   the form bytes, then one length per form, then one lemma index per form
+//	relTable   each inflection description as a length-prefixed string
+//	formBlob   the form bytes, then one length per form, one lemma index per form, and
+//	           one inflection-description index per form
 //
 // Every count and length is an unsigned varint, which is what keeps the asset small:
 // lengths are small numbers costing a byte or two, whereas the absolute offsets the DB
@@ -78,7 +90,7 @@ const (
 	// assetMagic identifies the asset and its layout. Change it whenever the layout
 	// changes, so a stale asset is refused with a clear message instead of being
 	// misparsed into nonsense.
-	assetMagic = "TWDEFS\x01\n"
+	assetMagic = "TWDEFS\x02\n"
 
 	// maxBlobLen bounds a declared blob size. A corrupt length must not be handed
 	// straight to make(), which would abort the process on an absurd allocation; no
@@ -103,7 +115,7 @@ const (
 //
 // An edge whose lemma is not itself a headword is dropped, because such an edge can
 // never resolve to a definition — Lookup requires the lemma's entry to report a match.
-func NewDB(entries map[string]*Entry, formOf map[string]string) *DB {
+func NewDB(entries map[string]*Entry, formOf map[string]Inflection) *DB {
 	words := make([]string, 0, len(entries))
 	for w, e := range entries {
 		if e == nil {
@@ -121,6 +133,10 @@ func NewDB(entries map[string]*Entry, formOf map[string]string) *DB {
 
 	index := make(map[string]uint32, len(words))
 	posIdx := make(map[string]uint32)
+	// Index 0 is the empty description, so every form has one to point at and the encoded
+	// table is never empty even when nothing is labelled.
+	relIdx := map[string]uint32{"": 0}
+	db.relTable = []string{""}
 
 	for i, w := range words {
 		index[w] = uint32(i)
@@ -142,8 +158,8 @@ func NewDB(entries map[string]*Entry, formOf map[string]string) *DB {
 	}
 
 	forms := make([]string, 0, len(formOf))
-	for f, lemma := range formOf {
-		if _, ok := index[lemma]; !ok {
+	for f, inf := range formOf {
+		if _, ok := index[inf.Lemma]; !ok {
 			continue
 		}
 		forms = append(forms, f)
@@ -152,10 +168,20 @@ func NewDB(entries map[string]*Entry, formOf map[string]string) *DB {
 
 	db.formOff = make([]uint32, 1, len(forms)+1)
 	db.formLemma = make([]uint32, 0, len(forms))
+	db.formRel = make([]uint32, 0, len(forms))
 	for _, f := range forms {
+		inf := formOf[f]
 		db.formBlob = append(db.formBlob, f...)
 		db.formOff = append(db.formOff, uint32(len(db.formBlob)))
-		db.formLemma = append(db.formLemma, index[formOf[f]])
+		db.formLemma = append(db.formLemma, index[inf.Lemma])
+
+		ri, ok := relIdx[inf.Relation]
+		if !ok {
+			ri = uint32(len(db.relTable))
+			relIdx[inf.Relation] = ri
+			db.relTable = append(db.relTable, inf.Relation)
+		}
+		db.formRel = append(db.formRel, ri)
 	}
 
 	return db
@@ -226,11 +252,16 @@ func (db *DB) entriesMap() map[string]*Entry {
 	return m
 }
 
-// formsMap rebuilds the inflection-edge map, for the same reasons as entriesMap.
-func (db *DB) formsMap() map[string]string {
-	m := make(map[string]string, db.FormCount())
+// formsMap rebuilds the inflection-edge map, for the same reasons as entriesMap. It
+// carries each edge's description across, so a rebuild through WithSupplement does not
+// quietly strip the labels the asset was built with.
+func (db *DB) formsMap() map[string]Inflection {
+	m := make(map[string]Inflection, db.FormCount())
 	for k := 0; k < db.FormCount(); k++ {
-		m[string(db.formAt(k))] = string(db.headAt(int(db.formLemma[k])))
+		m[string(db.formAt(k))] = Inflection{
+			Lemma:    string(db.headAt(int(db.formLemma[k]))),
+			Relation: db.relTable[db.formRel[k]],
+		}
 	}
 	return m
 }
@@ -242,7 +273,7 @@ func (db *DB) formsMap() map[string]string {
 // overwritten by a lower-priority source. Both argument maps are read, not
 // retained. It is used to fold definitions from secondary public-domain
 // dictionaries into the DB for words the primary source does not cover.
-func (db *DB) WithSupplement(entries map[string]*Entry, forms map[string]string) *DB {
+func (db *DB) WithSupplement(entries map[string]*Entry, forms map[string]Inflection) *DB {
 	mergedEntries := db.entriesMap()
 	for k, v := range entries {
 		if _, exists := mergedEntries[k]; !exists {
@@ -271,19 +302,106 @@ func (db *DB) FormLemma(word string) (string, bool) {
 	return string(db.headAt(int(db.formLemma[k]))), true
 }
 
-// lemmaOf returns the headword index an inflected form resolves to.
-func (db *DB) lemmaOf(word string) (int, bool) {
+// lemmaOf returns the headword index an inflected form resolves to, and how the extract
+// described the inflection ("" when it described none).
+func (db *DB) lemmaOf(word string) (int, string, bool) {
 	k, ok := db.findForm(word)
 	if !ok {
-		return 0, false
+		return 0, "", false
 	}
-	return int(db.formLemma[k]), true
+	return int(db.formLemma[k]), db.relTable[db.formRel[k]], true
 }
 
 // Lookup resolves word to a definition, trying each resolution layer in order of
 // reliability (exact, form-of, stem, fuzzy). The match is case-insensitive.
 // The second return is false when no layer produced a match.
+//
+// A sense that only points at another word ("Synonym of nomogram.") comes back with that
+// word's definition joined onto it ("Synonym of nomogram: A diagram in which…"), so the
+// caller is told both how the word relates to the other and what the other one means. The
+// join is done here rather than in the asset because the definition is already in the DB
+// under the word it belongs to, and every word pointing at it would otherwise ship its
+// own copy.
 func (db *DB) Lookup(word string) (Result, bool) {
+	res, ok := db.resolve(word)
+	if !ok {
+		return Result{}, false
+	}
+	db.joinRedirects(res.Entry)
+	db.joinRedirects(res.AlsoForm)
+	return res, true
+}
+
+// joinRedirects extends every sense of e that only points at another word with the
+// definition it points at. Senses that point at nothing the DB defines are left as they
+// stand, since the pointer is then all there is to say. e may be nil.
+//
+// It mutates e, which is safe because entryAt materialises a fresh Entry per lookup: the
+// DB's own blobs are not touched.
+func (db *DB) joinRedirects(e *Entry) {
+	if e == nil {
+		return
+	}
+	for i, s := range e.Senses {
+		target, ok := redirectTarget(s.Gloss)
+		if !ok {
+			continue
+		}
+		if def, ok := db.redirectDefinition(e.Word, target); ok {
+			e.Senses[i].Gloss = joinRedirect(s.Gloss, def)
+		}
+	}
+}
+
+// redirectDefinition returns the definition a redirect from word to target should be
+// joined to: the first gloss of the first headword reachable from target that defines
+// something of its own instead of pointing on again. Pointing at a pointer is ordinary —
+// one variant spelling of another — so the chain is followed rather than stopping at the
+// first hop, which would answer with a second pointer instead of a definition.
+//
+// It reports false when the chain reaches no definition: target is word itself, a word
+// along it is not in the DB, it revisits a word it has already been through, or it
+// outruns maxRedirectHops.
+func (db *DB) redirectDefinition(word, target string) (string, bool) {
+	seen := make([]string, 0, maxRedirectHops)
+	seen = append(seen, word)
+	cur := target
+	for hop := 0; hop <= maxRedirectHops; hop++ {
+		if slices.Contains(seen, cur) {
+			return "", false
+		}
+		i, ok := db.findHead(cur)
+		if !ok {
+			return "", false
+		}
+		gloss := db.firstGloss(i)
+		if gloss == "" {
+			return "", false
+		}
+		next, isRedirect := redirectTarget(gloss)
+		if !isRedirect {
+			return gloss, true
+		}
+		seen = append(seen, cur)
+		cur = next
+	}
+	return "", false
+}
+
+// firstGloss returns headword i's first gloss, or "" when it has no senses. It is the one
+// piece of an entry the redirect walk needs, so it reads that alone rather than
+// materialising the whole entry at every hop.
+func (db *DB) firstGloss(i int) string {
+	lo, hi := db.senseOff[i], db.senseOff[i+1]
+	if lo == hi {
+		return ""
+	}
+	return string(db.glossBlob[db.glossOff[lo]:db.glossOff[lo+1]])
+}
+
+// resolve is Lookup without the redirect joining, so that joinRedirects sees each
+// resolution layer's result in one place rather than at every return below.
+func (db *DB) resolve(word string) (Result, bool) {
 	lw := strings.ToLower(strings.TrimSpace(word))
 	if lw == "" {
 		return Result{}, false
@@ -296,15 +414,21 @@ func (db *DB) Lookup(word string) (Result, bool) {
 		// the lemma's senses too rather than hiding the common reading behind the
 		// homograph. The word's own senses stay primary, so this never demotes a
 		// common homograph (e.g. "rose", "found") to its inflected reading.
-		if li, ok := db.lemmaOf(lw); ok && li != i {
+		if li, rel, ok := db.lemmaOf(lw); ok && li != i {
 			res.AlsoForm = db.entryAt(li)
 			res.AlsoFormWord = string(db.headAt(li))
+			res.AlsoFormRelation = rel
 		}
 		return res, true
 	}
 
-	if li, ok := db.lemmaOf(lw); ok {
-		return Result{Entry: db.entryAt(li), Headword: string(db.headAt(li)), Kind: MatchFormOf}, true
+	if li, rel, ok := db.lemmaOf(lw); ok {
+		return Result{
+			Entry:    db.entryAt(li),
+			Headword: string(db.headAt(li)),
+			Kind:     MatchFormOf,
+			Relation: rel,
+		}, true
 	}
 
 	for _, c := range candidateStems(lw) {
@@ -328,7 +452,10 @@ func (db *DB) resolveHeadword(cand string, kind MatchKind) (Result, bool) {
 	if i, ok := db.findHead(cand); ok {
 		return Result{Entry: db.entryAt(i), Headword: cand, Kind: kind}, true
 	}
-	if li, ok := db.lemmaOf(cand); ok {
+	// The description belongs to the edge from cand, which is a rewrite this layer
+	// derived rather than a form the extract recorded for the queried word, so it is
+	// deliberately not carried into the result.
+	if li, _, ok := db.lemmaOf(cand); ok {
 		return Result{Entry: db.entryAt(li), Headword: string(db.headAt(li)), Kind: kind}, true
 	}
 	return Result{}, false
@@ -377,19 +504,21 @@ func (db *DB) Encode(w io.Writer) error {
 		}
 		for _, v := range []uint64{
 			uint64(db.Len()), uint64(len(db.sensePOS)), uint64(db.FormCount()),
-			uint64(len(db.posTable)),
+			uint64(len(db.posTable)), uint64(len(db.relTable)),
 			uint64(len(db.headBlob)), uint64(len(db.glossBlob)), uint64(len(db.formBlob)),
 		} {
 			if err := writeUvarint(bw, scratch, v); err != nil {
 				return err
 			}
 		}
-		for _, pos := range db.posTable {
-			if err := writeUvarint(bw, scratch, uint64(len(pos))); err != nil {
-				return err
-			}
-			if _, err := bw.WriteString(pos); err != nil {
-				return err
+		for _, table := range [][]string{db.posTable, db.relTable} {
+			for _, str := range table {
+				if err := writeUvarint(bw, scratch, uint64(len(str))); err != nil {
+					return err
+				}
+				if _, err := bw.WriteString(str); err != nil {
+					return err
+				}
 			}
 		}
 		if _, err := bw.Write(db.headBlob); err != nil {
@@ -416,7 +545,10 @@ func (db *DB) Encode(w io.Writer) error {
 		if err := writeLengths(bw, scratch, db.formOff); err != nil {
 			return err
 		}
-		return writeUint32s(bw, scratch, db.formLemma)
+		if err := writeUint32s(bw, scratch, db.formLemma); err != nil {
+			return err
+		}
+		return writeUint32s(bw, scratch, db.formRel)
 	}()
 	if err != nil {
 		gz.Close()
@@ -521,7 +653,7 @@ func Decode(r io.Reader) (*DB, error) {
 	}
 
 	db := &DB{}
-	var nHead, nSense, nForm, nPOS, headLen, glossLen, formLen int
+	var nHead, nSense, nForm, nPOS, nRel, headLen, glossLen, formLen int
 	for _, f := range []struct {
 		dst   *int
 		limit uint64
@@ -531,6 +663,7 @@ func Decode(r io.Reader) (*DB, error) {
 		{&nSense, maxItemCount, "sense count"},
 		{&nForm, maxItemCount, "form count"},
 		{&nPOS, maxItemCount, "part-of-speech count"},
+		{&nRel, maxItemCount, "inflection-description count"},
 		{&headLen, maxBlobLen, "headword blob size"},
 		{&glossLen, maxBlobLen, "gloss blob size"},
 		{&formLen, maxBlobLen, "form blob size"},
@@ -552,18 +685,28 @@ func Decode(r io.Reader) (*DB, error) {
 		return nil, fmt.Errorf("defs.Decode: %d forms declared, more than the %d-byte form blob can hold", nForm, formLen)
 	}
 
-	if nPOS > 0 {
-		db.posTable = make([]string, nPOS)
-		for i := range db.posTable {
-			n, err := readCount(br, maxBlobLen, "part-of-speech length")
+	for _, t := range []struct {
+		dst  *[]string
+		n    int
+		what string
+	}{
+		{&db.posTable, nPOS, "part of speech"},
+		{&db.relTable, nRel, "inflection description"},
+	} {
+		if t.n == 0 {
+			continue
+		}
+		*t.dst = make([]string, t.n)
+		for i := range *t.dst {
+			n, err := readCount(br, maxBlobLen, t.what+" length")
 			if err != nil {
 				return nil, fmt.Errorf("defs.Decode: %w", err)
 			}
-			b, err := readBlob(br, n, "part of speech")
+			b, err := readBlob(br, n, t.what)
 			if err != nil {
 				return nil, fmt.Errorf("defs.Decode: %w", err)
 			}
-			db.posTable[i] = string(b)
+			(*t.dst)[i] = string(b)
 		}
 	}
 
@@ -596,6 +739,9 @@ func Decode(r io.Reader) (*DB, error) {
 		return nil, fmt.Errorf("defs.Decode: %w", err)
 	}
 	if db.formLemma, err = readIndexes(br, nForm, nHead, "form lemma"); err != nil {
+		return nil, fmt.Errorf("defs.Decode: %w", err)
+	}
+	if db.formRel, err = readIndexes(br, nForm, nRel, "form inflection description"); err != nil {
 		return nil, fmt.Errorf("defs.Decode: %w", err)
 	}
 

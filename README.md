@@ -40,7 +40,7 @@ All other external-entity trademarks, names, logos, and service marks (collectiv
 - **Free and libre word lists:** at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the [My Word!](#my-word) section.
    - The word list artefacts created during the build process are in an optimized form to minimize disk and memory usage on mobile devices.
 - **Word definitions:** the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and other libre / public-domain glossaries. Words with no definition are noted rather than silently skipped.
-   - Like the word lists, the definitions artefact is stored in a compact flat form and streamed in at load, so ~147,000 headwords cost about 19 MB of memory rather than the ~52 MB a conventional map of objects would. See the appendix to [OPTIMIZING_THE_GADDAGS.md](OPTIMIZING_THE_GADDAGS.md).
+   - Like the word lists, the definitions artefact is stored in a compact flat form and streamed in at load, decreasing memory requirements.
 - **Two game modes:** Classic Mode uses the standard 15x15 premium-square layout and tile economy, while Interesting Mode uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
 - **Selectable CPU difficulty:** choose how strongly the computer opponent plays, from 1 (easy) to 10 (hard). Even at level 10, the CPU is not infallible - just like a human being. At level 11, it is - this is Demigod Mode (for the CPU, not you). To quote from `This is Spinal Tap`: _"Why don't you just make 10 louder and make 10 be the top number?"_ **/** _"...These go to ELEVEN!"_
 - **Multiple ways to interact with the tiles and game board:**
@@ -57,6 +57,7 @@ All other external-entity trademarks, names, logos, and service marks (collectiv
 - **Cross-platform:** runs on desktop and Android from a single codebase. Written in Go using the Fyne UI toolkit. MacOS may be supported at some time in the future, but iOS will probably never be - the Apple Store hates open source, the GPL, and developers who don't kowtow to them. Gurgle and Android are going the same way, sadly, in a horrifying game of simian mirror-neuron idiocy.
 - **About and Lexicon:** an in-app dialog crediting the word lists and dictionaries, with the source links copyable to the clipboard.
 - **Show/Hide CPU rack:** for those times when you need to get a leg (or at least a toe) up on a frighteningly capable machine opponent.
+- **Narrow and Wide views:** On mobile devices, the game automatically switches between the narrow and wide views depending upon the available screen real estate. For foldable mobile devices, the view automatically switches to the wide view when the device is switched to using the unfolded inner screen. Desktop versions are always in wide view mode.
 
 ## How's It Built (on Linux)?
 
@@ -356,7 +357,7 @@ While (almost) every effort has been made to fill the gaps in the definitions, g
 
 This project was started as an experiment in using the [AWS AI-DLC framework](https://github.com/awslabs/aidlc-workflows) and Claude Code to build a word game with all the features I always wanted in my ideal word-game...uh...game _("What the hell does ZAX mean??")(It's a construction tool)_ but which I had not been able to find consolidated in one single game.
 
-As an addendum to the experiment, I wanted to see whether I could do this without firing up my editor or manually changing stuff. I almost succeeded in that endeavor. Almost.
+As an addendum to the experiment, I wanted to see whether I could do this without firing up my editor or manually changing stuff. I ~~almost succeeded~~ failed miserably in that endeavor.
 
 My takeaways thus far (as of August 2026):
 - Agentic coding is definitely a development accelerator **provided that** the AI is constantly hand-held, stopped from going down senseless paths, steered in the correct direction, and generally treated like a precocious idiot-savant tween.
@@ -372,4 +373,4 @@ My takeaways thus far (as of August 2026):
 - AI-DLC is alright, but perhaps needs a bit more time to mature. Also, it is verbose as all hell, which is probably OK for Enterprise(tm) Development.
    - I think I'll follow the [BMAD](https://docs.bmad-method.org/) AI SLDC framework for future development especially since that lends itself well to collaborative efforts. I'll leave the `aidlc-docs-HISTORICAL` directory in the sources as a historical record of shenanigans perpetrated.
 
-I also had lots of fun getting the AI to write a pseudoacademic "paper" - ( ͡° ͜ʖ ͡°) - on the optimization strategies used to reduce the size of the lexicon/glossary assets.
+I also had lots of fun getting the AI to write a [pseudoacademic "paper"](OPTIMIZING_THE_GADDAGS.md) - ( ͡° ͜ʖ ͡°) - on the optimization strategies used to reduce the size of the lexicon/glossary assets.
