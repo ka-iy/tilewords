@@ -37,18 +37,41 @@ type GameSettings struct {
 	Mode engine.GameMode `json:"mode"`
 	// Difficulty is the CPU difficulty level, cpu.MinLevel (easy) to cpu.MaxLevel (demigod mode).
 	Difficulty int `json:"difficulty"`
-	// Notation selects Scrabble-notation move history when true.
+	// Notation selects official-notation move history when true.
 	Notation bool `json:"notation"`
+	// BoardHeaders shows the board's row and column headers when true.
+	BoardHeaders bool `json:"boardHeaders"`
+}
+
+// displayPrefs are the game options that change only how a game is presented, never how it
+// plays. They travel as one value so a call site cannot transpose two adjacent booleans.
+type displayPrefs struct {
+	// notation shows the move history in official coordinate notation.
+	notation bool
+	// boardHeaders shows the board's row and column headers.
+	boardHeaders bool
+}
+
+// display returns the display-only preferences held in gs.
+func (gs GameSettings) display() displayPrefs {
+	return displayPrefs{notation: gs.Notation, boardHeaders: gs.BoardHeaders}
 }
 
 // defaultGameSettings returns the built-in defaults shown when nothing valid is saved: the
-// first available dictionary, Classic mode, mid difficulty, and plain (non-notation) history.
+// first available dictionary, Classic mode, mid difficulty, plain (non-notation) history, and
+// a board without row and column headers.
 func defaultGameSettings(avail []dictionary.DictName) GameSettings {
 	var d dictionary.DictName
 	if len(avail) > 0 {
 		d = avail[0]
 	}
-	return GameSettings{Dict: d, Mode: engine.ClassicMode, Difficulty: defaultDifficulty, Notation: false}
+	return GameSettings{
+		Dict:         d,
+		Mode:         engine.ClassicMode,
+		Difficulty:   defaultDifficulty,
+		Notation:     false,
+		BoardHeaders: false,
+	}
 }
 
 // dictInList reports whether name is one of the available (bundled) dictionaries in avail.

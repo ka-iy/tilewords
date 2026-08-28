@@ -85,13 +85,14 @@ func TestMoveStagedTile(t *testing.T) {
 
 // TestBoardDrag_OffBoardRecalls: dragging a staged tile to a release point that is not
 // a board cell recalls it to the rack, and the ghost shows during the drag and hides
-// after. (Headless, the board hit-test can't resolve, so the release reads as off-board.)
+// after. The release point is above and left of the board's top-left corner, so it
+// resolves to no cell whether or not the board reserves a label gutter.
 func TestBoardDrag_OffBoardRecalls(t *testing.T) {
 	gs := newPlacementHarness(t)
 	stageOneTile(t, gs, 7, 7)
 
 	cell := gs.cells[7*boardDim+7]
-	cell.Dragged(dragEventAt(5, 5))
+	cell.Dragged(dragEventAt(-50, -50))
 	if !gs.ghost.Visible() {
 		t.Fatal("ghost should be visible during a board-tile drag")
 	}

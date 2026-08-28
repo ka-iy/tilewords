@@ -7,6 +7,7 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -30,7 +31,7 @@ func TestBoardGeometry_SquareReservesGutter(t *testing.T) {
 	// On a square area the cell is the largest that fits boardDim cells plus the label
 	// gutter, and the gutter-plus-grid block is centred with the grid past the gutter.
 	const side = 480
-	cell, offX, offY := boardGeometry(side, side)
+	cell, offX, offY := boardGeometry(side, side, true)
 
 	// The cell is maximal: one pixel larger would overflow the area.
 	if (cell+1)*(boardDim+labelGutterFactor) <= side {
@@ -48,11 +49,31 @@ func TestBoardGeometry_SquareReservesGutter(t *testing.T) {
 	}
 }
 
+func TestBoardGeometry_UnlabelledUsesWholeArea(t *testing.T) {
+	// With the labels hidden there is no gutter to reserve, so the cells divide the whole
+	// area and the grid itself — not a gutter-plus-grid block — is what gets centred.
+	const side = 480
+	cell, offX, offY := boardGeometry(side, side, false)
+
+	if want := float32(math.Floor(side / boardDim)); cell != want {
+		t.Fatalf("cell: got %v want %v (the full area divided by the cells)", cell, want)
+	}
+	wantOff := (side - cell*boardDim) / 2
+	if !approxEq(offX, wantOff) || !approxEq(offY, wantOff) {
+		t.Fatalf("offsets: got (%v,%v) want (%v,%v)", offX, offY, wantOff, wantOff)
+	}
+	// The cells are strictly larger than they would be with the gutter set aside.
+	labelledCell, _, _ := boardGeometry(side, side, true)
+	if cell <= labelledCell {
+		t.Fatalf("unlabelled cell %v should exceed the labelled cell %v", cell, labelledCell)
+	}
+}
+
 func TestBoardGeometry_WideAreaCentres(t *testing.T) {
 	// 600 wide × 480 tall → the square is bounded by the height (480); the block is
 	// centred within the full width while fitting exactly in the height.
 	const w, h = 600, 480
-	cell, offX, offY := boardGeometry(w, h)
+	cell, offX, offY := boardGeometry(w, h, true)
 	gutter := cell * labelGutterFactor
 	block := gutter + cell*boardDim
 	if !approxEq(offX, (w-block)/2+gutter) {
@@ -68,14 +89,14 @@ func TestBoardGeometry_WideAreaCentres(t *testing.T) {
 }
 
 func TestBoardGeometry_ZeroAreaSafe(t *testing.T) {
-	cell, _, _ := boardGeometry(0, 0)
+	cell, _, _ := boardGeometry(0, 0, true)
 	if cell != 0 {
 		t.Fatalf("cell for zero area: got %v want 0", cell)
 	}
 }
 
 func TestBoardGeometry_FitsAndNonNegativeOffsets(t *testing.T) {
-	cell, offX, offY := boardGeometry(333, 1000)
+	cell, offX, offY := boardGeometry(333, 1000, true)
 	if cell*boardDim > 333+1e-3 {
 		t.Fatalf("board (%v) wider than area 333", cell*boardDim)
 	}

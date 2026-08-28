@@ -144,7 +144,7 @@ func TestClone_CarriesEveryField(t *testing.T) {
 	s.CurrentTurn = CPUTurn
 	s.Mode = InterestingMode
 	s.EndgameScored = true
-	s.ScrabbleNotation = true
+	s.OfficialNotation = true
 	s.History = []MoveRecord{{Player: "You", Line: "8D CAT +10", Points: 10}}
 	s.OpeningDraw = &OpeningDraw{First: HumanTurn}
 
@@ -153,8 +153,8 @@ func TestClone_CarriesEveryField(t *testing.T) {
 	if !c.EndgameScored {
 		t.Error("Clone dropped EndgameScored: a clone of a finished game would be scored again")
 	}
-	if !c.ScrabbleNotation {
-		t.Error("Clone dropped ScrabbleNotation")
+	if !c.OfficialNotation {
+		t.Error("Clone dropped OfficialNotation")
 	}
 	if c.OpeningDraw == nil || c.OpeningDraw.First != HumanTurn {
 		t.Error("Clone dropped OpeningDraw")

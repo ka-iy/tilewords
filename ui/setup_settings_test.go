@@ -41,6 +41,7 @@ func TestDefaultsFor_RoundTripThroughApp(t *testing.T) {
 	want.Mode = engine.InterestingMode
 	want.Difficulty = 7
 	want.Notation = true
+	want.BoardHeaders = true
 	a.settings.save(want)
 
 	if got := a.defaultsFor(avail); got != want {
@@ -63,6 +64,7 @@ func TestBuildSetup_LoadMappingAndNoPanic(t *testing.T) {
 	seed.Mode = engine.InterestingMode
 	seed.Difficulty = 3
 	seed.Notation = true
+	seed.BoardHeaders = true
 	a.settings.save(seed)
 
 	// The loaded dictionary must map to an existing radio label.

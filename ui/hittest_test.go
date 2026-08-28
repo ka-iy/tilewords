@@ -9,13 +9,13 @@ import (
 	"fyne.io/fyne/v2"
 )
 
-// TestCellAtRel maps board-relative positions to cells for a 480×480 board. The label
-// gutter shifts the grid origin to (offX,offY); the top and left gutters belong to the
-// labels, not any cell. Coordinates are derived from the geometry so the test holds for
-// any gutter factor.
+// TestCellAtRel maps board-relative positions to cells for a 480×480 labelled board. The
+// label gutter shifts the grid origin to (offX,offY); the top and left gutters belong to
+// the labels, not any cell. Coordinates are derived from the geometry so the test holds
+// for any gutter factor.
 func TestCellAtRel(t *testing.T) {
 	size := fyne.NewSize(480, 480)
-	cell, offX, offY := boardGeometry(size.Width, size.Height)
+	cell, offX, offY := boardGeometry(size.Width, size.Height, true)
 	end := cell*boardDim - 1 // last pixel inside the grid
 	cases := []struct {
 		x, y   float32
@@ -31,7 +31,7 @@ func TestCellAtRel(t *testing.T) {
 		{offX + cell, offY - 1, 0, 0, false},                      // top gutter (column labels), above the grid
 	}
 	for _, c := range cases {
-		r, col, ok := cellAtRel(fyne.NewPos(c.x, c.y), size)
+		r, col, ok := cellAtRel(fyne.NewPos(c.x, c.y), size, true)
 		if ok != c.wok || (ok && (r != c.wr || col != c.wc)) {
 			t.Errorf("cellAtRel(%g,%g) = (%d,%d,%v), want (%d,%d,%v)", c.x, c.y, r, col, ok, c.wr, c.wc, c.wok)
 		}

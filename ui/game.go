@@ -89,9 +89,14 @@ type gameScreen struct {
 	dict  *dictionary.Dictionary
 	rng   *rand.Rand
 
-	// scrabbleNotation selects the move-history format: Scrabble coordinate notation
+	// officialNotation selects the move-history format: official coordinate notation
 	// (e.g. "8D UNMIX +28") when true, otherwise the plain word list.
-	scrabbleNotation bool
+	officialNotation bool
+
+	// boardHeaders selects whether the board shows its row and column headers. It is fixed
+	// for the life of the screen: the board's geometry and its hit test are both built from
+	// it, and they have to agree.
+	boardHeaders bool
 
 	// Interaction state.
 	staged       []stagedTile
@@ -225,13 +230,14 @@ type gameScreen struct {
 }
 
 // newGameScreen constructs the controller (no widgets yet; see build). The move-history
-// format is taken from state.ScrabbleNotation.
+// format is taken from state.OfficialNotation.
 func newGameScreen(a *App, state *engine.GameState, dict *dictionary.Dictionary) *gameScreen {
 	gs := &gameScreen{
 		app:              a,
 		state:            state,
 		dict:             dict,
-		scrabbleNotation: state.ScrabbleNotation,
+		officialNotation: state.OfficialNotation,
+		boardHeaders:     state.BoardHeaders,
 		openingLine:      openingDrawLine(state.OpeningDraw),
 		history:          restoreHistory(state.History),
 		rng:              newGameRNG(),
@@ -293,14 +299,19 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 			boardObjs = append(boardObjs, c)
 		}
 	}
-	// Row/column labels follow the cells; boardLayout positions them in the gutters
-	// reserved along the top (A–O) and left (1–15) edges.
-	colLabels, rowLabels := newBoardLabels()
-	gs.boardLabels = append(append(gs.boardLabels[:0], colLabels...), rowLabels...)
-	for _, l := range gs.boardLabels {
-		boardObjs = append(boardObjs, l)
+	// The row and column header labels follow the cells; boardLayout positions them in the
+	// gutters reserved along the top (A–O) and left (1–15) edges. They are shown only when
+	// the player asked for headers; otherwise the board carries none and no gutter is
+	// reserved for them, so the cells have the whole board area.
+	gs.boardLabels = gs.boardLabels[:0]
+	if gs.boardHeaders {
+		colLabels, rowLabels := newBoardLabels()
+		gs.boardLabels = append(append(gs.boardLabels, colLabels...), rowLabels...)
+		for _, l := range gs.boardLabels {
+			boardObjs = append(boardObjs, l)
+		}
 	}
-	board := container.New(boardLayout{}, boardObjs...)
+	board := container.New(boardLayout{labelled: gs.boardHeaders}, boardObjs...)
 	gs.boardBox = board
 
 	// Racks.
@@ -482,7 +493,7 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 			// so the rack sits closer to the current-move line than the other sections.
 			statusAndRack := container.New(tightColumnLayout{gaps: []float32{statusRackGap}}, statusBar, humanRackBox)
 			column := container.New(
-				&phoneColumnLayout{board: board, minBoard: minBoardPx},
+				&phoneColumnLayout{board: board, minBoard: minBoardSize(gs.boardHeaders)},
 				board,
 				statusAndRack,
 				controls,
@@ -1347,7 +1358,7 @@ func (gs *gameScreen) ghostSizeAt(abs fyne.Position, fromRack bool) float32 {
 // boardCellSize returns the side length of a board cell at the current board size.
 func (gs *gameScreen) boardCellSize() float32 {
 	if gs.boardBox != nil {
-		if cell, _, _ := boardGeometry(gs.boardBox.Size().Width, gs.boardBox.Size().Height); cell > 0 {
+		if cell, _, _ := boardGeometry(gs.boardBox.Size().Width, gs.boardBox.Size().Height, gs.boardHeaders); cell > 0 {
 			return cell
 		}
 	}
@@ -1406,13 +1417,14 @@ func (gs *gameScreen) cellAt(abs fyne.Position) (row, col int, ok bool) {
 		return 0, 0, false
 	}
 	origin := fyne.CurrentApp().Driver().AbsolutePositionForObject(gs.boardBox)
-	return cellAtRel(abs.Subtract(origin), gs.boardBox.Size())
+	return cellAtRel(abs.Subtract(origin), gs.boardBox.Size(), gs.boardHeaders)
 }
 
 // cellAtRel maps a position relative to the board container's top-left to a cell,
-// using the same geometry as boardLayout. ok is false outside the grid.
-func cellAtRel(rel fyne.Position, size fyne.Size) (row, col int, ok bool) {
-	cell, offX, offY := boardGeometry(size.Width, size.Height)
+// using the same geometry as boardLayout. labelled must match the board's own setting,
+// so the grid origin here is the one the cells were drawn at. ok is false outside the grid.
+func cellAtRel(rel fyne.Position, size fyne.Size, labelled bool) (row, col int, ok bool) {
+	cell, offX, offY := boardGeometry(size.Width, size.Height, labelled)
 	if cell <= 0 {
 		return 0, 0, false
 	}
@@ -1668,13 +1680,13 @@ func playPts(pts int) string {
 
 // ---------- Move history ----------
 
-// playLine formats a play's move-history line: Scrabble coordinate notation (e.g.
+// playLine formats a play's move-history line: official coordinate notation (e.g.
 // "You: 8D UNMIX +28", with any cross-words listed after the main word) when
-// scrabbleNotation is set, otherwise the plain word list (e.g. "You: UNMIX, CROSS (+28)").
+// officialNotation is set, otherwise the plain word list (e.g. "You: UNMIX, CROSS (+28)").
 // It is called after the move is committed, so AnnotatedWords reads the board with the tiles
 // in place.
 func (gs *gameScreen) playLine(player string, move *engine.PlayMove) string {
-	if gs.scrabbleNotation {
+	if gs.officialNotation {
 		if words := engine.AnnotatedWords(gs.state.Board, move); len(words) > 0 {
 			return fmt.Sprintf("%s: %s +%d", player, strings.Join(words, ", "), move.Score)
 		}

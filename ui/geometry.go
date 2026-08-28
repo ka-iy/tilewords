@@ -27,10 +27,27 @@ const labelGutterFactor = 0.6
 // the screen width.
 const minCellPx = 24
 
-// minBoardPx is the board's minimum edge length: the floor the phone layout scales
-// the board up from to fill the screen width. It includes the label gutter so cells
-// stay at their tappable minimum once the labels' share is set aside.
+// minBoardPx is a labelled board's minimum edge length: the floor the phone layout
+// scales the board up from to fill the screen width. It includes the label gutter so
+// cells stay at their tappable minimum once the labels' share is set aside. Use
+// minBoardSize for a board whose labels may be hidden.
 const minBoardPx = float32(minCellPx * (boardDim + labelGutterFactor))
+
+// gutterFactor returns the width of the row/column label strip in cells: labelGutterFactor
+// for a board that shows its labels, and zero for one that does not — an unlabelled board
+// gives the whole area to its cells rather than reserving an empty strip.
+func gutterFactor(labelled bool) float32 {
+	if labelled {
+		return labelGutterFactor
+	}
+	return 0
+}
+
+// minBoardSize returns the board's minimum edge length: minCellPx per cell, plus the label
+// gutter's share when labelled. An unlabelled board needs no gutter, so it asks for less.
+func minBoardSize(labelled bool) float32 {
+	return minCellPx * (boardDim + gutterFactor(labelled))
+}
 
 // boardLabelTextFactor is the row/column label glyph size, as a fraction of one cell.
 // It is derived from labelGutterFactor, not tuned independently, so the two cannot drift
@@ -43,7 +60,7 @@ const minBoardPx = float32(minCellPx * (boardDim + labelGutterFactor))
 const boardLabelTextFactor = labelGutterFactor * 2 / 3
 
 // newBoardLabels builds the column labels (A–O, left to right) and row labels (1–15,
-// top to bottom) for the board, matching the Scrabble notation convention (columns are
+// top to bottom) for the board, matching the official notation convention (columns are
 // letters, rows are numbers; see engine notation). The two runs are returned in the
 // order boardLayout expects them appended after the cells.
 //
@@ -78,24 +95,30 @@ const rackGapPx = 4
 const minRackSlotPx = 44
 
 // boardGeometry computes the square cell size and the top-left origin offset of the
-// cell grid for a board rendered inside an area of the given width and height. A label
-// gutter of labelGutterFactor cells is reserved along the top and left edges, and the
-// grid is the largest boardDim×boardDim square of integer-sized cells that fits in the
-// remaining space; the gutter-plus-grid block is centred. The returned offsets are the
-// grid's top-left corner (already past the gutter), so the row/column labels occupy
+// cell grid for a board rendered inside an area of the given width and height. When
+// labelled, a gutter of labelGutterFactor cells is reserved along the top and left edges
+// for the row/column labels; when not, the cells have the whole area. The grid is the
+// largest boardDim×boardDim square of integer-sized cells that fits in the space left
+// over, and the gutter-plus-grid block is centred. The returned offsets are the grid's
+// top-left corner (already past the gutter), so on a labelled board the labels occupy
 // [offX-gutter, offX] and [offY-gutter, offY] where gutter is cell*labelGutterFactor.
 //
+// Every part of the UI that maps between the board area and a cell — the layout, the
+// hit test, and the drag tile size — must pass the same labelled value, or a tap would
+// land on a different cell than the one drawn under the finger.
+//
 // It is a pure function (no Fyne state) so it can be unit-tested headlessly.
-func boardGeometry(w, h float32) (cell, offX, offY float32) {
+func boardGeometry(w, h float32, labelled bool) (cell, offX, offY float32) {
 	side := w
 	if h < side {
 		side = h
 	}
-	cell = float32(math.Floor(float64(side) / (boardDim + labelGutterFactor)))
+	factor := gutterFactor(labelled)
+	cell = float32(math.Floor(float64(side) / float64(boardDim+factor)))
 	if cell < 0 {
 		cell = 0
 	}
-	gutter := cell * labelGutterFactor
+	gutter := cell * factor
 	block := gutter + cell*boardDim
 	offX = gutter + (w-block)/2
 	offY = gutter + (h-block)/2
@@ -137,12 +160,17 @@ func rackGeometry(w, h float32, n int) (slot, offX float32) {
 //   - boardDim column labels (A–O), left to right, in the top gutter;
 //   - boardDim row labels (1–15), top to bottom, in the left gutter.
 //
-// Any run may be absent (e.g. an unlabelled board passes only the cells); labels are
-// positioned only for the children actually present.
-type boardLayout struct{}
+// An unlabelled board passes only the cells, and reserves no gutter for the labels it
+// does not have; a short run of labels is tolerated, positioning only those present.
+type boardLayout struct {
+	// labelled reports whether the label runs follow the cells. It must match what the
+	// caller actually appended: it is what reserves (or does not reserve) the gutter the
+	// labels are drawn in, and it is what the hit test has to agree with.
+	labelled bool
+}
 
-func (boardLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	cell, offX, offY := boardGeometry(size.Width, size.Height)
+func (l boardLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	cell, offX, offY := boardGeometry(size.Width, size.Height, l.labelled)
 	cellSize := fyne.NewSize(cell, cell)
 	nCells := boardDim * boardDim
 	for i, o := range objects {
@@ -154,12 +182,18 @@ func (boardLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 		o.Resize(cellSize)
 		o.Move(fyne.NewPos(offX+float32(col)*cell, offY+float32(row)*cell))
 	}
-	layoutBoardLabels(objects, cell, offX, offY)
+	if l.labelled {
+		layoutBoardLabels(objects, cell, offX, offY)
+	}
 }
 
 // layoutBoardLabels positions the column and row label runs (following the cells) in
 // the gutters reserved by boardGeometry. Labels are centred over their column / beside
 // their row, and their glyph size scales with the cell so they fit the gutter.
+//
+// It is called only for a labelled board, whose geometry reserved those gutters. Running
+// it on an unlabelled board's geometry would draw the labels over the cells, since there
+// the grid starts at the very edge of the board area.
 func layoutBoardLabels(objects []fyne.CanvasObject, cell, offX, offY float32) {
 	nCells := boardDim * boardDim
 	if cell <= 0 || len(objects) <= nCells {
@@ -208,8 +242,9 @@ func layoutBoardLabels(objects []fyne.CanvasObject, cell, offX, offY float32) {
 	}
 }
 
-func (boardLayout) MinSize(_ []fyne.CanvasObject) fyne.Size {
-	return fyne.NewSize(minBoardPx, minBoardPx)
+func (l boardLayout) MinSize(_ []fyne.CanvasObject) fyne.Size {
+	edge := minBoardSize(l.labelled)
+	return fyne.NewSize(edge, edge)
 }
 
 // rackLayout lays out its children as a centred horizontal row of equal squares.

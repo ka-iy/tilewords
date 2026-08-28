@@ -6,7 +6,7 @@ package engine
 
 import "fmt"
 
-// AnnotatedWords returns Scrabble-notation strings for every word a committed PlayMove
+// AnnotatedWords returns official-notation strings for every word a committed PlayMove
 // forms: the main word (along the play's axis) first, then any perpendicular cross-words
 // formed where the new tiles connect against existing tiles. Each element is "<coord>
 // <word>" using the conventions described on AnnotatedMainWord. Returns nil when the move
@@ -26,7 +26,7 @@ func AnnotatedWords(board *Board, move *PlayMove) []string {
 	return words
 }
 
-// AnnotatedMainWord returns the Scrabble-notation coordinate and word for the primary word
+// AnnotatedMainWord returns the official-notation coordinate and word for the primary word
 // a committed PlayMove forms — the main word along the play's axis, or, when a single tile
 // leaves that axis ambiguous, the highest-scoring of the words it forms (see
 // notationGroups). It must be called after the move has been committed to board.
@@ -100,7 +100,7 @@ func annotate(board *Board, move *PlayMove, positions [][2]int) (coord, word str
 			letter = t.AssignedLetter
 		}
 		if t.IsBlank {
-			letter += 'a' - 'A' // blanks are shown lowercase in Scrabble notation
+			letter += 'a' - 'A' // blanks are shown lowercase in the official notation
 		}
 		b = append(b, letter)
 	}
@@ -110,7 +110,7 @@ func annotate(board *Board, move *PlayMove, positions [][2]int) (coord, word str
 	return coord, string(b)
 }
 
-// notationCoord formats a 0-indexed board square as a Scrabble-notation coordinate:
+// notationCoord formats a 0-indexed board square as a official-notation coordinate:
 // number-then-letter for a horizontal word, letter-then-number for a vertical one.
 func notationCoord(row, col int, horiz bool) string {
 	colLetter := byte('A' + col)

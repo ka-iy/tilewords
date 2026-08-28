@@ -20,15 +20,35 @@ import (
 var testAvail = []dictionary.DictName{"alpha", "beta", "gamma"}
 
 // TestDefaultGameSettings covers the built-in defaults: first available dictionary, Classic
-// mode, mid difficulty, notation off; and the empty-avail case (blank dictionary).
+// mode, mid difficulty, notation off, board headers off; and the empty-avail case (blank
+// dictionary).
 func TestDefaultGameSettings(t *testing.T) {
 	got := defaultGameSettings(testAvail)
-	want := GameSettings{Dict: "alpha", Mode: engine.ClassicMode, Difficulty: defaultDifficulty, Notation: false}
+	want := GameSettings{
+		Dict:         "alpha",
+		Mode:         engine.ClassicMode,
+		Difficulty:   defaultDifficulty,
+		Notation:     false,
+		BoardHeaders: false,
+	}
 	if got != want {
 		t.Fatalf("defaultGameSettings = %+v, want %+v", got, want)
 	}
 	if d := defaultGameSettings(nil); d.Dict != "" {
 		t.Fatalf("defaultGameSettings(nil).Dict = %q, want empty", d.Dict)
+	}
+}
+
+// TestGameSettingsDisplay maps the persisted display options onto the value startNewGame
+// takes, so a mix-up between the two flags shows up here rather than on screen.
+func TestGameSettingsDisplay(t *testing.T) {
+	got := GameSettings{Notation: true, BoardHeaders: false}.display()
+	if want := (displayPrefs{notation: true, boardHeaders: false}); got != want {
+		t.Errorf("display() = %+v, want %+v", got, want)
+	}
+	got = GameSettings{Notation: false, BoardHeaders: true}.display()
+	if want := (displayPrefs{notation: false, boardHeaders: true}); got != want {
+		t.Errorf("display() = %+v, want %+v", got, want)
 	}
 }
 
@@ -85,7 +105,7 @@ func TestSettingsStoreRoundTrip(t *testing.T) {
 		t.Fatalf("empty store: load = %+v, want defaults", got)
 	}
 
-	want := GameSettings{Dict: "gamma", Mode: engine.InterestingMode, Difficulty: 9, Notation: true}
+	want := GameSettings{Dict: "gamma", Mode: engine.InterestingMode, Difficulty: 9, Notation: true, BoardHeaders: true}
 	s.save(want)
 	if got := s.load(testAvail); got != want {
 		t.Fatalf("after save: load = %+v, want %+v", got, want)
@@ -102,10 +122,11 @@ func TestPBT_Settings_RoundTrip(t *testing.T) {
 			mode = engine.InterestingMode
 		}
 		s := GameSettings{
-			Dict:       dict,
-			Mode:       mode,
-			Difficulty: rapid.IntRange(1, 10).Draw(t, "difficulty"),
-			Notation:   rapid.Bool().Draw(t, "notation"),
+			Dict:         dict,
+			Mode:         mode,
+			Difficulty:   rapid.IntRange(1, 10).Draw(t, "difficulty"),
+			Notation:     rapid.Bool().Draw(t, "notation"),
+			BoardHeaders: rapid.Bool().Draw(t, "boardHeaders"),
 		}
 
 		raw, err := encode(s)

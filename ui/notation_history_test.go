@@ -14,8 +14,8 @@ import (
 )
 
 // playCAT commits CAT horizontally across row 7 (cols 6–8) and logs it, returning the newest
-// history line. scrabbleNotation selects the format.
-func playCATLine(t *testing.T, scrabbleNotation bool) string {
+// history line. officialNotation selects the format.
+func playCATLine(t *testing.T, officialNotation bool) string {
 	t.Helper()
 	_ = test.NewApp()
 	dict, err := dictionary.NewFromWords("test", []string{"CAT"})
@@ -24,7 +24,7 @@ func playCATLine(t *testing.T, scrabbleNotation bool) string {
 	}
 	state := engine.New(dict.Name(), 5, rand.New(rand.NewPCG(1, 0)))
 	state.CurrentTurn = engine.HumanTurn
-	state.ScrabbleNotation = scrabbleNotation
+	state.OfficialNotation = officialNotation
 	gs := newGameScreen(nil, state, dict)
 	gs.build()
 
@@ -45,7 +45,7 @@ func playCATLine(t *testing.T, scrabbleNotation bool) string {
 }
 
 // TestHistoryLine_PlainVsNotation verifies the move-history line uses the plain word list by
-// default and Scrabble coordinate notation when the option is enabled.
+// default and official coordinate notation when the option is enabled.
 func TestHistoryLine_PlainVsNotation(t *testing.T) {
 	if got, want := playCATLine(t, false), "You: CAT (+5)"; got != want {
 		t.Errorf("plain history line = %q, want %q", got, want)
@@ -66,7 +66,7 @@ func TestHistoryLine_NotationListsCrossWords(t *testing.T) {
 	}
 	state := engine.New(dict.Name(), 5, rand.New(rand.NewPCG(1, 0)))
 	state.CurrentTurn = engine.HumanTurn
-	state.ScrabbleNotation = true
+	state.OfficialNotation = true
 	gs := newGameScreen(nil, state, dict)
 	gs.build()
 

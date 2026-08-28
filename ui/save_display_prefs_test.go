@@ -10,9 +10,9 @@ import (
 	"tilewords/engine"
 )
 
-// TestSaveManager_PersistsScrabbleNotation verifies the move-history format preference
-// survives a save/load round trip, so a resumed game keeps the chosen notation.
-func TestSaveManager_PersistsScrabbleNotation(t *testing.T) {
+// TestSaveManager_PersistsDisplayPrefs verifies the display preferences survive a save/load
+// round trip, so a resumed game keeps the chosen move-history format and board headers.
+func TestSaveManager_PersistsDisplayPrefs(t *testing.T) {
 	dir := t.TempDir()
 	sm, err := NewSaveManager(dir)
 	if err != nil {
@@ -20,7 +20,8 @@ func TestSaveManager_PersistsScrabbleNotation(t *testing.T) {
 	}
 
 	state := engine.New("csw", 5, rand.New(rand.NewPCG(42, 0)))
-	state.ScrabbleNotation = true
+	state.OfficialNotation = true
+	state.BoardHeaders = true
 	if err := sm.Save(state); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
@@ -29,7 +30,10 @@ func TestSaveManager_PersistsScrabbleNotation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if !loaded.ScrabbleNotation {
-		t.Error("ScrabbleNotation did not persist across save/load")
+	if !loaded.OfficialNotation {
+		t.Error("OfficialNotation did not persist across save/load")
+	}
+	if !loaded.BoardHeaders {
+		t.Error("BoardHeaders did not persist across save/load")
 	}
 }

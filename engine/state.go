@@ -70,11 +70,18 @@ type GameState struct {
 	// game that is saved and reloaded is never scored a second time.
 	EndgameScored bool
 
-	// ScrabbleNotation records the player's move-history display preference (Scrabble
+	// OfficialNotation records the player's move-history display preference (official
 	// coordinate notation when true, otherwise the plain word list). It is a UI preference
 	// rather than rules state, but is persisted here so a saved game resumes in the same
 	// format. Older save files without this field decode as false (plain).
-	ScrabbleNotation bool
+	OfficialNotation bool
+
+	// BoardHeaders records whether the board shows its row and column headers (A-O across
+	// the top, 1-15 down the left) — the strips a square's coordinate is read off. Like
+	// OfficialNotation it is a UI preference rather than rules state, persisted here so a
+	// resumed game looks the way the player left it. Older save files without this field
+	// decode as false (no headers).
+	BoardHeaders bool
 
 	// History is the move log shown in the UI's move-history panel, persisted so a resumed
 	// game keeps its record. It holds already-rendered display data rather than executable

@@ -209,7 +209,8 @@ func (a *App) screenToken() int { return a.nav }
 func (a *App) screenIsCurrent(token int) bool { return a.nav == token }
 
 // showGame installs the gameplay screen for an initialised state and dictionary. The
-// move-history format is taken from state.ScrabbleNotation. If it is the CPU's turn (e.g.
+// presentation choices are taken from the state (OfficialNotation, BoardHeaders). If it is
+// the CPU's turn (e.g.
 // the CPU won the opening draw, or a saved game was the CPU's move), the CPU turn is started
 // immediately.
 func (a *App) showGame(state *engine.GameState, dict *dictionary.Dictionary) {
@@ -251,9 +252,9 @@ func newGameRNG() *rand.Rand {
 // goroutine; the caller uses it to display the message on the current screen.
 
 // startNewGame loads dictName asynchronously and, on success, creates a fresh game in
-// the given mode and shows the game screen. scrabbleNotation selects the move-history
-// format.
-func (a *App) startNewGame(dictName dictionary.DictName, level int, mode engine.GameMode, scrabbleNotation bool, onErr func(string)) {
+// the given mode and shows the game screen. display carries the presentation choices (the
+// move-history format and whether the board shows its row and column headers).
+func (a *App) startNewGame(dictName dictionary.DictName, level int, mode engine.GameMode, display displayPrefs, onErr func(string)) {
 	token := a.screenToken()
 	go func() {
 		dict, err := dictionary.Load(dictName)
@@ -267,7 +268,8 @@ func (a *App) startNewGame(dictName dictionary.DictName, level int, mode engine.
 			}
 			rng := newGameRNG()
 			state := engine.NewWithMode(dict.Name(), level, mode, rng)
-			state.ScrabbleNotation = scrabbleNotation
+			state.OfficialNotation = display.notation
+			state.BoardHeaders = display.boardHeaders
 			logOpeningDraw(state)
 			a.showGame(state, dict)
 		})
@@ -294,8 +296,8 @@ func (a *App) loadSavedGame(onErr func(string)) {
 				onErr(sanitiseError(err))
 				return
 			}
-			// state.ScrabbleNotation was persisted with the save, so the resumed game keeps
-			// the same move-history format the player chose.
+			// The presentation choices were persisted with the save, so the resumed game keeps
+			// the move-history format and board headers the player chose.
 			a.showGame(state, dict)
 		})
 	}()

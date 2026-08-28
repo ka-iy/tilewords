@@ -16,7 +16,8 @@ func TestPBT_BoardGeometry_FitsAndCentred(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		w := rapid.Float32Range(0, 4000).Draw(t, "w")
 		h := rapid.Float32Range(0, 4000).Draw(t, "h")
-		cell, offX, offY := boardGeometry(w, h)
+		labelled := rapid.Bool().Draw(t, "labelled")
+		cell, offX, offY := boardGeometry(w, h, labelled)
 
 		if cell < 0 {
 			t.Fatalf("cell must be non-negative, got %v", cell)

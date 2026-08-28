@@ -48,12 +48,12 @@ All other external-entity trademarks, names, logos, and service marks (collectiv
    - Double-tap a placed but not played board tile to return it to your rack.
    - To recall all unplayed tiles to the rack, use the recall icon on top of your rack (looks like a download icon. Why? Because that's all that was available in the UI toolkit).
    - You can also shuffle and rearrange the tiles on your rack, in case you need a fresh way of looking at things.
-- **Move history:** a running log of every turn - who played, the words formed, and the score - with an option to show it in standard Scrabble notation.
+- **Move history:** a running log of every turn - who played, the words formed, and the score - with an option to show it in the standard official notation. The board's row and column headers - the strips a square's coordinate is read off - are a separate option, off by default so the squares have the whole board area.
 - **Copy to clipboard:** the move-history and definitions panels are copyable. On desktop, select and copy; on a phone, long-press to copy the whole panel, while a finger-drag scrolls and a double or triple tap selects a word or line.
    - For convenience and visibility, a dedicated "Copy" button is also provided in the game UI which will copy the contents of the active tab (Move history or Definitions) to the system clipboard.
 - **Undo:** take back the last full round - your move together with the computer's reply.
 - **Save and restore:** keep a single saved game and resume it later. The save captures the board, racks, scores, move history, and game mode.
-- **Remembered setup defaults:** optionally save your New Game choices - word list, game mode, difficulty, and notation - so that starting another game is a single tap.
+- **Remembered setup defaults:** optionally save your New Game choices - word list, game mode, difficulty, notation, and board headers - so that starting another game is a single tap.
 - **Cross-platform:** runs on desktop and Android from a single codebase. Written in Go using the Fyne UI toolkit. MacOS may be supported at some time in the future, but iOS will probably never be - the Apple Store hates open source, the GPL, and developers who don't kowtow to them. Gurgle and Android are going the same way, sadly, in a horrifying game of simian mirror-neuron idiocy.
 - **About and Lexicon:** an in-app dialog crediting the word lists and dictionaries, with the source links copyable to the clipboard.
 - **Show/Hide CPU rack:** for those times when you need to get a leg (or at least a toe) up on a frighteningly capable machine opponent.

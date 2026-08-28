@@ -198,10 +198,16 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		levelLabel.SetText(difficultyLabelText(level))
 	}
 
-	// Move-history format: plain word list by default, Scrabble coordinate notation when
+	// Move-history format: plain word list by default, official coordinate notation when
 	// checked (e.g. "8D UNMIX +28").
 	notationCheck := newTouchCheck("Show move history in official notation", nil)
 	notationCheck.Checked = gs.Notation
+
+	// Board row and column headers (A-O across the top, 1-15 down the left): off by default,
+	// so the cells have the whole board area. They are what a square's coordinate is read
+	// off, but they and the notation are chosen independently — either is useful alone.
+	headersCheck := newTouchCheck("Show board row and column headers", nil)
+	headersCheck.Checked = gs.BoardHeaders
 
 	// When checked at Start Game, the current selections are persisted as the player's
 	// defaults (FR-15). It opens checked every time and is not itself persisted.
@@ -217,10 +223,11 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		}
 		if saveDefaultsCheck.Checked && a.settings != nil {
 			a.settings.save(GameSettings{
-				Dict:       selectedDict,
-				Mode:       selectedMode,
-				Difficulty: level,
-				Notation:   notationCheck.Checked,
+				Dict:         selectedDict,
+				Mode:         selectedMode,
+				Difficulty:   level,
+				Notation:     notationCheck.Checked,
+				BoardHeaders: headersCheck.Checked,
 			})
 		}
 		startBtn.Disable()
@@ -231,7 +238,8 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		// rebuilt screen reopens on the saved defaults, which the Start tap has just written
 		// when "Save these as my defaults" is checked.
 		gen := a.uiGen
-		a.startNewGame(selectedDict, level, selectedMode, notationCheck.Checked, func(msg string) {
+		display := displayPrefs{notation: notationCheck.Checked, boardHeaders: headersCheck.Checked}
+		a.startNewGame(selectedDict, level, selectedMode, display, func(msg string) {
 			a.reportOnCurrentScreen(gen, msg, func() {
 				status.SetText(msg)
 				startBtn.Enable()
@@ -263,6 +271,7 @@ func (a *App) buildSetup() fyne.CanvasObject {
 		levelSlider,
 		widget.NewSeparator(),
 		notationCheck,
+		headersCheck,
 		saveDefaultsCheck,
 		widget.NewSeparator(),
 		// Grouped so a press near either button's top edge runs it instead of landing on the
