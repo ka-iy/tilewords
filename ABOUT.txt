@@ -1,4 +1,4 @@
-TileWords is a free, fully open-source, fully offline Scrabble®-like crossword tile game (with word definitions!) in which you play against the computer, using individual letter tiles to construct cromulent words on a game board to gain the endorphin hit from watching those sweet sweet points _racking_ (heh heh) up.
+TileWords is a free, fully open-source, fully offline crossword tile game (with word definitions!) in which you play against the computer, using individual letter tiles to construct cromulent words on a game board to gain the endorphin hit from watching those sweet sweet points _racking_ (heh heh) up. It's like that S-word game which we cannot name in-game for fear of being eviscerated and defenstrated.
 
 TileWords uses public-domain and libre/freely available word lists and definitions.
 No proprietary lexicons were harmed during the making of this game.
