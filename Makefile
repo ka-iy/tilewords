@@ -199,8 +199,8 @@ KEY_ALIAS          ?= tilewords
 #   ./version-bump.sh -h           explain all of the above
 APP_NAME    := TileWords
 APP_ID      := fyi.tilewords.game
-APP_VERSION := 0.3.0
-APP_BUILD   := 6
+APP_VERSION := 0.3.1
+APP_BUILD   := 7
 ICON        := $(CURDIR)/ui/Icon.png
 
 # ── Help ──────────────────────────────────────────────────────────────────────
