@@ -200,7 +200,7 @@ func (a *App) buildSetup() fyne.CanvasObject {
 
 	// Move-history format: plain word list by default, Scrabble coordinate notation when
 	// checked (e.g. "8D UNMIX +28").
-	notationCheck := newTouchCheck("Show move history in Scrabble notation", nil)
+	notationCheck := newTouchCheck("Show move history in official notation", nil)
 	notationCheck.Checked = gs.Notation
 
 	// When checked at Start Game, the current selections are persisted as the player's
