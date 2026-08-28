@@ -145,8 +145,16 @@ sudo pacman -S --needed go gcc pkgconf mesa libxcursor libxrandr libxinerama lib
 git clone https://github.com/ka-iy/tilewords.git
 cd tilewords
 ```
+### The quick-n-dirty build instructions
 
-### Fetch the word lists (Optional)
+```bash
+make clean
+make debug-all # The first build will take a while
+```
+
+### The in-excruciating-detail build instructions
+
+#### Fetch the word lists (Optional)
 
 The word lists are already committed, so this step is optional. Each
 `wordlists/<name>.txt` is compiled into a GADDAG automatically at build time. One target
@@ -171,7 +179,7 @@ Adding a fourth list is just a matter of dropping `wordlists/<name>.txt` in plac
 discovered and compiled automatically - and registering `<name>` in
 `dictionary.AllDictNames` so the game offers it in the setup menu.
 
-### Fetch and build the definitions
+#### Fetch and build the definitions
 
 The definitions asset is not committed, so a build makes one when it is missing. Running
 this by hand is only needed to regenerate an asset that already exists, or to fetch the
@@ -230,7 +238,7 @@ As of the current asset that reports 100% on all three lists. The only words it 
 counts as missing are the ones listed in `defs/possibly_invalid_words.txt`, which
 `buildgaddag` drops from the compiled dictionaries, so they are never playable.
 
-### Build and run
+#### Build and run
 
 ```bash
 make               # (or: make linux) debug build of the Linux desktop binary
@@ -262,7 +270,7 @@ make release-all             # release build for Linux + Windows + Android
 make help                    # list every target with a description
 ```
 
-### Windows builds (optional)
+#### Windows builds (optional)
 
 A Windows `.exe` can be cross-compiled from Linux. Fyne's GUI is C-backed (GLFW/OpenGL), so
 this needs cgo and a **mingw-w64** cross compiler — but nothing more than that: the Windows
@@ -311,7 +319,7 @@ Note that a cross-compiled binary cannot be run or tested on the Linux host — 
 only exercises the native build, so the Windows `.exe` is verified as compiling, not as
 running. Launch it on Windows to confirm behaviour.
 
-### Android builds (optional)
+#### Android builds (optional)
 
 Android builds need the Android SDK and NDK. Install the build CLIs and point the
 environment at your SDK/NDK:
@@ -362,7 +370,7 @@ Each of those targets builds four artifacts: one per ABI, plus a universal one h
 every ABI in a single file. To produce only one, name it — `make android-release-arm64-v8a`
 for a single-ABI bundle, or `make android-release-universal` for the universal one alone.
 
-### Bumping the version
+#### Bumping the version
 
 The version and build number live in three files, which have to agree:
 
