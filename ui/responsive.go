@@ -136,6 +136,12 @@ func (m minHeightLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 // padded boxes slightly closes the space without clipping the text.
 const statusRowGap = -20
 
+// wordListTextScale is how much larger than body text the game screen's word-list line is
+// drawn (see withScaledText). It is a small step up so the line reads at a glance, and no
+// larger, because every extra point of text height is height the stacked phone layout
+// takes away from the move-history/definitions panel below it.
+const wordListTextScale = 1.15
+
 // statusMoveGap is the vertical gap above the current-move line (the last status row). It
 // is kept looser than statusRowGap so the move line is set off from the score counters
 // (rather than tucked right up against them like the word list is), but not so loose that

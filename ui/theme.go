@@ -8,6 +8,7 @@ import (
 	"image/color"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 )
 
@@ -99,4 +100,48 @@ func (tileWordsTheme) Size(name fyne.ThemeSizeName) float32 {
 		return 20 // enlarge the status line (default is ~16)
 	}
 	return theme.DefaultTheme().Size(name)
+}
+
+// scaledTextTheme wraps another theme and enlarges only the body text size, leaving every
+// other size, colour, font and icon to the wrapped theme. Paired with
+// container.NewThemeOverride (see withScaledText) it sets one widget's text apart from the
+// rest of the screen without touching a shared theme size name, which would resize every
+// widget that uses it.
+type scaledTextTheme struct {
+	// base supplies everything except the body text size.
+	base fyne.Theme
+	// scale multiplies base's body text size.
+	scale float32
+}
+
+var _ fyne.Theme = scaledTextTheme{}
+
+func (t scaledTextTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+	return t.base.Color(name, variant)
+}
+
+func (t scaledTextTheme) Font(s fyne.TextStyle) fyne.Resource { return t.base.Font(s) }
+
+func (t scaledTextTheme) Icon(n fyne.ThemeIconName) fyne.Resource { return t.base.Icon(n) }
+
+func (t scaledTextTheme) Size(name fyne.ThemeSizeName) float32 {
+	if name == theme.SizeNameText {
+		return t.base.Size(name) * t.scale
+	}
+	return t.base.Size(name)
+}
+
+// withScaledText wraps obj so its text renders at scale times the current theme's body
+// text size, inheriting everything else from that theme. The returned object reports the
+// wrapped object's minimum size at the scaled text size, so a layout still sizes it to fit.
+func withScaledText(obj fyne.CanvasObject, scale float32) fyne.CanvasObject {
+	a := fyne.CurrentApp()
+	if a == nil {
+		return obj // no app, hence no theme to scale: leave the object as it is
+	}
+	base := a.Settings().Theme()
+	if base == nil {
+		base = theme.DefaultTheme()
+	}
+	return container.NewThemeOverride(obj, scaledTextTheme{base: base, scale: scale})
 }

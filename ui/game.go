@@ -349,7 +349,7 @@ func (gs *gameScreen) build() fyne.CanvasObject {
 		wordList := widget.NewLabelWithStyle("Word list: "+dictShortName(gs.dict.Name()),
 			fyne.TextAlignCenter, fyne.TextStyle{Italic: true})
 		wordList.Wrapping = fyne.TextWrapWord
-		statusItems = append(statusItems, wordList)
+		statusItems = append(statusItems, withScaledText(wordList, wordListTextScale))
 		statusGaps = append(statusGaps, statusRowGap) // word list -> counters
 	}
 	statusItems = append(statusItems, counters, gs.statusRT)
