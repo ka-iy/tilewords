@@ -333,6 +333,54 @@ Each of those targets builds four artifacts: one per ABI, plus a universal one h
 every ABI in a single file. To produce only one, name it — `make android-release-arm64-v8a`
 for a single-ABI bundle, or `make android-release-universal` for the universal one alone.
 
+### Bumping the version
+
+The version and build number live in three files, which have to agree:
+
+| File | Version | Build |
+| --- | --- | --- |
+| `Makefile` | `APP_VERSION` | `APP_BUILD` |
+| `FyneApp.toml` | `Version` | `Build` |
+| `cmd/tilewords/AndroidManifest.xml` | `android:versionName` | `android:versionCode` |
+
+Nothing in the build checks that they do, so editing one by hand goes unnoticed until a
+packaged app reports a version it was not built as, or the Play Store turns an upload
+away. `version-bump.sh` is the one thing that moves them together:
+
+```bash
+./version-bump.sh -a           # raise the patch level and the build number by one
+./version-bump.sh -u           # take the version from the most recent tag, patch + 1
+./version-bump.sh -v 0.3.0     # set the version; the build number still rises
+./version-bump.sh -b 12        # set the build number; the version holds
+./version-bump.sh -i           # be asked for the values
+./version-bump.sh -d -v 1.0.0  # show what would change, write nothing
+./version-bump.sh -h           # the full usage
+```
+
+It has to be told what to do: run with no options, it prints that usage and changes
+nothing, so a bump is never something that happens by accident.
+
+It reads the values in force from the Makefile, and refuses anything that would not move
+forwards:
+
+- The version may repeat while the build number rises, but it may never fall. Comparison
+  follows semver, so `0.10.0` beats `0.9.0` and a prerelease ranks below its release.
+- The build number must rise every time, because the Play Store refuses an upload whose
+  `versionCode` is not above the last one.
+- If the three files already disagree, it reports the disagreement and writes nothing
+  rather than guessing which of them is right.
+
+`-u` bases the version on `git describe --tags --abbrev=0` — the most recent tag
+reachable from `HEAD` — rather than on the Makefile, which is what to use when the tag
+is the release of record. The tag's patch level is raised by one and any prerelease
+suffix is dropped, so `v0.2.0-beta` gives `0.2.1`; the build number still rises by one.
+No tag, no `git`, or a tag that is not semver is an error, and so is a tag old enough
+that following it would move the version backwards.
+
+Nothing is written until all three rewrites have been produced and read back. A pattern
+that stops matching, or a file that is read-only, therefore aborts the run with the tree
+as it was, rather than leaving some files bumped and others behind.
+
 ## My Word!
 
 TileWords is built on freely available word lists and dictionaries. Grateful acknowledgement is made to the authors and maintainers of the sources below, whose work makes possible this game and the lexicon it uses.

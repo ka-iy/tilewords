@@ -176,7 +176,27 @@ KEY_ALIAS          ?= tilewords
 
 # Mobile app metadata. fyne normally reads these from FyneApp.toml, but Android builds
 # must run from the main-package directory (cmd/tilewords), where that file is not
-# present — so they are passed explicitly. Keep in sync with FyneApp.toml.
+# present — so they are passed explicitly.
+#
+# APP_VERSION and APP_BUILD are carried by three files, which must agree:
+#
+#   - this Makefile                       APP_VERSION, APP_BUILD
+#   - FyneApp.toml                        Version, Build
+#   - cmd/tilewords/AndroidManifest.xml   android:versionName, android:versionCode
+#
+# Nothing in the build checks that they agree, so an edit to one alone surfaces only when a
+# packaged app reports a version it was not built as, or the Play Store rejects an upload.
+# Use ./version-bump.sh rather than editing them here: it moves all three together and
+# refuses a value that would go backwards. It has to be told what to do -- run with no
+# options, it only prints its usage.
+#
+#   ./version-bump.sh -a           raise the patch level and the build number by one
+#   ./version-bump.sh -u           take the version from the most recent tag, patch + 1
+#   ./version-bump.sh -v 0.3.0     set the version; the build number still rises
+#   ./version-bump.sh -b 12        set the build number; the version holds
+#   ./version-bump.sh -i           be asked for the values
+#   ./version-bump.sh -d ...       show what would change, write nothing
+#   ./version-bump.sh -h           explain all of the above
 APP_NAME    := TileWords
 APP_ID      := fyi.tilewords.game
 APP_VERSION := 0.2.0

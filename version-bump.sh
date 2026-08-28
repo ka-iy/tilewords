@@ -12,7 +12,8 @@
 #   cmd/tilewords/AndroidManifest.xml   android:versionName="X.Y.Z"
 #                                       android:versionCode="N"
 #
-# The Makefile is read for the values in force; run with -h for what the options do.
+# The Makefile is read for the values in force. Something has to be asked for: a run
+# with no options prints the usage and does nothing. Run with -h for what the options do.
 #
 # The semver parsing and comparison below are adapted from semver-tool by François
 # Saint-Jacques (MIT licence): https://github.com/fsaintjacques/semver-tool
@@ -28,6 +29,8 @@ readonly PROG="${0##*/}"
 
 DRY_RUN=0
 INTERACTIVE=0
+AUTO=0
+FROM_TAG=0
 OPT_VERSION=""
 OPT_BUILD=""
 
@@ -122,14 +125,18 @@ compare_version() {
     compare_fields left right
 }
 
+
 # ── reading what is there now ─────────────────────────────────────────────────
 
-current_makefile_version() { sed -n 's/^APP_VERSION[[:space:]]*:=[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*$/\1/p' "$MAKEFILE"; }
-current_makefile_build()   { sed -n 's/^APP_BUILD[[:space:]]*:=[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*$/\1/p' "$MAKEFILE"; }
-current_fyne_version()     { sed -n 's/^Version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "$FYNEAPP"; }
-current_fyne_build()       { sed -n 's/^Build[[:space:]]*=[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$FYNEAPP"; }
-current_manifest_version() { sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' "$MANIFEST"; }
-current_manifest_build()   { sed -n 's/.*android:versionCode="\([^"]*\)".*/\1/p' "$MANIFEST"; }
+# Each takes the file to read as $1. They are used both on the real files and on a
+# staged rewrite, which is how a rewrite is checked before it goes anywhere near the
+# real thing -- the check then uses the very parser the rest of the script trusts.
+makefile_version() { sed -n 's/^APP_VERSION[[:space:]]*:=[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*$/\1/p' "$1"; }
+makefile_build()   { sed -n 's/^APP_BUILD[[:space:]]*:=[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*$/\1/p' "$1"; }
+fyne_version()     { sed -n 's/^Version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "$1"; }
+fyne_build()       { sed -n 's/^Build[[:space:]]*=[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$1"; }
+manifest_version() { sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' "$1"; }
+manifest_build()   { sed -n 's/.*android:versionCode="\([^"]*\)".*/\1/p' "$1"; }
 
 # Reads the current values and refuses to go on unless all three files agree. Bumping
 # from one file's value while another sits higher would silently downgrade that file.
@@ -140,8 +147,8 @@ read_current() {
     done
 
     local mv fv nv mb fb nb
-    mv=$(current_makefile_version); fv=$(current_fyne_version); nv=$(current_manifest_version)
-    mb=$(current_makefile_build);   fb=$(current_fyne_build);   nb=$(current_manifest_build)
+    mv=$(makefile_version "$MAKEFILE"); fv=$(fyne_version "$FYNEAPP"); nv=$(manifest_version "$MANIFEST")
+    mb=$(makefile_build "$MAKEFILE");   fb=$(fyne_build "$FYNEAPP");   nb=$(manifest_build "$MANIFEST")
 
     for pair in "Makefile APP_VERSION:$mv" "FyneApp.toml Version:$fv" "AndroidManifest versionName:$nv" \
                 "Makefile APP_BUILD:$mb" "FyneApp.toml Build:$fb" "AndroidManifest versionCode:$nb"; do
@@ -160,6 +167,7 @@ read_current() {
     CUR_VERSION=$mv
     CUR_BUILD=$mb
 }
+
 
 # ── validating what was asked for ─────────────────────────────────────────────
 
@@ -193,6 +201,7 @@ check_build() {
     return 0
 }
 
+
 # ── defaults ──────────────────────────────────────────────────────────────────
 
 # bump_patch VERSION -> VERSION with the patch level raised by one.
@@ -204,20 +213,39 @@ bump_patch() {
     printf '%s.%s.%s\n' "${V[0]}" "${V[1]}" "$(( V[2] + 1 ))"
 }
 
+
+# ── the current tag ───────────────────────────────────────────────────────────
+
+# latest_tag -> the most recent tag reachable from HEAD, as git prints it.
+# Returns non-zero instead of exiting when there is no answer -- no git, no repository,
+# no tag -- so that the usage text can offer the tag when there is one and say so when
+# there is not, while -u itself turns the same failure into an error.
+latest_tag() {
+    local tag
+    command -v git >/dev/null 2>&1 || return 1
+    tag=$( cd -- "$REPO" && git describe --tags --abbrev=0 2>/dev/null ) || return 1
+    [ -n "$tag" ] || return 1
+    printf '%s\n' "$tag"
+}
+
+
 # ── usage ─────────────────────────────────────────────────────────────────────
 
 # The defaults are shown as the concrete values this working tree would get, so -h
-# answers "what will a bare run do here?" and not merely "what does the option mean?".
+# answers "what will this do here?" and not merely "what does the option mean?".
 usage() {
-    local cv cb nv nb
-    cv=$(current_makefile_version 2>/dev/null) || cv=""
-    cb=$(current_makefile_build 2>/dev/null)   || cb=""
+    local cv cb nv nb tag tv
+    cv=$(makefile_version "$MAKEFILE" 2>/dev/null) || cv=""
+    cb=$(makefile_build "$MAKEFILE" 2>/dev/null)   || cb=""
     if validate_version "$cv" 2>/dev/null; then nv=$(bump_patch "$cv"); else cv="?"; nv="?"; fi
     if [[ "$cb" =~ ^(0|[1-9][0-9]*)$ ]]; then nb=$(( cb + 1 )); else cb="?"; nb="?"; fi
+    tag=$(latest_tag) || tag=""
+    if [ -n "$tag" ] && validate_version "$tag"; then tv=$(bump_patch "$tag"); else tag="none"; tv="?"; fi
 
     cat <<USAGE
-Usage: $PROG [-t] [-a version] [-b number]
-       $PROG [-t] -i
+Usage: $PROG [-d] -a
+       $PROG [-d] -u [-b number]
+       $PROG [-d] [-i] [-v version] [-b number]
        $PROG -h
 
 Raise the application version and build number in the three files that carry them, so
@@ -227,41 +255,51 @@ that they cannot drift apart:
   FyneApp.toml                        Version, Build
   cmd/tilewords/AndroidManifest.xml   android:versionName, android:versionCode
 
-The values in force are read from the Makefile. Given no options, the patch level and
-the build number are each raised by one. For this working tree that is:
-
-  version  $cv -> $nv
-  build    $cb -> $nb
+The values in force are read from the Makefile, and here are version $cv and build $cb.
+Something has to be asked for: a run with no options prints this message and changes
+nothing.
 
 Options:
-  -a, --app-version version   Use this version instead of the default. Semver, in
-                              major.minor.patch form (for example 0.2.0).
-  -b, --build-number number   Use this build number instead of the default. A single
-                              whole number (for example $nb).
-  -i, --interactive           Ask for each value that -a and -b did not supply, and
+  -a, --auto                  Raise the patch level and the build number by one; here,
+                              version $cv -> $nv and build $cb -> $nb. This is the whole
+                              instruction, so it takes no other option but -d.
+  -u, --update-from-tag       Take the base version from the most recent tag reachable
+                              from HEAD rather than from the Makefile, and raise its
+                              patch level by one; here the tag is $tag, so version
+                              -> $tv. The build number rises by one, to $nb. It is an
+                              error if no tag can be read.
+  -v, --app-version version   Use this version. Semver, in major.minor.patch form (for
+                              example 0.2.0). The build number still rises, to $nb.
+  -b, --build-number number   Use this build number: a single whole number, for example
+                              $nb. On its own it holds the version at $cv, that being a
+                              rebuild of the version in force rather than a new one.
+  -i, --interactive           Ask for each value the options above did not supply, and
                               keep asking until the answer is usable.
-  -t, --test                  Report what would change and write nothing. Combines
-                              with -a, -b and -i.
+  -d, --dry-run               Report what would change and write nothing. Combines with
+                              every option above.
   -h, --help                  Print this message and exit.
 
 A version may repeat when the build number rises, but it may never fall: 0.2.0 will not
-follow 0.3.0. The build number must rise every time, because the Play Store refuses an
-upload whose versionCode is not above the one before it. The three files must agree on
-the values in force before anything is changed; when they do not, the disagreement is
-reported and nothing is written.
+follow 0.3.0, and neither will a version taken from an old tag. The build number must
+rise every time, because the Play Store refuses an upload whose versionCode is not above
+the one before it. The three files must agree on the values in force before anything is
+changed; when they do not, the disagreement is reported and nothing is written.
 
 Examples:
-  $PROG                     Raise $cv/$cb to $nv/$nb.
-  $PROG -a 0.3.0            Release 0.3.0, with the build number raised to $nb.
+  $PROG -a                  Raise $cv/$cb to $nv/$nb.
+  $PROG -u                  Follow the tag $tag: version $tv, build $nb.
+  $PROG -v 0.3.0            Release 0.3.0, with the build number raised to $nb.
   $PROG -b 12               Keep version $cv, set the build number to 12.
-  $PROG -t -a 1.0.0         Show the 1.0.0 bump without touching a file.
+  $PROG -d -v 1.0.0         Show the 1.0.0 bump without touching a file.
   $PROG -i                  Be asked for both values.
 
 Exit status:
-  0   the files were changed, or with -t would have been
-  1   the options were wrong, a value would not move forwards, or the files disagree
+  0   the files were changed, or with -d would have been
+  1   nothing was asked for, an option was wrong, a value would not move forwards, the
+      tag could not be read, or the files disagree
 USAGE
 }
+
 
 # ── asking ────────────────────────────────────────────────────────────────────
 
@@ -289,67 +327,96 @@ ask() {
         printf '%s\n' "$reason"
     done
 }
+
+
 # ── writing ───────────────────────────────────────────────────────────────────
 
-# edit FILE SED_EXPR EXPECTED_GREP DESCRIPTION
-# Edits through a temp file and verifies the result before replacing the original, so a
-# pattern that stops matching leaves the tree untouched rather than half-bumped.
-edit() {
-    local file=$1 expr=$2 expect=$3 what=$4 tmp
-    tmp=$(mktemp "$file.XXXXXX")
+# Temp files holding the rewritten content, and the file each is destined for. The two
+# arrays are parallel: STAGED[i] is the new content of STAGED_FOR[i].
+STAGED=()
+STAGED_FOR=()
 
-    if ! sed "$expr" "$file" > "$tmp"; then
-        rm -f "$tmp"
-        die "$what: sed failed on $file. Nothing has been changed."
-    fi
-    if ! grep -qF -- "$expect" "$tmp"; then
-        rm -f "$tmp"
-        die "$what: the edit did not take in $file. Nothing has been changed."
-    fi
-    if [ "$DRY_RUN" -eq 0 ]; then
-        cat "$tmp" > "$file"   # write through, so the file keeps its mode and inode
-    fi
-    rm -f "$tmp"
+trap 'rm -f ${STAGED[@]+"${STAGED[@]}"}' EXIT
+
+# stage FILE LABEL VERSION BUILD VERSION_READER BUILD_READER SED_VERSION SED_BUILD
+# Rewrites FILE into a temp file and confirms, by reading that temp back with the same
+# accessor that reads the real file, that both values landed. FILE itself is not
+# touched. Staging every file before committing any of them is what keeps a failure
+# from leaving some files bumped and others not -- which is the very drift this script
+# exists to prevent, and which no part of the build would notice.
+stage() {
+    local file=$1 label=$2 version=$3 build=$4 vread=$5 bread=$6 sedv=$7 sedb=$8
+    local tmp got
+
+    tmp=$(mktemp "$file.XXXXXX")
+    STAGED+=( "$tmp" )
+    STAGED_FOR+=( "$file" )
+
+    sed -e "$sedv" -e "$sedb" "$file" > "$tmp" \
+        || die "$label: sed failed. No file has been changed."
+
+    got=$("$vread" "$tmp")
+    [ "$got" = "$version" ] \
+        || die "$label: the version did not take (found '$got', wanted '$version'). No file has been changed."
+    got=$("$bread" "$tmp")
+    [ "$got" = "$build" ] \
+        || die "$label: the build did not take (found '$got', wanted '$build'). No file has been changed."
 }
 
-apply() {
+# stage_all leaves the tree untouched, so it is also exactly what -t needs to run.
+stage_all() {
     local version=$1 build=$2
 
-    # Anchored at the start of the line so the prose in the manifest comment, which
-    # mentions versionCode and versionName by name, is left alone.
-    edit "$MAKEFILE" \
+    # The Makefile and FyneApp expressions are anchored at the start of the line so that
+    # only the assignments match. The manifest's are not, its attributes being indented,
+    # but they carry the android: prefix, which the prose in that file's comment does not.
+    stage "$MAKEFILE" "Makefile" "$version" "$build" \
+        makefile_version makefile_build \
         "s/^\(APP_VERSION[[:space:]]*:=[[:space:]]*\).*/\1$version/" \
-        "APP_VERSION" "Makefile APP_VERSION"
-    edit "$MAKEFILE" \
-        "s/^\(APP_BUILD[[:space:]]*:=[[:space:]]*\).*/\1$build/" \
-        "APP_BUILD" "Makefile APP_BUILD"
+        "s/^\(APP_BUILD[[:space:]]*:=[[:space:]]*\).*/\1$build/"
 
-    edit "$FYNEAPP" \
+    stage "$FYNEAPP" "FyneApp.toml" "$version" "$build" \
+        fyne_version fyne_build \
         "s/^\(Version[[:space:]]*=[[:space:]]*\)\"[^\"]*\"/\1\"$version\"/" \
-        "Version = \"$version\"" "FyneApp.toml Version"
-    edit "$FYNEAPP" \
-        "s/^\(Build[[:space:]]*=[[:space:]]*\)[0-9][0-9]*/\1$build/" \
-        "Build = $build" "FyneApp.toml Build"
+        "s/^\(Build[[:space:]]*=[[:space:]]*\)[0-9][0-9]*/\1$build/"
 
-    edit "$MANIFEST" \
+    stage "$MANIFEST" "AndroidManifest.xml" "$version" "$build" \
+        manifest_version manifest_build \
         "s/\(android:versionName=\)\"[^\"]*\"/\1\"$version\"/" \
-        "android:versionName=\"$version\"" "AndroidManifest versionName"
-    edit "$MANIFEST" \
-        "s/\(android:versionCode=\)\"[^\"]*\"/\1\"$build\"/" \
-        "android:versionCode=\"$build\"" "AndroidManifest versionCode"
+        "s/\(android:versionCode=\)\"[^\"]*\"/\1\"$build\"/"
 }
 
+commit_staged() {
+    local i
+    # Every destination is checked writable before any of them is written, so the one
+    # failure that staging cannot catch -- a file that is read-only -- is still caught
+    # while the tree is whole. Only an error part-way through a write can now split it,
+    # and that is what the message below is for.
+    for i in "${!STAGED_FOR[@]}"; do
+        [ -w "${STAGED_FOR[$i]}" ] || die "${STAGED_FOR[$i]} is not writable. No file has been changed."
+    done
+
+    for i in "${!STAGED[@]}"; do
+        # Written through rather than moved, so each file keeps its mode and its inode.
+        cat "${STAGED[$i]}" > "${STAGED_FOR[$i]}" \
+            || die "could not write ${STAGED_FOR[$i]} — the files may now disagree; check them before building."
+    done
+}
+
+# Reads the real files back after the write, so what the build will see is what was asked
+# for, not merely what was staged.
 verify() {
     local version=$1 build=$2 bad=0
     local got
-    for got in "$(current_makefile_version)" "$(current_fyne_version)" "$(current_manifest_version)"; do
+    for got in "$(makefile_version "$MAKEFILE")" "$(fyne_version "$FYNEAPP")" "$(manifest_version "$MANIFEST")"; do
         [ "$got" = "$version" ] || { echo "version is '$got', expected '$version'" >&2; bad=1; }
     done
-    for got in "$(current_makefile_build)" "$(current_fyne_build)" "$(current_manifest_build)"; do
+    for got in "$(makefile_build "$MAKEFILE")" "$(fyne_build "$FYNEAPP")" "$(manifest_build "$MANIFEST")"; do
         [ "$got" = "$build" ] || { echo "build is '$got', expected '$build'" >&2; bad=1; }
     done
     [ "$bad" -eq 0 ] || die "the files did not end up as expected — check them before building."
 }
+
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
@@ -366,10 +433,12 @@ set -- ${args[@]+"${args[@]}"}
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        -h|--help)         usage; exit 0 ;;
-        -t|--test)         DRY_RUN=1 ;;
-        -i|--interactive)  INTERACTIVE=1 ;;
-        -a|--app-version)
+        -h|--help)             usage; exit 0 ;;
+        -d|--dry-run)          DRY_RUN=1 ;;
+        -i|--interactive)      INTERACTIVE=1 ;;
+        -a|--auto)             AUTO=1 ;;
+        -u|--update-from-tag)  FROM_TAG=1 ;;
+        -v|--app-version)
             [ $# -ge 2 ] || die "$1 needs a version (try --help)"
             OPT_VERSION=$2; shift ;;
         -b|--build-number)
@@ -383,23 +452,61 @@ while [ $# -gt 0 ]; do
 done
 [ $# -eq 0 ] || die "unexpected argument: $1 (try --help)"
 
+# Nothing was asked for. -d on its own lands here too, being a dry run of nothing. The
+# usage goes to standard error and the status is non-zero, so that a caller that meant
+# to bump something cannot read the run as a bump that happened.
+if [ "$AUTO" -eq 0 ] && [ "$FROM_TAG" -eq 0 ] && [ "$INTERACTIVE" -eq 0 ] \
+   && [ -z "$OPT_VERSION" ] && [ -z "$OPT_BUILD" ]; then
+    usage >&2
+    exit 1
+fi
+
+# -a fixes both values by itself, so every option that would fix either of them
+# contradicts it, and -u and -v contradict each other for the same reason. Refusing the
+# combination is the only honest answer: silently letting one win would bump to a value
+# the command line also asked not to use.
+if [ "$AUTO" -eq 1 ]; then
+    [ "$FROM_TAG" -eq 0 ]    || die "-a and -u each choose the new version (try --help)"
+    [ -z "$OPT_VERSION" ]    || die "-a and -v each choose the new version (try --help)"
+    [ -z "$OPT_BUILD" ]      || die "-a and -b each choose the new build number (try --help)"
+    [ "$INTERACTIVE" -eq 0 ] || die "-a supplies both values, leaving -i nothing to ask (try --help)"
+fi
+if [ "$FROM_TAG" -eq 1 ] && [ -n "$OPT_VERSION" ]; then
+    die "-u and -v each choose the new version (try --help)"
+fi
+
 read_current
 note "Current: version $CUR_VERSION, build $CUR_BUILD"
 
-# Precedence for each value, independently: an explicit -a/-b wins; failing that -i
-# asks; failing that the default bump applies. So -i tops up whichever value was not
-# given on the command line rather than conflicting with it.
+# Precedence for each value: an explicit -v/-b wins; failing that -u derives the version
+# from the tag; failing that -i asks; failing that a default applies. So -i tops up
+# whichever value was not given on the command line rather than conflicting with it.
+#
+# The version's default is to hold, which is what -b alone leaves. Pinning the build
+# alone says "this build of the version in force" -- a rebuild or a re-upload -- and
+# moving the version underneath that would be the opposite of what was asked for.
 if [ -n "$OPT_VERSION" ]; then
     NEW_VERSION=$OPT_VERSION
     reason=$(check_version "$NEW_VERSION") || die "--app-version $NEW_VERSION is not usable.
+$reason"
+elif [ "$FROM_TAG" -eq 1 ]; then
+    TAG=$(latest_tag) || die "no tag to bump from: git describe found none reachable from HEAD.
+    Tag the commit first, or pass the version instead: $PROG --app-version ..."
+    validate_version "$TAG" || die "the most recent tag, $TAG, is not a semver version.
+    Pass the version instead: $PROG --app-version ..."
+    NEW_VERSION=$(bump_patch "$TAG")
+    note "Most recent tag: $TAG"
+    reason=$(check_version "$NEW_VERSION") || die "--update-from-tag gives $NEW_VERSION, from the tag $TAG, which is not usable.
 $reason"
 elif [ "$INTERACTIVE" -eq 1 ]; then
     note ""
     ask NEW_VERSION --app-version \
         "New version (semver, major.minor.patch, e.g. $(bump_patch "$CUR_VERSION"); current $CUR_VERSION): " \
         check_version
-else
+elif [ "$AUTO" -eq 1 ]; then
     NEW_VERSION=$(bump_patch "$CUR_VERSION")
+else
+    NEW_VERSION=$CUR_VERSION
 fi
 
 if [ -n "$OPT_BUILD" ]; then
@@ -414,24 +521,18 @@ else
     NEW_BUILD=$(( CUR_BUILD + 1 ))
 fi
 
-# Holding the version steady is allowed as long as the build moves; changing neither
-# would produce a release indistinguishable from the last one. The default bump moves
-# both, so this can only be reached through -a or -b.
-if [ "$(compare_version "$NEW_VERSION" "$CUR_VERSION")" -eq 0 ] && [ "$NEW_BUILD" = "$CUR_BUILD" ]; then
-    die "version and build are both unchanged — nothing to do."
-fi
-
 note ""
 note "  version  $CUR_VERSION -> $NEW_VERSION"
 note "  build    $CUR_BUILD -> $NEW_BUILD"
 note ""
 
-apply "$NEW_VERSION" "$NEW_BUILD"
+stage_all "$NEW_VERSION" "$NEW_BUILD"
 
 if [ "$DRY_RUN" -eq 1 ]; then
-    note "Test run: the edits above all applied cleanly, but nothing was written."
+    note "Dry run: every file rewrote cleanly, but nothing was written."
     exit 0
 fi
 
+commit_staged
 verify "$NEW_VERSION" "$NEW_BUILD"
 note "Updated Makefile, FyneApp.toml and cmd/tilewords/AndroidManifest.xml."

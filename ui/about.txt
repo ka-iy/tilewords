@@ -31,7 +31,7 @@ TILEWORDS IS NOT AFFILIATED WITH ANY OF THE ABOVE-MENTIONED PRODUCTS OR ENTITIES
 
 • Free and libre word lists: at the start of each game, choose from three openly-licensed dictionaries - ENABLE2K, the Wordnik word list, and the atebits "Words" (Letterpress) list. Full attribution is in the Lexicon.
 
-• Word definitions: the meaning of each word played is shown where a definition is available, drawn from Wiktionary, Webster's 1913, WordNet, and other libre / public-domain glossaries. Words with no definition are noted rather than silently skipped.
+• Word definitions: the meaning of each word played is shown, drawn from Wiktionary, Webster's 1913, WordNet, and other libre / public-domain glossaries. The UI shows "no definition found" for a word that lacks a definition.
 
 • Two game modes: Classic Mode uses the standard 15x15 premium-square layout and tile economy, while Interesting Mode uses an alternative pinwheel (4-fold rotational) layout with a different tile distribution and per-tile points. A preview shows each mode's board and tiles before you start.
 
@@ -93,8 +93,6 @@ DEFINITIONS
 • The Online Plain Text English Dictionary (OPTED) v0.03: by Ralph S. Sutherland, public domain, derived from the Project Gutenberg etext of Webster's Unabridged Dictionary (1913). https://www.mso.anu.edu.au/~ralph/OPTED/
 
 
-Definitions are shown for reference during play. Where more than one source defines a word, the Wiktionary sense is preferred; Webster's 1913, WordNet, and the glossaries fill gaps for archaic, dialectal, and tournament-lexicon words.
-
-While (almost) every effort has been made to fill the gaps in the definitions, gaps do remain; where a played word has no definition that could be found, such will be indicated in the "Definitions" tab on the game screen.
+Definitions are shown for reference during play. Where more than one source defines a word, the Wiktionary sense is preferred; Webster's 1913, WordNet, and the glossaries fill gaps for archaic, dialectal, and tournament-lexicon words. Should a played word ever lack a definition, that is shown in the "Definitions" tab rather than passed over in silence.
 
 
