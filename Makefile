@@ -179,8 +179,8 @@ KEY_ALIAS          ?= tilewords
 # present — so they are passed explicitly. Keep in sync with FyneApp.toml.
 APP_NAME    := TileWords
 APP_ID      := fyi.tilewords.game
-APP_VERSION := 0.1.2
-APP_BUILD   := 3
+APP_VERSION := 0.1.3
+APP_BUILD   := 4
 ICON        := $(CURDIR)/ui/Icon.png
 
 # ── Help ──────────────────────────────────────────────────────────────────────
