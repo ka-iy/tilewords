@@ -70,7 +70,8 @@ Run `make help` to see the list of available build targets.
 You should _make_ sure (heh heh) to install the pre-requisites before using the `Makefile`.
 
 The three word lists (`wordlists/*.txt`) are committed to the repository, so a from-scratch
-build is: install the [prerequisites](#prerequisites), then run `make`.
+build is: install the [prerequisites](#prerequisites), `make install-fyne-cli` for the
+patched fyne CLI every target drives, then run `make`.
 
 The definitions asset (`defs/assets/definitions/definitions.bin.gz`) is **not** committed —
 F-Droid does not accept a prebuilt binary asset in a source tree — so every build target
@@ -85,37 +86,35 @@ build at copies of the sources you already have.
 
 - **Go 1.25 or newer** (see `go.mod`). If your distribution ships an older Go, install a current release from <https://go.dev/dl/>.
 - A **C toolchain** and **OpenGL / X11 development headers** (required by Fyne).
-- The **fyne CLI**, which every build target in the Makefile drives:
+- The **fyne CLI**, which every build target in the Makefile drives. It must be the
+  **forked and patched** build from the `honor-user-ldflags` branch of
+  <https://github.com/ka-iy/fyne-tools>, **not** the upstream `fyne.io/tools` one — every
+  target here needs it, desktop and Android alike. One target installs it:
 
   ```bash
-  go install fyne.io/tools/cmd/fyne@latest
+  make install-fyne-cli
   ```
 
-- **For Android builds, a patched fyne CLI in place of the upstream one.** Before compiling
-  for Android, install the `honor-user-ldflags` branch of the patched tools:
+  That clones the fork into a temporary directory, switches to the branch, runs
+  `go install ./cmd/fyne`, and throws the clone away — so there is no checkout to keep
+  up to date. It prints where the binary landed (`go env GOBIN`, or `$(go env GOPATH)/bin`
+  when `GOBIN` is unset), and warns if that directory is not on your `PATH`, which it must
+  be for the build targets to find it.
 
-  ```bash
-  git clone https://github.com/ka-iy/fyne-tools.git
-  cd fyne-tools
-  git switch honor-user-ldflags
-  go install ./cmd/fyne
-  ```
+  The fork fixes a few things this build needs that upstream does not do:
 
-  It fixes a few things the Android build needs that upstream does not do:
+  - it honours the linker flags the Makefile passes through `GOFLAGS` on **every** target —
+    Linux, Windows and Android — which is what stamps the version, build type and build
+    timestamp into the artifact; built with the upstream CLI, every artifact reports the
+    `buildinfo` defaults instead;
+  - for Android it signs debug APKs with the v1/v2/v3 schemes that `targetSdk` 30 and newer
+    require, and emits the `<apk>.idsig` (v4) sidecar that lets `adb install` take the
+    incremental path.
 
-  - it honours the linker flags the build passes, which is what stamps the version and
-    build metadata into the APK;
-  - it signs debug APKs with the v1/v2/v3 schemes that `targetSdk` 30 and newer require,
-    and emits the `<apk>.idsig` (v4) sidecar that lets `adb install` take the incremental
-    path.
-
-  Install it **after** anything that runs `go install fyne.io/tools/cmd/fyne@latest` —
-  including `make install-mobile-tools` — because both write the same `fyne` binary and the
-  last one installed wins.
-
-- The directory `go install` writes to must be on your `PATH`, or none of the CLIs above
-  will be found. That is `go env GOBIN`, or `$(go env GOPATH)/bin` when `GOBIN` is unset;
-  confirm with `which fyne`.
+  **If you ever install upstream's CLI** — `go install fyne.io/tools/cmd/fyne@latest`, or
+  anything that runs it for you — it overwrites the patched one, because both write the same
+  `fyne` binary and the last one installed wins. Run `make install-fyne-cli` again to put the
+  patched CLI back.
 
 - `make`, `git`, `curl`, `gzip`, and `tar`.
 
@@ -318,14 +317,13 @@ Android builds need the Android SDK and NDK. Install the build CLIs and point th
 environment at your SDK/NDK:
 
 ```bash
-make install-mobile-tools     # install the fyne + gomobile CLIs
+make install-mobile-tools     # installs the patched fyne CLI + gomobile
 # then set ANDROID_HOME and ANDROID_NDK_HOME to your SDK/NDK locations
 ```
 
-That target installs the **upstream** fyne CLI, so reinstall the patched one over it
-afterwards (see [Prerequisites](#prerequisites)). Built with the upstream CLI, an APK
-carries none of the injected version metadata and is not signed with the v1/v2/v3 schemes
-`targetSdk` 30 and newer require.
+That target includes `install-fyne-cli`, so it installs the patched fyne CLI (see
+[Prerequisites](#prerequisites)) rather than replacing it with upstream's; gomobile is
+upstream's own.
 
 **Debug APK** (self-signed with a throwaway debug key, for local testing):
 

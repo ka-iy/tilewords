@@ -9,7 +9,10 @@
 # asset automatically) and register <name> in dictionary.AllDictNames so the game
 # offers it in the new-game setup menu.
 #
-# First-time mobile setup:
+# First-time setup: every target here drives a patched fyne CLI, installed with
+#   make install-fyne-cli
+#
+# First-time mobile setup (installs the patched fyne CLI too):
 #   make install-mobile-tools     # then set ANDROID_HOME and ANDROID_NDK_HOME
 
 .PHONY: linux linux-release test vet vet32 clean clean-all-the-things clean-defs-sources \
@@ -22,7 +25,7 @@
         android-release-armeabi-v7a android-release-universal \
         android-release-apk android-release-apk-arm64-v8a android-release-apk-x86_64 \
         android-release-apk-armeabi-v7a android-release-apk-universal \
-        install-mobile-tools install-desktop
+        install-fyne-cli install-mobile-tools install-desktop
 
 .DEFAULT_GOAL := linux
 
@@ -795,16 +798,46 @@ clean-all-the-things: clean clean-defs-sources ## Remove the above PLUS every ge
 	@echo '>>   of it. A source you supplied yourself (an overridden KAIKKI_EXTRACT,'
 	@echo '>>   WEBSTER_JSON or WORDNET_DICT) has been left alone and is reused as-is.'
 
+# ── Tooling ───────────────────────────────────────────────────────────────────
+##@ Tooling
+
+# Every target in this Makefile drives a PATCHED fyne CLI, not the upstream fyne.io/tools
+# one. The patch forwards the GOFLAGS linker flags to the compiler on every platform, which
+# is what embeds the build-info metadata (version, build type, timestamp), and for Android it
+# targets SDK 36 and adds v2/v3/v4 signing + zipalign. Installing upstream's fyne at any
+# point replaces it — both write the same 'fyne' binary — so re-run install-fyne-cli after
+# anything that does (a bare 'go install fyne.io/tools/cmd/fyne@latest' among them).
+
+# FYNE_TOOLS_REPO and FYNE_TOOLS_BRANCH are overridable so a mirror, a fork, or a different
+# patch branch can be installed without editing this file.
+FYNE_TOOLS_REPO   ?= https://github.com/ka-iy/fyne-tools.git
+FYNE_TOOLS_BRANCH ?= honor-user-ldflags
+
+# install-fyne-cli clones into a fresh temporary directory and removes it afterwards, on
+# failure included: nothing is left to go stale between runs, and a clone of the fork that
+# the user keeps and edits is never touched. What persists is the 'go install' output, which
+# lands in GOBIN (or GOPATH/bin when GOBIN is unset) — that directory must be on PATH for the
+# build targets to find it, so the recipe reports where the binary went and says so when it
+# is not reachable.
+install-fyne-cli: ## Install the patched fyne CLI (needed by every build target)
+	@set -e; \
+	tmp=$$(mktemp -d); \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	echo ">> cloning $(FYNE_TOOLS_REPO) ($(FYNE_TOOLS_BRANCH))"; \
+	git clone "$(FYNE_TOOLS_REPO)" "$$tmp/fyne-tools"; \
+	cd "$$tmp/fyne-tools"; \
+	git switch "$(FYNE_TOOLS_BRANCH)"; \
+	go install ./cmd/fyne; \
+	bindir=$$(go env GOBIN); [ -n "$$bindir" ] || bindir=$$(go env GOPATH)/bin; \
+	echo ">> installed the patched fyne CLI to $$bindir"; \
+	command -v fyne >/dev/null 2>&1 || echo ">> WARNING: no 'fyne' on PATH — add $$bindir to it"
+
 # ── Mobile tooling ────────────────────────────────────────────────────────────
 ##@ Mobile tooling
 
-# NOTE: TileWords's Android build needs a PATCHED fyne CLI (targets SDK 36, adds v2/v3/v4
-# signing + zipalign, and forwards the GOFLAGS linker flags to the gomobile build so the
-# build-info metadata is embedded). Install it from the fork instead of the upstream line
-# below, e.g.
-#   (cd ~/FYNE-SOURCE/tools && go install ./cmd/fyne)
-install-mobile-tools: ## Install the fyne + gomobile CLIs for mobile builds
-	go install fyne.io/tools/cmd/fyne@latest
+# The patched fyne CLI comes from install-fyne-cli, which this depends on; gomobile is
+# upstream's and is installed here.
+install-mobile-tools: install-fyne-cli ## Install the patched fyne + gomobile CLIs for mobile builds
 	go install golang.org/x/mobile/cmd/gomobile@latest
 	ANDROID_HOME=$(ANDROID_HOME) ANDROID_NDK_HOME=$(ANDROID_NDK_HOME) gomobile init
 
@@ -812,7 +845,7 @@ install-mobile-tools: ## Install the fyne + gomobile CLIs for mobile builds
 #
 # Prerequisites:
 #   • Android SDK platform-tools + NDK installed; ANDROID_HOME / ANDROID_NDK_HOME set.
-#   • The (patched) fyne CLI and gomobile in PATH (see install-mobile-tools).
+#   • The patched fyne CLI and gomobile in PATH (see install-fyne-cli / install-mobile-tools).
 #
 # 'fyne package' has no -o flag, so each build runs from $(CMD) and writes $(APP_NAME).apk
 # there; we move it into place, labelled by ABI. App metadata is passed explicitly because
