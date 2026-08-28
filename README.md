@@ -165,7 +165,7 @@ recorded in [`defs/assets/definitions/SOURCES.md`](defs/assets/definitions/SOURC
 - **Webster's Revised Unabridged Dictionary, 1913** (public domain) - archaic and
   technical headwords Wiktionary does not define.
 - **Princeton WordNet 3.1** (WordNet licence) - headwords neither source above covers.
-- **The committed glossary**, `defs/supplemental-glossary.tsv` - 8,796 entries that
+- **The committed glossary**, `defs/supplemental-glossary.tsv` - 8,889 entries that
   close the rest of the gap. It is committed as plain reviewable text, rather than being
   scraped at build time, so every gloss the game ships can be read and corrected. Most of
   it is the obscure tournament vocabulary the three sources above simply do not carry; the

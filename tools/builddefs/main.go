@@ -127,6 +127,9 @@ func printReport(r *defs.Report, outPath string) {
 	fmt.Printf("\n  senses that only point at another word : %d\n", r.RedirectSenses)
 	fmt.Printf("    extra headwords kept to join them on: %d\n", r.RedirectTargets)
 	fmt.Printf("  initialism senses dropped             : %d\n", r.DroppedInitialisms)
+	fmt.Printf("  abbreviation senses dropped           : %d\n", r.DroppedAbbreviations)
+	fmt.Printf("  letter-case senses dropped            : %d\n", r.DroppedLetterCase)
+	fmt.Printf("  pointers nothing can answer removed   : %d\n", r.OrphanedRedirects)
 
 	fmt.Printf("\n  base asset: %d headwords, %d inflection edges -> %s\n",
 		r.ShippedHeadwords, r.ShippedForms, outPath)

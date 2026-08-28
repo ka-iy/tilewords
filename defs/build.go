@@ -75,6 +75,14 @@ type Report struct {
 	RedirectSenses int
 	// DroppedInitialisms is the number of senses discarded as initialism definitions.
 	DroppedInitialisms int
+	// DroppedAbbreviations is the number of senses discarded as abbreviation definitions.
+	DroppedAbbreviations int
+	// DroppedLetterCase is the number of senses discarded as letter-case pointers.
+	DroppedLetterCase int
+	// OrphanedRedirects is the number of senses discarded as pointers nothing could
+	// answer: at the pointing word itself, at a word the drops above emptied, or at a word
+	// this parse does not define at all. See pruneUnansweredRedirects.
+	OrphanedRedirects int
 	// RedirectTargets is the number of extra headwords retained because a retained
 	// headword points at them; see the closure in BuildFilteredDB.
 	RedirectTargets int
@@ -188,6 +196,12 @@ type rawExtract struct {
 	// initialisms counts the senses dropped as initialism definitions, which is
 	// reported rather than left silent.
 	initialisms int
+	// abbreviations counts the senses dropped as abbreviation definitions, reported
+	// alongside initialisms for the same reason.
+	abbreviations int
+	// letterCase counts the senses dropped as letter-case pointers, reported for the
+	// same reason again.
+	letterCase int
 }
 
 // senseAccum gathers a word's senses across its several Wiktionary entries (one per
@@ -208,6 +222,12 @@ type senseStats struct {
 	redirects int
 	// initialisms is the number of senses dropped as initialism definitions.
 	initialisms int
+	// abbreviations is the number of senses dropped as abbreviation definitions.
+	abbreviations int
+	// letterCase is the number of senses dropped as letter-case pointers.
+	letterCase int
+	// orphans is the number of senses dropped as pointers nothing could answer.
+	orphans int
 }
 
 // properNounPOS is the part of speech Wiktionary gives proper nouns. Their senses
@@ -215,16 +235,19 @@ type senseStats struct {
 // lowercase game word, so entries with this part of speech are dropped.
 const properNounPOS = "name"
 
-// lowValueGlossPrefixes flag senses that define a word only as an abbreviation or
-// symbol of another term. Such senses are kept but ranked below ordinary ones, so a
-// common meaning (e.g. "za" as pizza) is shown ahead of an abbreviation.
+// lowValueGlossPrefixes flag senses that define a word only as a shortening or symbol of
+// another term. Such senses are kept but ranked below ordinary ones, so a common meaning
+// (e.g. "za" as pizza) is shown ahead of a shortening.
 //
 // Most senses of this shape never reach the ranking, because they are redirects and the
 // word they name supplies the definition instead. What is left here is the remainder
-// whose term is not a single word the DB can be keyed by — "Abbreviation of
-// air-conditioned" — for which the gloss is the only thing there is to show.
+// whose term is not a single word the DB can be keyed by — "Ellipsis of keto diet" — for
+// which the gloss is the only thing there is to show.
+//
+// An abbreviation is deliberately absent: such a sense is dropped outright rather than
+// ranked, see IsAbbreviationGloss.
 var lowValueGlossPrefixes = []string{
-	"abbreviation of", "symbol for",
+	"symbol for",
 	"clipping of", "contraction of", "short for", "ellipsis of",
 }
 
@@ -263,10 +286,13 @@ func BuildFilteredDB(kaikkiPath string, lists []WordList) (*DB, *Report, error) 
 	full := NewDB(entries, formOf)
 
 	report := &Report{
-		FullHeadwords:      len(entries),
-		FullForms:          len(formOf),
-		RedirectSenses:     stats.redirects,
-		DroppedInitialisms: stats.initialisms,
+		FullHeadwords:        len(entries),
+		FullForms:            len(formOf),
+		RedirectSenses:       stats.redirects,
+		DroppedInitialisms:   stats.initialisms,
+		DroppedAbbreviations: stats.abbreviations,
+		DroppedLetterCase:    stats.letterCase,
+		OrphanedRedirects:    stats.orphans,
 	}
 	keep := make(map[string]struct{}) // headwords any list word resolves to
 
@@ -472,6 +498,8 @@ func parseExtract(path string, needed map[string]struct{}) (map[string]*Entry, m
 		edges = append(edges, ex.edges...)
 		stats.redirects += ex.redirects
 		stats.initialisms += ex.initialisms
+		stats.abbreviations += ex.abbreviations
+		stats.letterCase += ex.letterCase
 	}
 
 	entries := make(map[string]*Entry, len(acc))
@@ -489,8 +517,79 @@ func parseExtract(path string, needed map[string]struct{}) (map[string]*Entry, m
 		entries[word] = &Entry{Word: word, Senses: senses}
 	}
 
+	// Words the sense rules emptied: every sense the extract gave them was an initialism,
+	// an abbreviation or a letter-case pointer. The parse defines nothing for them, and
+	// they are tracked apart from the words it never carried because a pointer at either
+	// is equally unanswerable.
+	emptied := make(map[string]struct{})
+	for _, ex := range all {
+		if ex.initialisms+ex.abbreviations+ex.letterCase > 0 {
+			emptied[ex.word] = struct{}{}
+		}
+	}
+	for word := range entries {
+		delete(emptied, word)
+	}
+
+	// The prune needs the inflection edges, because a pointer at an inflected form is
+	// answered through the edge to its lemma, so it runs after they are resolved. An edge
+	// the prune then leaves pointing at a removed entry is dropped by NewDB, which keeps
+	// only the edges whose lemma is a headword.
 	formOf := resolveEdges(edges, entries)
+	stats.orphans = pruneUnansweredRedirects(entries, formOf, emptied)
+
 	return entries, formOf, stats, nil
+}
+
+// pruneUnansweredRedirects drops every sense that points where nothing can answer it, and
+// the entries that leaves with no senses at all. It returns how many senses it dropped, and
+// adds each entry it removes to emptied, which is why it repeats until a pass changes
+// nothing: removing one entry can leave a pointer at that entry unanswered in turn.
+//
+// A redirect is only worth keeping because DB.Lookup joins the pointed-at definition onto
+// it. One nothing can answer would tell a player that the word they formed is a second
+// word, and stop there. Dropping it leaves the word to the supplemental glossary, which can
+// define it properly.
+//
+// A pointer is answered when the word it names has a definition here, either as a headword
+// or as an inflected form of one — the same two layers DB.headwordOf allows at lookup. It
+// is unanswered when the word names the entry it sits in, when the sense rules emptied that
+// word, or when neither map holds it at all.
+func pruneUnansweredRedirects(entries map[string]*Entry, formOf map[string]Inflection, emptied map[string]struct{}) int {
+	// answered reports whether the DB can reach a definition for the word a pointer names.
+	answered := func(target string) bool {
+		if _, ok := emptied[target]; ok {
+			return false
+		}
+		if entries[target] != nil {
+			return true
+		}
+		inf, isForm := formOf[target]
+		return isForm && entries[inf.Lemma] != nil
+	}
+
+	dropped := 0
+	for changed := true; changed; {
+		changed = false
+		for word, e := range entries {
+			kept := e.Senses[:0]
+			for _, s := range e.Senses {
+				if target, isRedirect := redirectTarget(s.Gloss); isRedirect &&
+					(target == word || !answered(target)) {
+					dropped++
+					changed = true
+					continue
+				}
+				kept = append(kept, s)
+			}
+			e.Senses = kept
+			if len(kept) == 0 {
+				delete(entries, word)
+				emptied[word] = struct{}{}
+			}
+		}
+	}
+	return dropped
 }
 
 // appendCapped appends items from src to dst, stopping once dst reaches limit.
@@ -555,6 +654,19 @@ func extractLine(line []byte, needed map[string]struct{}) (rawExtract, bool) {
 				ex.initialisms++
 				continue
 			}
+			// An abbreviation gloss is dropped for the same reason, and likewise before
+			// the redirect test: "Abbreviation of postgraduate" would otherwise be kept
+			// as a pointer and answer the word with the term it stands for.
+			if IsAbbreviationGloss(clean) {
+				ex.abbreviations++
+				continue
+			}
+			// And a letter-case pointer, which names the played word itself under another
+			// capitalisation and so can never be joined to anything.
+			if IsLetterCaseGloss(clean) {
+				ex.letterCase++
+				continue
+			}
 			sense := Sense{POS: ke.Pos, Gloss: clean}
 			// A sense that only points at another word is ranked with the low-value
 			// ones however Wiktionary phrased it: on its own it says nothing about the
@@ -583,7 +695,7 @@ func extractLine(line []byte, needed map[string]struct{}) (rawExtract, bool) {
 	}
 
 	if len(ex.primary) == 0 && len(ex.secondary) == 0 && len(ex.edges) == 0 &&
-		ex.initialisms == 0 {
+		ex.initialisms == 0 && ex.abbreviations == 0 && ex.letterCase == 0 {
 		return rawExtract{}, false
 	}
 	return ex, true

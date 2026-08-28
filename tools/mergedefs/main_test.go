@@ -222,6 +222,51 @@ func TestLoadGlossaryRejectsMissingTab(t *testing.T) {
 	}
 }
 
+// TestDropNonDefiningSenses covers the rules the supplements share with the primary parse:
+// a gloss that only names the longer term a word abbreviates, or the same word under another
+// capitalisation, is no definition of the word, so it goes — and a headword left with nothing
+// goes with it, freeing the word for a later source or a curated gloss.
+func TestDropNonDefiningSenses(t *testing.T) {
+	entries := map[string]*defs.Entry{
+		"psi": {Word: "psi", Senses: []defs.Sense{
+			{Gloss: "Abbreviation of pounds per square inch."},
+		}},
+		"elint": {Word: "elint", Senses: []defs.Sense{
+			{Gloss: "Alternative letter-case form of ELINT."},
+		}},
+		"initials": {Word: "initials", Senses: []defs.Sense{
+			{Gloss: "An abbreviation of a person's name."},
+			{Gloss: "The first letters of a person's names."},
+		}},
+		"cauld": {Word: "cauld", Senses: []defs.Sense{{Gloss: "Cold"}}},
+	}
+	srcOf := map[string]string{
+		"psi": "webster1913", "elint": "webster1913",
+		"initials": "webster1913", "cauld": "scots",
+	}
+
+	senses, headwords := dropNonDefiningSenses(entries, srcOf)
+	if senses != 3 || headwords != 2 {
+		t.Errorf("dropNonDefiningSenses = (%d,%d); want (3,2)", senses, headwords)
+	}
+	if _, ok := entries["elint"]; ok {
+		t.Error("elint: a letter-case pointer is no definition; the headword must be deleted")
+	}
+	if _, ok := entries["psi"]; ok {
+		t.Error("psi: a headword left with no sense must be deleted, not kept empty")
+	}
+	if _, ok := srcOf["psi"]; ok {
+		t.Error("psi: the source label must go with the deleted headword")
+	}
+	e := entries["initials"]
+	if e == nil || len(e.Senses) != 1 || e.Senses[0].Gloss != "The first letters of a person's names." {
+		t.Errorf("initials = %+v; want only the sense without the marker", e)
+	}
+	if e := entries["cauld"]; e == nil || len(e.Senses) != 1 {
+		t.Errorf("cauld = %+v; want it untouched", e)
+	}
+}
+
 // entry is a one-sense definition for a headword, for building test DBs.
 func entry(word, gloss string) *defs.Entry {
 	return &defs.Entry{Word: word, Senses: []defs.Sense{{POS: "noun", Gloss: gloss}}}

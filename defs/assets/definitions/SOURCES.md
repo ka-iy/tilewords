@@ -85,6 +85,20 @@ requirement of the respective sources.
       each gloss states the meaning in its own words. Where a gloss is a bare synonym that
       cannot be reworded without changing the sense (`a wasp`, `(Scots) bright`), the plain
       wording stands, being a statement of fact rather than anyone's expression.
+    - **Abbreviation replacement** (`# --- abbreviation-replacement ---`) — glosses for the
+      words whose only definition in the sources above named the longer term they are a
+      written short form of (`postgrad`, `parsec`, `trimpot`). Such a sense says nothing
+      about the word a player formed, so the build drops it (see the abbreviation rule
+      below); these glosses say what each word means instead. Researched and written the
+      same way as the section above, and to the same rule: no source's wording is
+      reproduced.
+    - **Pointer replacement** (`# --- pointer-replacement ---`) — glosses for the words
+      whose only definition in the sources above pointed at another word instead of saying
+      anything: the same word under a different capitalisation (`elint`, `vegemite`), or a
+      word nothing here defines (`calesa`, `tolidin`, `wordsmithery`). Written the same
+      way, to the same rule. Where the pointer named a spelling worth keeping, the gloss
+      carries it as the `; also SPELLING` tail the sections above use, so the relation the
+      pointer stated is not lost with it.
 
 ## Words no source defines
 
@@ -107,6 +121,32 @@ that file and given a gloss in `supplemental-glossary.tsv` instead.
   regular inflected forms of those added headwords.
 - Webster's 1913 takes precedence over WordNet where both define a word (its
   public-domain gloss is preferred).
+- A sense that says nothing about the word it is filed under is dropped from every
+  source, rather than kept or followed to the word it names. Three shapes qualify:
+  - An initialism ("Initialism of counselor-in-training"), and any gloss carrying the
+    phrase "abbreviation of" ("Abbreviation of postgraduate", "Syllabic abbreviation of
+    parallax second"). Neither says what the word a player formed means, and an
+    abbreviation is not itself a play.
+  - A letter-case pointer ("Alternative letter-case form of ELINT"). The asset is keyed by
+    lowercase words, so the word such a gloss names is always the played word itself.
+  - A pointer nothing can answer: at the pointing word itself, at a word the rules above
+    emptied, or at a word no source here defines. All it would do is name a second word
+    with no meaning behind it. Removing one can leave a pointer at it unanswered in turn,
+    so the pass repeats until nothing more changes.
+  A word left with no other sense is defined by the glossary instead, which is what the
+  `abbreviation-replacement` and `pointer-replacement` sections above are.
+- A pointer that is kept is answered at lookup time by joining on the definition of the
+  word it names, which may be a headword or an inflected form the extract records
+  ("Alternative spelling of estivated" reaches "estivate"). It is resolved no further
+  than that: the de-inflection and orthographic-variant layers are rules this project
+  derives, and a pointer names one specific word, so joining what a rule guessed from
+  that name would present a meaning no source stated.
+- Which of the named word's senses is joined depends on the part of speech the pointer is
+  written in. Its own is used when the word has one, and the primary sense as well when no
+  other pointer in the same entry is already showing it, each then labelled with its part
+  of speech. Adding a sense cannot make the answer wrong, whereas replacing one can: the
+  part of speech on a pointer is an artifact of which of the target's entries Wiktionary
+  wrote it in, so preferring it demotes the primary sense as often as it improves on it.
 
 ## Regenerating the asset
 

@@ -342,50 +342,158 @@ func (db *DB) joinRedirects(e *Entry) {
 	if e == nil {
 		return
 	}
+	// Every pointer is read before any gloss is rewritten. A joined gloss no longer reads
+	// as a pointer, so a single pass could not see the senses it had already done, and the
+	// repetition test below asks exactly that of them.
+	var targets []string
+	var answers []int
 	for i, s := range e.Senses {
 		target, ok := redirectTarget(s.Gloss)
 		if !ok {
 			continue
 		}
-		if def, ok := db.redirectDefinition(e.Word, target); ok {
-			e.Senses[i].Gloss = joinRedirect(s.Gloss, def)
+		ti, ok := db.redirectEntry(e.Word, target)
+		if !ok {
+			continue
 		}
+		if targets == nil {
+			targets = make([]string, len(e.Senses))
+			answers = make([]int, len(e.Senses))
+		}
+		targets[i], answers[i] = target, ti
+	}
+	if targets == nil {
+		return
+	}
+
+	for i, s := range e.Senses {
+		if targets[i] == "" {
+			continue
+		}
+		// A word that points at another in two parts of speech gets one sense per part of
+		// speech, each naming the same word. Whichever of them carries the target's primary
+		// part of speech shows the primary gloss, so the others need not repeat it — that
+		// is what keeps "anaemic" from printing the adjective definition twice.
+		primaryPOS := db.posTable[db.sensePOS[db.senseOff[answers[i]]]]
+		repeated := s.POS != primaryPOS && pointerCovers(e.Senses, targets, targets[i], primaryPOS)
+		e.Senses[i].Gloss = joinRedirect(s.Gloss, db.definitionFor(answers[i], s.POS, repeated))
 	}
 }
 
-// redirectDefinition returns the definition a redirect from word to target should be
-// joined to: the first gloss of the first headword reachable from target that defines
-// something of its own instead of pointing on again. Pointing at a pointer is ordinary —
-// one variant spelling of another — so the chain is followed rather than stopping at the
-// first hop, which would answer with a second pointer instead of a definition.
+// redirectEntry returns the index of the headword a redirect from word to target should be
+// answered by: the first headword reachable from target that defines something of its own
+// instead of pointing on again. Pointing at a pointer is ordinary — one variant spelling of
+// another — so the chain is followed rather than stopping at the first hop, which would
+// answer with a second pointer instead of a definition.
 //
-// It reports false when the chain reaches no definition: target is word itself, a word
-// along it is not in the DB, it revisits a word it has already been through, or it
-// outruns maxRedirectHops.
-func (db *DB) redirectDefinition(word, target string) (string, bool) {
-	seen := make([]string, 0, maxRedirectHops)
+// Each hop is resolved by headwordOf, so a pointer at an inflected form is answered by
+// the lemma's definition: "Alternative spelling of estivated" reaches "estivate". The
+// words the extract phrases these pointers with are ordinary English, and it names an
+// inflected one about as readily as a lemma.
+//
+// The words already visited are tracked as the HEADWORDS they resolved to, not as the
+// spellings the glosses named, so two forms of one lemma cannot be walked as two hops.
+//
+// It reports false when the chain reaches no definition: target resolves back to word
+// itself, a word along it is neither a headword nor a recorded form, it revisits a
+// headword it has already been through, or it outruns maxRedirectHops.
+func (db *DB) redirectEntry(word, target string) (int, bool) {
+	seen := make([]string, 0, maxRedirectHops+1)
 	seen = append(seen, word)
 	cur := target
 	for hop := 0; hop <= maxRedirectHops; hop++ {
-		if slices.Contains(seen, cur) {
-			return "", false
-		}
-		i, ok := db.findHead(cur)
+		i, ok := db.headwordOf(cur)
 		if !ok {
-			return "", false
+			return 0, false
 		}
+		headword := string(db.headAt(i))
+		if slices.Contains(seen, headword) {
+			return 0, false
+		}
+		seen = append(seen, headword)
 		gloss := db.firstGloss(i)
 		if gloss == "" {
-			return "", false
+			return 0, false
 		}
 		next, isRedirect := redirectTarget(gloss)
 		if !isRedirect {
-			return gloss, true
+			return i, true
 		}
-		seen = append(seen, cur)
 		cur = next
 	}
-	return "", false
+	return 0, false
+}
+
+// pointerCovers reports whether one of the senses points at target in the pos part of
+// speech. Such a sense is answered with target's primary gloss, so a sense of another part
+// of speech naming the same word need not carry that gloss as well.
+//
+// targets holds each sense's pointer target, "" for a sense that is not a pointer or that
+// nothing answers, gathered before any gloss was rewritten.
+func pointerCovers(senses []Sense, targets []string, target, pos string) bool {
+	for j, t := range targets {
+		if t == target && senses[j].POS == pos {
+			return true
+		}
+	}
+	return false
+}
+
+// definitionFor renders headword i's definition for a pointer written in the pos part of
+// speech. It gives the headword's primary sense, and, when that sense is of another part of
+// speech and the headword also has one of pos, that sense as well, each labelled with its
+// own part of speech so the two cannot be read as one. Set primaryShownElsewhere when
+// another sense of the pointing entry already carries the primary gloss, and only the sense
+// of pos is rendered.
+//
+// Showing both rather than choosing is deliberate. Which sense answers a pointer better
+// cannot be decided from the parts of speech: the one on the pointing sense is an artifact
+// of which of the target's entries Wiktionary happened to write the pointer in, so
+// preferring it demotes the primary sense as often as it improves on it ("anaemic" is
+// chiefly the adjective and "ameboid" chiefly the noun, and each pointer is written in the
+// other's entry). Adding a sense cannot make the answer wrong; replacing one can. The
+// exception is the case primaryShownElsewhere names, where nothing is lost by leaving the
+// primary to the sense that is already showing it.
+func (db *DB) definitionFor(i int, pos string, primaryShownElsewhere bool) string {
+	lo, hi := db.senseOff[i], db.senseOff[i+1]
+	primary := string(db.glossBlob[db.glossOff[lo]:db.glossOff[lo+1]])
+	primaryPOS := db.posTable[db.sensePOS[lo]]
+	if pos == "" || primaryPOS == "" || primaryPOS == pos {
+		return primary
+	}
+	for j := lo + 1; j < hi; j++ {
+		if db.posTable[db.sensePOS[j]] != pos {
+			continue
+		}
+		alt := string(db.glossBlob[db.glossOff[j]:db.glossOff[j+1]])
+		if primaryShownElsewhere {
+			return alt
+		}
+		// The primary sense keeps its own wording; only a full stop it would run into the
+		// next label with comes off, the way joinRedirect trims the pointer's.
+		return "(" + primaryPOS + ") " + strings.TrimRight(primary, ".") + "; (" + pos + ") " + alt
+	}
+	return primary
+}
+
+// headwordOf returns the index of the headword that answers word: word itself when it is
+// a headword, otherwise the lemma of the inflection edge the extract recorded for it.
+//
+// It is as far as a redirect target is resolved, and stopping there is deliberate. The
+// stem and orthographic-variant layers Lookup goes on to try are rewrites this package
+// derives from a rule rather than relationships the extract recorded, and they are allowed
+// only because a wrong answer there is still an answer to the word a player typed. A
+// redirect is different: the gloss names one specific other word, so joining a definition
+// that a rule guessed from that name would put a meaning nobody recorded in front of the
+// player as though the extract had stated it.
+func (db *DB) headwordOf(word string) (int, bool) {
+	if i, ok := db.findHead(word); ok {
+		return i, true
+	}
+	if li, _, ok := db.lemmaOf(word); ok {
+		return li, true
+	}
+	return 0, false
 }
 
 // firstGloss returns headword i's first gloss, or "" when it has no senses. It is the one

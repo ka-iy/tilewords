@@ -124,11 +124,23 @@ func run() error {
 	supEntries := make(map[string]*defs.Entry)
 	srcOf := make(map[string]string)
 
+	// dropNonDefining applies the sense rules to everything loaded so far, tallying what
+	// they removed. They run after EACH source rather than once at the end, so that a
+	// headword one source only points elsewhere for is left free for the next source to
+	// define: an entry deleted here no longer stands in the way of the source below it.
+	var droppedSenses, droppedWords int
+	dropNonDefining := func() {
+		senses, headwords := dropNonDefiningSenses(supEntries, srcOf)
+		droppedSenses += senses
+		droppedWords += headwords
+	}
+
 	if *websterFlag != "" {
 		n, err := loadWebster(*websterFlag, supEntries, srcOf)
 		if err != nil {
 			return err
 		}
+		dropNonDefining()
 		fmt.Fprintf(os.Stderr, "webster: %d headwords loaded\n", n)
 	}
 	if *wordnetFlag != "" {
@@ -136,6 +148,7 @@ func run() error {
 		if err != nil {
 			return err
 		}
+		dropNonDefining()
 		fmt.Fprintf(os.Stderr, "wordnet: %d new headwords loaded\n", n)
 	}
 	for _, spec := range glossaries {
@@ -144,7 +157,12 @@ func run() error {
 		if err != nil {
 			return err
 		}
+		dropNonDefining()
 		fmt.Fprintf(os.Stderr, "%s: %d new headwords loaded\n", label, n)
+	}
+	if droppedSenses > 0 {
+		fmt.Fprintf(os.Stderr, "non-defining senses dropped: %d, leaving %d headwords with none\n",
+			droppedSenses, droppedWords)
 	}
 
 	// supDB reuses the game's layered Lookup to resolve a missing word to a
@@ -359,6 +377,39 @@ func measureCoverage(db *defs.DB, lists []namedList) assetCoverage {
 	cov.UniqueTotal = len(seen)
 	cov.UniqueCovered = len(covered)
 	return cov
+}
+
+// dropNonDefiningSenses removes every sense that says nothing about the word it is filed
+// under — one that names the longer term the word abbreviates, and one that names the same
+// word under a different capitalisation — and deletes the headwords that leaves with no
+// senses at all. It reports how many senses went and how many headwords went with them.
+//
+// Neither shape is a definition of the word a player formed — see defs.IsAbbreviationGloss
+// and defs.IsLetterCaseGloss — and the rules have to hold whichever source a gloss came
+// from, so they are applied to the supplements here as builddefs applies them to the
+// Wiktionary parse. A word left with nothing stays missing, to be defined by a later source
+// or by a curated gloss rather than by another word.
+//
+// The headword counts each loader reports are taken before this runs, so they describe
+// what the source carries; the drop is reported separately.
+func dropNonDefiningSenses(entries map[string]*defs.Entry, srcOf map[string]string) (senses, headwords int) {
+	for word, e := range entries {
+		kept := e.Senses[:0]
+		for _, sense := range e.Senses {
+			if defs.IsAbbreviationGloss(sense.Gloss) || defs.IsLetterCaseGloss(sense.Gloss) {
+				senses++
+				continue
+			}
+			kept = append(kept, sense)
+		}
+		e.Senses = kept
+		if len(kept) == 0 {
+			delete(entries, word)
+			delete(srcOf, word)
+			headwords++
+		}
+	}
+	return senses, headwords
 }
 
 // loadWebster reads a Webster's 1913 JSON ({"word": "definition"}) into entries,
