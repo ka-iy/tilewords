@@ -5,13 +5,13 @@ A free, fully open-source, fully offline Scrabble®-like crossword tile game, wr
 See the note at the very bottom for why I felt the need to make this. And yes, this was built using AI. The note explains that too.
 
 <p align="center">
-  <a href="SCREENSHOTS/gameboard-wide-movehist-normal.jpg"><img src="SCREENSHOTS/gameboard-wide-movehist-normal.jpg" width="22%" alt="Wide layout showing the move history panel" /></a>
+  <a href="screenshots/gameboard-wide-movehist-normal.jpg"><img src="screenshots/gameboard-wide-movehist-normal.jpg" width="22%" alt="Wide layout showing the move history panel" /></a>
   &emsp;&emsp;&emsp;
-  <a href="SCREENSHOTS/gameboard-wide-defs.jpg"><img src="SCREENSHOTS/gameboard-wide-defs.jpg" width="22%" alt="Wide layout showing the definitions panel" /></a>
+  <a href="screenshots/gameboard-wide-defs.jpg"><img src="screenshots/gameboard-wide-defs.jpg" width="22%" alt="Wide layout showing the definitions panel" /></a>
   &emsp;&emsp;&emsp;
-  <a href="SCREENSHOTS/gameboard-narrow-movehist-normal.jpg"><img src="SCREENSHOTS/gameboard-narrow-movehist-normal.jpg" width="10%" alt="Narrow phone layout showing the move history panel" /></a>
+  <a href="screenshots/gameboard-narrow-movehist-normal.jpg"><img src="screenshots/gameboard-narrow-movehist-normal.jpg" width="10%" alt="Narrow phone layout showing the move history panel" /></a>
   &emsp;&emsp;&emsp;
-  <a href="SCREENSHOTS/gameboard-narrow-defs.jpg"><img src="SCREENSHOTS/gameboard-narrow-defs.jpg" width="10%" alt="Narrow phone layout showing the definitions panel" /></a>
+  <a href="screenshots/gameboard-narrow-defs.jpg"><img src="screenshots/gameboard-narrow-defs.jpg" width="10%" alt="Narrow phone layout showing the definitions panel" /></a>
 </p>
 
 <p align="center"><em>Wide and narrow layouts, each with the move-history and definitions panels. Click any image for the full-size version.</em></p>
@@ -428,4 +428,4 @@ My takeaways thus far (as of August 2026):
 - AI-DLC is alright, but perhaps needs a bit more time to mature. Also, it is verbose as all hell, which is probably OK for Enterprise(tm) Development.
    - I think I'll follow the [BMAD](https://docs.bmad-method.org/) AI SLDC framework for future development especially since that lends itself well to collaborative efforts. I'll leave the `aidlc-docs-HISTORICAL` directory in the sources as a historical record of shenanigans perpetrated.
 
-I also had lots of fun getting the AI to write a [pseudoacademic "paper"](OPTIMIZING_THE_GADDAGS.md) - ( ͡° ͜ʖ ͡°) - on the optimization strategies used to reduce the size of the lexicon/glossary assets.
+I also had lots of fun getting the AI to write a [pseudoacademic "paper"](optimization.md) - ( ͡° ͜ʖ ͡°) - on the optimization strategies used to reduce the size of the lexicon/glossary assets.

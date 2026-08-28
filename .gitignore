@@ -57,8 +57,9 @@ Thumbs.db
 *.keystore
 *.jks
 
-# .claude dir - let users use their own customizations
+# .claude dir and CLAUDE.md - let users use their own customizations
 .claude
+CLAUDE.md
 
 # Gurgle Signing key verification f*ckery.
 # You'll need the file below if you're trying to register your own app from
