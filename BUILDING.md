@@ -93,7 +93,7 @@ make debug-all # The first build will take a while
 
 ### The in-excruciating-detail build instructions
 
-**Note:** To bump up the app version numbering for a release, see the [Bumping the version](#Bumping%20the%20version) section below.
+**Note:** To bump up the app version numbering for a release, see the [Versioning](#Versioning) section below.
 
 #### Fetch the word lists (Optional)
 
@@ -311,7 +311,7 @@ Each of those targets builds four artifacts: one per ABI, plus a universal one h
 every ABI in a single file. To produce only one, name it — `make android-release-arm64-v8a`
 for a single-ABI bundle, or `make android-release-universal` for the universal one alone.
 
-#### Bumping the version
+#### Versioning
 
 The version and build number live in three files, which have to agree:
 
